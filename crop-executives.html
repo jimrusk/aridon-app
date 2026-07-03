@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Aridon — Crop Executive Portraits</title>
+<style>
+  body { background:#0a0d16; color:#f5f7fb; font-family:system-ui,sans-serif; padding:24px; }
+  h1 { font-size:22px; margin-bottom:4px; }
+  p { color:#9ba8c6; font-size:14px; margin-bottom:20px; }
+  #dropzone { border:2px dashed #26314f; border-radius:16px; padding:40px; text-align:center; cursor:pointer; margin-bottom:24px; }
+  #dropzone:hover { border-color:#ff7a1a; }
+  #dropzone input { display:none; }
+  #preview img { max-width:100%; border-radius:12px; margin-bottom:16px; }
+  #results { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+  .exec-card { background:#121725; border:1px solid #26314f; border-radius:12px; padding:12px; text-align:center; }
+  .exec-card canvas { width:100%; border-radius:8px; display:block; }
+  .exec-card h3 { font-size:14px; margin:8px 0 4px; }
+  .exec-card p { font-size:11px; color:#ff7a1a; margin:0 0 8px; }
+  .exec-card a { display:inline-block; background:linear-gradient(135deg,#ff7a1a,#ffb45e); color:#111; font-weight:800; font-size:12px; padding:7px 14px; border-radius:8px; text-decoration:none; }
+  #status { color:#42d392; font-size:14px; margin-bottom:16px; }
+</style>
+</head>
+<body>
+<h1>Aridon — Crop Executive Portraits</h1>
+<p>Open the composite portrait image and this tool will cut all 7 executives automatically. Download each one, then save it to <code>public/executives/</code>.</p>
+
+<div id="dropzone" onclick="document.getElementById('fileInput').click()">
+  <input type="file" id="fileInput" accept="image/*">
+  <div style="font-size:32px;margin-bottom:8px;">📂</div>
+  <div style="font-weight:700;">Click to open the executive portrait image</div>
+  <div style="color:#9ba8c6;font-size:13px;margin-top:4px;">The grid image with all 7 executives</div>
+</div>
+
+<div id="status"></div>
+<div id="results"></div>
+
+<script>
+const executives = [
+  // row, col, filename, name, role
+  // Top row: 4 across (indices 0-3)
+  { row:0, col:0, file:'heather.jpg', name:'Heather', role:'COO' },
+  { row:0, col:1, file:'ethos.jpg',   name:'Ethos',   role:'CSO' },
+  { row:0, col:2, file:'atlas.jpg',   name:'Atlas',   role:'CEO (Eng)' },
+  { row:0, col:3, file:'eva.jpg',     name:'Eva',     role:'CCO' },
+  // Bottom row: 3 across (indices 0-2)
+  { row:1, col:0, file:'scout.jpg',   name:'Scout',   role:'CGO' },
+  { row:1, col:1, file:'ledger.jpg',  name:'Ledger',  role:'CFO' },
+  { row:1, col:2, file:'oracle.jpg',  name:'Oracle',  role:'CIO' },
+];
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => processImage(ev.target.result);
+  reader.readAsDataURL(file);
+});
+
+function processImage(src) {
+  const img = new Image();
+  img.onload = () => {
+    const W = img.naturalWidth;
+    const H = img.naturalHeight;
+
+    // Top row has 4 cols, bottom row has 3 cols
+    // Both rows have the same height (half each)
+    const rowH = Math.round(H / 2);
+    const topColW = Math.round(W / 4);
+    const botColW = Math.round(W / 3);
+
+    document.getElementById('status').textContent = `Image loaded: ${W}×${H}px. Cropping…`;
+    document.getElementById('results').innerHTML = '';
+
+    executives.forEach(exec => {
+      const colW = exec.row === 0 ? topColW : botColW;
+      const x = exec.col * colW;
+      const y = exec.row * rowH;
+      const w = colW;
+      const h = rowH;
+
+      // Draw crop
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
+
+      // Build card
+      const card = document.createElement('div');
+      card.className = 'exec-card';
+
+      const title = document.createElement('h3');
+      title.textContent = exec.name;
+      const role = document.createElement('p');
+      role.textContent = exec.role;
+
+      // Download link
+      const link = document.createElement('a');
+      link.textContent = `Save ${exec.file}`;
+      link.download = exec.file;
+      link.href = canvas.toDataURL('image/jpeg', 0.92);
+
+      card.appendChild(canvas);
+      card.appendChild(title);
+      card.appendChild(role);
+      card.appendChild(link);
+      document.getElementById('results').appendChild(card);
+    });
+
+    document.getElementById('status').textContent = '✓ All 7 portraits cropped. Click each "Save" button, then move the files to public/executives/.';
+  };
+  img.src = src;
+}
+</script>
+</body>
+</html>

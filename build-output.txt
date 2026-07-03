@@ -1,0 +1,33 @@
+
+> aridon-v0-2@0.2.0 build
+> next build
+
+  ▲ Next.js 14.2.5
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/6) ...
+   Generating static pages (1/6) 
+   Generating static pages (2/6) 
+   Generating static pages (4/6) 
+ ✓ Generating static pages (6/6)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    2.75 kB        89.8 kB
+├ ○ /_not-found                          871 B          87.9 kB
+├ ƒ /api/builder                         0 B                0 B
+└ ƒ /api/chat                            0 B                0 B
++ First Load JS shared by all            87 kB
+  ├ chunks/23-17d109591ec31f31.js        31.5 kB
+  ├ chunks/fd9d1056-be48aeae6e94b8d1.js  53.6 kB
+  └ other shared chunks (total)          1.86 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
