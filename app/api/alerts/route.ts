@@ -7,10 +7,9 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get('status') || 'open';
   const limit  = parseInt(searchParams.get('limit') || '20');
 
-  const query = db.from('alerts').select('*').order('created_at', { ascending: false }).limit(limit);
-  if (status !== 'all') query.eq('status', status);
-
-  const { data, error } = await query;
+  let q = db.from('alerts').select('*');
+  if (status !== 'all') q = q.eq('status', status);
+  const { data, error } = await q.order('created_at', { ascending: false }).limit(limit);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
