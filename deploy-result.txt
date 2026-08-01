@@ -1,0 +1,54 @@
+Vercel CLI 54.18.7 (Node.js 24.15.0)
+Retrieving project…
+Deploying jimrusk66-9289s-projects/aridon-v0.2
+Uploading [--------------------] (0.0B/9.4MB)
+Uploading [=====---------------] (2.4MB/9.4MB)
+Uploading [==========----------] (4.7MB/9.4MB)
+Uploading [===============-----] (7.0MB/9.4MB)
+Uploading [====================] (9.4MB/9.4MB)
+  Inspect         https://vercel.com/jimrusk66-9289s-projects/aridon-v0.2/LUnDuddSEJcTytMzwxux2Txs7FtN
+  Production      https://aridon-v02-jrd0x83xt-jimrusk66-9289s-projects.vercel.app
+https://aridon-v02-jrd0x83xt-jimrusk66-9289s-projects.vercel.appBuilding…
+Building…
+Running build in Washington, D.C., USA (East) – iad1
+Build machine configuration: 2 cores, 8 GB
+Retrieving list of deployment files...
+Concatenating deployment archive files...
+Extracting deployment files...
+Extracted 80 deployment files...
+Restored build cache from previous deployment (CHi3fudUhiL11zWvF2mfo1WDUEhm)
+Running "vercel build"
+Vercel CLI 55.0.0
+Installing dependencies...
+added 3 packages in 1s
+141 packages are looking for funding
+run `npm fund` for details
+Detected Next.js version: 14.2.5
+Running "next build"
+▲ Next.js 14.2.5
+- Environments: .env.production
+Creating an optimized production build ...
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (106kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (250kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+⚠ Compiled with warnings
+./node_modules/@supabase/supabase-js/dist/index.mjs
+A Node.js API is used (process.version at line: 27) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+Import trace for requested module:
+./node_modules/@supabase/supabase-js/dist/index.mjs
+./node_modules/@supabase/ssr/dist/module/createBrowserClient.js
+./node_modules/@supabase/ssr/dist/module/index.js
+✓ Compiled successfully
+Linting and checking validity of types ...
+Failed to compile.
+./app/api/auth/route.ts:14:16
+Type error: Parameter 'cookiesToSet' implicitly has an 'any' type.
+12 |       cookies: {
+13 |         getAll() { return cookieStore.getAll(); },
+> 14 |         setAll(cookiesToSet) {
+|                ^
+15 |           cookiesToSet.forEach(({ name, value, options }) =>
+16 |             cookieStore.set(name, value, options)
+17 |           );
+Error: Command "next build" exited with 1
+Error: Command "next build" exited with 1

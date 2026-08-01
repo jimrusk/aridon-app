@@ -1,7 +1,12 @@
+// didAvatar is no longer used. source_url is built at runtime as:
+//   `${window.location.origin}${exec.avatar}`
+// so each executive uses their own portrait from /public/executives/*.jpg
+// served from whatever deployment URL is active (Vercel, localhost, etc.)
+
 export const executives = [
   {
     id: 'heather', name: 'Heather', role: 'Chief Operating Officer', abbr: 'COO',
-    avatar: '/executives/heather.jpg', icon: 'H', color: '#E87722',
+    avatar: '/executives/heather.jpg', icon: 'H', color: '#E87722', ttsVoice: 'nova', didVoice: 'en-IE-EmilyNeural',
     tagline: 'Oversees operations, strategy, execution and growth. Your go-to leader for getting things done and driving results.',
     expertise: ['Operations & Strategy', 'Project Management', 'CRM & Sales Operations', 'Financial Oversight', 'Business Development'],
     tone: 'direct, warm, action-oriented',
@@ -10,7 +15,7 @@ export const executives = [
   },
   {
     id: 'ethos', name: 'Ethos', role: 'Chief Strategy Officer', abbr: 'CSO',
-    avatar: '/executives/ethos.jpg', icon: 'E', color: '#4A90D9',
+    avatar: '/executives/ethos.jpg', icon: 'E', color: '#4A90D9', ttsVoice: 'onyx', didVoice: 'en-US-GuyNeural',
     tagline: 'Long-term vision, market intelligence, partnerships, and mission alignment.',
     expertise: ['Strategic Planning', 'Market & Industry Analysis', 'Partnership Development', 'Fundraising Strategy', 'Mission & Vision'],
     tone: 'calm, principled, visionary',
@@ -19,7 +24,7 @@ export const executives = [
   },
   {
     id: 'atlas', name: 'Atlas', role: 'Chief Engineering Officer', abbr: 'CEO',
-    avatar: '/executives/atlas.jpg', icon: 'A', color: '#27AE60',
+    avatar: '/executives/atlas.jpg', icon: 'A', color: '#27AE60', ttsVoice: 'echo', didVoice: 'en-US-DavisNeural',
     tagline: 'Infrastructure, systems design, engineering solutions, and innovation.',
     expertise: ['Engineering & Design', 'Power & Water Systems', 'Data Centers & Cooling', 'Microgrids & Energy', 'R&D & Innovation'],
     tone: 'technical, practical, precise',
@@ -28,7 +33,7 @@ export const executives = [
   },
   {
     id: 'eva', name: 'Eva', role: 'Chief Compliance Officer', abbr: 'CCO',
-    avatar: '/executives/eva.jpg', icon: 'V', color: '#8E44AD',
+    avatar: '/executives/eva.jpg', icon: 'V', color: '#8E44AD', ttsVoice: 'shimmer', didVoice: 'en-US-SaraNeural',
     tagline: 'Contracts, compliance, risk management, legal protection, and governance.',
     expertise: ['Contracts & Negotiations', 'Compliance & Regulations', 'Risk Management', 'Insurance & Safety', 'Government Contracting'],
     tone: 'careful, protective, thorough',
@@ -37,7 +42,7 @@ export const executives = [
   },
   {
     id: 'scout', name: 'Scout', role: 'Chief Growth Officer', abbr: 'CGO',
-    avatar: '/executives/scout.jpg', icon: 'S', color: '#F1C40F',
+    avatar: '/executives/scout.jpg', icon: 'S', color: '#F1C40F', ttsVoice: 'alloy', didVoice: 'en-US-AriaNeural',
     tagline: 'Sales, marketing, lead generation, revenue acceleration, and strategic growth.',
     expertise: ['Sales Strategy', 'Lead Generation', 'Marketing & Branding', 'Grants & Funding', 'Customer Success'],
     tone: 'energetic, market-aware, persuasive',
@@ -46,7 +51,7 @@ export const executives = [
   },
   {
     id: 'ledger', name: 'Ledger', role: 'Chief Financial Officer', abbr: 'CFO',
-    avatar: '/executives/ledger.jpg', icon: 'L', color: '#1ABC9C',
+    avatar: '/executives/ledger.jpg', icon: 'L', color: '#1ABC9C', ttsVoice: 'fable', didVoice: 'en-US-TonyNeural',
     tagline: 'Cash flow, budgets, financial modeling, forecasts, and investor reporting.',
     expertise: ['Cash Flow Management', 'Budget Planning', 'Pricing Strategy', 'Financial Forecasting', 'Investor Reporting'],
     tone: 'numbers-first, grounded, cautious',
@@ -55,7 +60,7 @@ export const executives = [
   },
   {
     id: 'oracle', name: 'Oracle', role: 'Chief Intelligence Officer', abbr: 'CIO',
-    avatar: '/executives/oracle.jpg', icon: 'O', color: '#E74C3C',
+    avatar: '/executives/oracle.jpg', icon: 'O', color: '#E74C3C', ttsVoice: 'nova', didVoice: 'en-US-NancyNeural',
     tagline: 'Market research, competitor analysis, funding trends, and knowledge synthesis.',
     expertise: ['Market Research', 'Competitor Analysis', 'Funding & Grants Intelligence', 'Trend Synthesis', 'Knowledge Management'],
     tone: 'curious, research-driven, insightful',
