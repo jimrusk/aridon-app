@@ -1,55 +1,59 @@
-# Aridon v0.2
+# Aridon v0.3
 
-Aridon is an AI Executive Operating System starter app built for Vercel.
+Aridon is an AI Executive Operating System built for Vercel.
 
-## What is included
+## Included
 
 - Dashboard
 - Heather Chat
 - Executive Team: Heather, Ethos, Atlas, Eva, Scout, Ledger, Oracle
 - Builder Mode
-- CRM shell
-- Projects shell
-- Tasks shell
-- Knowledge Vault shell
+- CRM
+- Projects
+- Tasks
+- Knowledge Vault
 - OpenAI API route
-- Vercel-ready Next.js app
+- Supabase-backed records
+- App-wide password protection
 
-## How to run locally
+## Run locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000
+Open `http://localhost:3000`.
 
-## How to deploy on Vercel
+The password gate is bypassed only in local development when its variables are missing. Production fails closed with a 503 response until both login variables are configured.
 
-1. Upload this project to GitHub.
-2. Import the GitHub repo into Vercel.
-3. Add this environment variable in Vercel Project Settings:
+## Required Vercel environment variables
+
+Copy `.env.example` as a checklist and add the real values in Vercel Project Settings. Never commit the real values.
 
 ```bash
-OPENAI_API_KEY=your_openai_key_here
+ARIDON_APP_USERNAME=your-private-username
+ARIDON_APP_PASSWORD=your-long-unique-password
+OPENAI_API_KEY=your-openai-key
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 ```
 
-4. Redeploy.
+`SUPABASE_SERVICE_ROLE_KEY` must remain server-only. Do not prefix it with `NEXT_PUBLIC_`.
 
-## Important
+## Deploy safely
 
-Never share your OpenAI key or account passwords in chat. Paste keys only into your own Vercel dashboard.
+1. Add all environment variables to the Vercel project.
+2. Deploy a preview from the security branch.
+3. Confirm the browser requests the Aridon username and password.
+4. Test chat, CRM, projects, tasks, and Knowledge Vault.
+5. Merge only after the preview passes.
 
-## Next build
+## Security behavior
 
-Aridon v0.3 should add Supabase database tables:
-- companies
-- users
-- leads
-- projects
-- tasks
-- documents
-- conversations
-- executive_actions
-
-Then Heather can safely create and update records.
+- Middleware protects the entire command center and API routes with HTTP Basic Authentication.
+- Production fails closed when the login variables are absent.
+- API responses are marked `no-store`.
+- CRUD routes accept only approved fields and enforce length limits.
+- The chat route limits request size, validates roles and executives, and hides internal errors from users.
