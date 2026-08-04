@@ -1,0 +1,29 @@
+name: Build verification
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ARIDON_APP_USERNAME: build-check
+      ARIDON_APP_PASSWORD: build-check-password
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: build-check-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: build-check-service-role-key
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build application
+        run: npm run build
