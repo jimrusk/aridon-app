@@ -45,10 +45,11 @@ SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 ## Deploy safely
 
 1. Add all environment variables to the Vercel project.
-2. Deploy a preview from the security branch.
-3. Confirm the browser requests the Aridon username and password.
-4. Test chat, CRM, projects, tasks, and Knowledge Vault.
-5. Merge only after the preview passes.
+2. Redeploy after adding or changing environment variables so the new values are available to the build.
+3. Deploy a preview from the security branch.
+4. Confirm the browser requests the Aridon username and password.
+5. Test chat, CRM, projects, tasks, and Knowledge Vault.
+6. Merge only after the preview passes.
 
 ## Security behavior
 
