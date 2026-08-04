@@ -1,16 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerClient } from '../../../lib/supabase';
-import { STARTER_LEADS } from '../../../lib/starterLeads';
+import { STARTER_LEADS, type StarterLead } from '../../../lib/starterLeads';
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store' };
+const RESTORED_HEADERS = {
+  ...NO_STORE_HEADERS,
+  'X-Aridon-Data-Mode': 'restored',
+};
 const STARTER_HEADERS = {
   ...NO_STORE_HEADERS,
   'X-Aridon-Data-Mode': 'starter',
 };
 const LEAD_STATUSES = new Set(['new', 'qualified', 'active', 'closed']);
 
+type LeadRecord = {
+  id: string;
+  name: string;
+  company: string;
+  status: 'new' | 'qualified' | 'active' | 'closed';
+  notes: string;
+  email: string;
+  created_at: string;
+};
+
 function text(value: unknown, maxLength: number) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
+}
+
+function leadKey(lead: Pick<StarterLead, 'name' | 'company' | 'email'>) {
+  const email = lead.email.trim().toLowerCase();
+  if (email) return `email:${email}`;
+
+  return `name:${lead.name.trim().toLowerCase()}|company:${lead.company
+    .trim()
+    .toLowerCase()}`;
+}
+
+function restoredPayload(lead: StarterLead) {
+  return {
+    name: lead.name,
+    company: lead.company,
+    email: lead.email,
+    status: lead.status,
+    notes: lead.notes,
+  };
 }
 
 export async function GET() {
@@ -24,17 +57,32 @@ export async function GET() {
 
     if (error) throw error;
 
-    // A brand-new database should still show Jim a useful Aridon pipeline.
-    if (!data || data.length === 0) {
-      return NextResponse.json(STARTER_LEADS, { headers: STARTER_HEADERS });
+    const existing = (data ?? []) as LeadRecord[];
+    const existingKeys = new Set(existing.map(leadKey));
+    const missing = STARTER_LEADS.filter((lead) => !existingKeys.has(leadKey(lead)));
+
+    if (missing.length === 0) {
+      return NextResponse.json(existing, { headers: NO_STORE_HEADERS });
     }
 
-    return NextResponse.json(data, { headers: NO_STORE_HEADERS });
-  } catch (error) {
-    console.error('Aridon CRM GET error; serving starter pipeline', error);
+    const { data: inserted, error: insertError } = await db
+      .from('leads')
+      .insert(missing.map(restoredPayload))
+      .select('id,name,company,status,notes,email,created_at');
 
-    // Keep the command center useful when Supabase is missing or temporarily
-    // unavailable. These records are public starter contacts, not private data.
+    if (!insertError && inserted) {
+      return NextResponse.json([...(inserted as LeadRecord[]), ...existing], {
+        headers: RESTORED_HEADERS,
+      });
+    }
+
+    console.error('Aridon CRM automatic restore could not persist; serving hybrid data', insertError);
+
+    return NextResponse.json([...existing, ...missing], {
+      headers: RESTORED_HEADERS,
+    });
+  } catch (error) {
+    console.error('Aridon CRM GET error; serving restored pipeline', error);
     return NextResponse.json(STARTER_LEADS, { headers: STARTER_HEADERS });
   }
 }
