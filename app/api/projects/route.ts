@@ -12,14 +12,14 @@ const STARTER_HEADERS = {
   'X-Aridon-Data-Mode': 'starter',
 };
 const PROJECT_STATUSES = new Set(['active', 'planning', 'paused', 'complete', 'closed']);
-const EXECUTIVES = new Set(['Heather', 'Ethos', 'Atlas', 'Eva', 'Scout', 'Ledger', 'Oracle']);
+const EXECUTIVES = new Set(['Heather', 'Ethos', 'Atlas', 'Val', 'Eva', 'Scout', 'Ledger', 'Oracle']);
 
 type ProjectRecord = {
   id: string;
   name: string;
   status: 'active' | 'planning' | 'paused' | 'complete' | 'closed';
   description: string;
-  executive: 'Heather' | 'Ethos' | 'Atlas' | 'Eva' | 'Scout' | 'Ledger' | 'Oracle';
+  executive: 'Heather' | 'Ethos' | 'Atlas' | 'Val' | 'Eva' | 'Scout' | 'Ledger' | 'Oracle';
   created_at: string;
 };
 
