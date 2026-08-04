@@ -139,3 +139,55 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  try {
+    if (!req.headers.get('content-type')?.includes('application/json')) {
+      return NextResponse.json(
+        { error: 'Content-Type must be application/json.' },
+        { status: 415, headers: NO_STORE_HEADERS },
+      );
+    }
+
+    const body = await req.json();
+    const id = text(body?.id, 128);
+    const appendNote = text(body?.appendNote, 1_500);
+    const requestedStatus = text(body?.status, 40);
+
+    if (!id || !appendNote) {
+      return NextResponse.json(
+        { error: 'Lead ID and note are required.' },
+        { status: 400, headers: NO_STORE_HEADERS },
+      );
+    }
+
+    const db = getServerClient();
+    const { data: current, error: readError } = await db
+      .from('leads')
+      .select('id,notes,status')
+      .eq('id', id)
+      .single();
+    if (readError) throw readError;
+
+    const existingNotes = typeof current?.notes === 'string' ? current.notes.trim() : '';
+    const notes = [existingNotes, appendNote].filter(Boolean).join('\n\n').slice(0, 4_000);
+    const payload: { notes: string; status?: string } = { notes };
+    if (LEAD_STATUSES.has(requestedStatus)) payload.status = requestedStatus;
+
+    const { data, error } = await db
+      .from('leads')
+      .update(payload)
+      .eq('id', id)
+      .select('id,name,company,status,notes,email,created_at')
+      .single();
+    if (error) throw error;
+
+    return NextResponse.json(data, { headers: NO_STORE_HEADERS });
+  } catch (error) {
+    console.error('Aridon CRM PATCH error', error);
+    return NextResponse.json(
+      { error: 'The email was sent, but the CRM note could not be saved.' },
+      { status: 503, headers: NO_STORE_HEADERS },
+    );
+  }
+}
