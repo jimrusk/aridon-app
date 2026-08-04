@@ -1,0 +1,24 @@
+import { randomBytes } from 'node:crypto';
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  buildGoogleAuthorizationUrl,
+  cookieOptions,
+  gmailConfiguration,
+  GMAIL_STATE_COOKIE,
+} from '../../../../lib/gmail';
+
+export const runtime = 'nodejs';
+
+export async function GET(request: NextRequest) {
+  const configuration = gmailConfiguration();
+  if (!configuration.configured) {
+    return NextResponse.redirect(
+      new URL(`/email?gmail=missing&vars=${configuration.missing.join(',')}`, request.url),
+    );
+  }
+
+  const state = randomBytes(24).toString('base64url');
+  const response = NextResponse.redirect(buildGoogleAuthorizationUrl(request, state));
+  response.cookies.set(GMAIL_STATE_COOKIE, state, cookieOptions(10 * 60));
+  return response;
+}
