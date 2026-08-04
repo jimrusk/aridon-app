@@ -19,18 +19,35 @@ function unauthorized() {
 }
 
 export function middleware(request: NextRequest) {
-  const expectedUser = process.env.ARIDON_APP_USERNAME;
-  const expectedPassword = process.env.ARIDON_APP_PASSWORD;
+  // Primary names documented for Aridon. The shorter aliases support an
+  // earlier Vercel naming convention without weakening authentication.
+  const expectedUser =
+    process.env.ARIDON_APP_USERNAME || process.env.ARIDON_USERNAME;
+  const expectedPassword =
+    process.env.ARIDON_APP_PASSWORD || process.env.ARIDON_PASSWORD;
 
   if (!expectedUser || !expectedPassword) {
     if (process.env.NODE_ENV !== 'production') {
       return NextResponse.next();
     }
 
-    return new NextResponse('Aridon security is not configured.', {
-      status: 503,
-      headers: SECURITY_HEADERS,
-    });
+    const missing: string[] = [];
+    if (!expectedUser) {
+      missing.push('ARIDON_APP_USERNAME (or ARIDON_USERNAME)');
+    }
+    if (!expectedPassword) {
+      missing.push('ARIDON_APP_PASSWORD (or ARIDON_PASSWORD)');
+    }
+
+    const commit = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'unknown';
+
+    return new NextResponse(
+      `Aridon security is not configured. Missing: ${missing.join(', ')}. Deployment: ${commit}.`,
+      {
+        status: 503,
+        headers: SECURITY_HEADERS,
+      },
+    );
   }
 
   const authorization = request.headers.get('authorization');
