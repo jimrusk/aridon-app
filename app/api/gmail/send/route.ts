@@ -54,18 +54,18 @@ export async function POST(request: NextRequest) {
 
     const accessToken = await refreshGmailAccessToken(decryptToken(encryptedRefreshToken));
     const connectedEmail = request.cookies.get(GMAIL_EMAIL_COOKIE)?.value || '';
-    const rawMessage = [
+    const encodedSubject = `=?UTF-8?B?${Buffer.from(subject, 'utf8').toString('base64')}?=`;
+    const headers = [
       `To: ${to}`,
-      connectedEmail ? `From: ${safeHeader(connectedEmail, 254)}` : '',
-      `Subject: ${subject}`,
+      `Subject: ${encodedSubject}`,
       'MIME-Version: 1.0',
       'Content-Type: text/plain; charset="UTF-8"',
       'Content-Transfer-Encoding: 8bit',
-      '',
-      messageBody,
-    ]
-      .filter((line) => line !== '')
-      .join('\r\n');
+    ];
+    if (connectedEmail) headers.splice(1, 0, `From: ${safeHeader(connectedEmail, 254)}`);
+
+    const normalizedBody = messageBody.replace(/\r?\n/g, '\r\n');
+    const rawMessage = `${headers.join('\r\n')}\r\n\r\n${normalizedBody}`;
 
     const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
       method: 'POST',
