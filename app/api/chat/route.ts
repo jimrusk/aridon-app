@@ -6,6 +6,7 @@ const ALLOWED_EXECUTIVES = new Set([
   'Heather',
   'Ethos',
   'Atlas',
+  'Val',
   'Eva',
   'Scout',
   'Ledger',
