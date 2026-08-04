@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerClient } from '../../../lib/supabase';
+import { STARTER_LEADS } from '../../../lib/starterLeads';
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store' };
+const STARTER_HEADERS = {
+  ...NO_STORE_HEADERS,
+  'X-Aridon-Data-Mode': 'starter',
+};
 const LEAD_STATUSES = new Set(['new', 'qualified', 'active', 'closed']);
 
 function text(value: unknown, maxLength: number) {
@@ -18,13 +23,19 @@ export async function GET() {
       .limit(500);
 
     if (error) throw error;
-    return NextResponse.json(data ?? [], { headers: NO_STORE_HEADERS });
+
+    // A brand-new database should still show Jim a useful Aridon pipeline.
+    if (!data || data.length === 0) {
+      return NextResponse.json(STARTER_LEADS, { headers: STARTER_HEADERS });
+    }
+
+    return NextResponse.json(data, { headers: NO_STORE_HEADERS });
   } catch (error) {
-    console.error('Aridon CRM GET error', error);
-    return NextResponse.json(
-      { error: 'Unable to load leads.' },
-      { status: 500, headers: NO_STORE_HEADERS },
-    );
+    console.error('Aridon CRM GET error; serving starter pipeline', error);
+
+    // Keep the command center useful when Supabase is missing or temporarily
+    // unavailable. These records are public starter contacts, not private data.
+    return NextResponse.json(STARTER_LEADS, { headers: STARTER_HEADERS });
   }
 }
 
@@ -72,8 +83,11 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Aridon CRM POST error', error);
     return NextResponse.json(
-      { error: 'Unable to create the lead.' },
-      { status: 500, headers: NO_STORE_HEADERS },
+      {
+        error:
+          'Unable to save the lead. Confirm the Supabase environment variables and leads table are configured.',
+      },
+      { status: 503, headers: NO_STORE_HEADERS },
     );
   }
 }
