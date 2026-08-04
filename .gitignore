@@ -13,6 +13,8 @@ out/
 .env.development.local
 .env.test.local
 .env.production.local
+.env*
+!.env.example
 
 # debug
 npm-debug.log*
@@ -29,6 +31,3 @@ Thumbs.db
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
-
-.vercel
-.env*
