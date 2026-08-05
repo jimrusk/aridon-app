@@ -19,6 +19,7 @@ Aridon is an AI Executive Operating System built for Vercel.
 - OpenAI API routes
 - Supabase-backed records
 - App-wide password protection
+- Optional separate secondary login
 
 ## Run locally
 
@@ -29,7 +30,7 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-The password gate is bypassed only in local development when its variables are missing. Production fails closed with a 503 response until both login variables are configured.
+The password gate is bypassed only in local development when its primary variables are missing. Production fails closed with a 503 response until both primary login variables are configured. The optional secondary login also requires both of its variables together.
 
 ## Required Vercel environment variables
 
@@ -38,6 +39,8 @@ Copy `.env.example` as a checklist and add the real values in Vercel Project Set
 ```bash
 ARIDON_APP_USERNAME=your-private-username
 ARIDON_APP_PASSWORD=your-long-unique-password
+ARIDON_APP_SECONDARY_USERNAME=optional-second-username
+ARIDON_APP_SECONDARY_PASSWORD=optional-second-long-unique-password
 NEXT_PUBLIC_APP_URL=https://your-production-domain
 OPENAI_API_KEY=your-openai-key
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
@@ -47,6 +50,8 @@ GOOGLE_CLIENT_ID=your-google-oauth-client-id
 GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
 GMAIL_TOKEN_ENCRYPTION_KEY=your-long-random-encryption-secret
 ```
+
+To enable the second account, set both `ARIDON_APP_SECONDARY_USERNAME` and `ARIDON_APP_SECONDARY_PASSWORD` in Vercel for Preview and Production, then redeploy. Leave both blank when no second account is needed.
 
 `SUPABASE_SERVICE_ROLE_KEY`, `GOOGLE_CLIENT_SECRET`, and `GMAIL_TOKEN_ENCRYPTION_KEY` must remain server-only. Do not prefix them with `NEXT_PUBLIC_`.
 
@@ -83,14 +88,16 @@ Drafts and their send status are retained in that browser's local storage. Nothi
 
 1. Add all environment variables to the Vercel project.
 2. Redeploy after adding or changing environment variables.
-3. Confirm the browser requests the Aridon username and password.
-4. Test chat, CRM, projects, tasks, Knowledge Vault, Gmail connection, draft generation, and one approved email to a safe test address.
-5. Merge only after the preview passes.
+3. Confirm the browser accepts the primary Aridon username and password.
+4. When configured, confirm the secondary username and password also work independently.
+5. Test chat, CRM, projects, tasks, Knowledge Vault, Gmail connection, draft generation, and one approved email to a safe test address.
+6. Merge only after the preview passes.
 
 ## Security behavior
 
 - Middleware protects the command center and API routes with HTTP Basic Authentication.
-- Production fails closed when the login variables are absent.
+- Primary and optional secondary credentials are stored only in Vercel environment variables.
+- Production fails closed when the primary login variables are absent or a secondary account is only partially configured.
 - API responses are marked `no-store`.
 - CRUD routes accept only approved fields and enforce length limits.
 - The chat and email-draft routes limit request sizes and hide internal errors.

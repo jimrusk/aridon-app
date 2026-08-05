@@ -8,6 +8,11 @@ const SECURITY_HEADERS: Record<string, string> = {
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
 };
 
+type LoginCredential = {
+  username: string;
+  password: string;
+};
+
 function unauthorized() {
   return new NextResponse('Authentication required.', {
     status: 401,
@@ -21,22 +26,38 @@ function unauthorized() {
 export function middleware(request: NextRequest) {
   // Primary names documented for Aridon. The shorter aliases support an
   // earlier Vercel naming convention without weakening authentication.
-  const expectedUser =
+  const primaryUsername =
     process.env.ARIDON_APP_USERNAME || process.env.ARIDON_USERNAME;
-  const expectedPassword =
+  const primaryPassword =
     process.env.ARIDON_APP_PASSWORD || process.env.ARIDON_PASSWORD;
 
-  if (!expectedUser || !expectedPassword) {
-    if (process.env.NODE_ENV !== 'production') {
-      return NextResponse.next();
-    }
+  // Optional secondary account. Both values must be present together.
+  const secondaryUsername =
+    process.env.ARIDON_APP_SECONDARY_USERNAME ||
+    process.env.ARIDON_SECONDARY_USERNAME;
+  const secondaryPassword =
+    process.env.ARIDON_APP_SECONDARY_PASSWORD ||
+    process.env.ARIDON_SECONDARY_PASSWORD;
 
-    const missing: string[] = [];
-    if (!expectedUser) {
-      missing.push('ARIDON_APP_USERNAME (or ARIDON_USERNAME)');
-    }
-    if (!expectedPassword) {
-      missing.push('ARIDON_APP_PASSWORD (or ARIDON_PASSWORD)');
+  const missing: string[] = [];
+  if (!primaryUsername) {
+    missing.push('ARIDON_APP_USERNAME (or ARIDON_USERNAME)');
+  }
+  if (!primaryPassword) {
+    missing.push('ARIDON_APP_PASSWORD (or ARIDON_PASSWORD)');
+  }
+
+  const secondaryIsPartiallyConfigured =
+    Boolean(secondaryUsername) !== Boolean(secondaryPassword);
+  if (secondaryIsPartiallyConfigured) {
+    missing.push(
+      'both ARIDON_APP_SECONDARY_USERNAME and ARIDON_APP_SECONDARY_PASSWORD',
+    );
+  }
+
+  if (missing.length > 0) {
+    if (process.env.NODE_ENV !== 'production' && !secondaryIsPartiallyConfigured) {
+      return NextResponse.next();
     }
 
     const commit = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'unknown';
@@ -48,6 +69,20 @@ export function middleware(request: NextRequest) {
         headers: SECURITY_HEADERS,
       },
     );
+  }
+
+  const credentials: LoginCredential[] = [
+    {
+      username: primaryUsername as string,
+      password: primaryPassword as string,
+    },
+  ];
+
+  if (secondaryUsername && secondaryPassword) {
+    credentials.push({
+      username: secondaryUsername,
+      password: secondaryPassword,
+    });
   }
 
   const authorization = request.headers.get('authorization');
@@ -63,10 +98,15 @@ export function middleware(request: NextRequest) {
       return unauthorized();
     }
 
-    const suppliedUser = decoded.slice(0, separator);
+    const suppliedUsername = decoded.slice(0, separator);
     const suppliedPassword = decoded.slice(separator + 1);
 
-    if (suppliedUser !== expectedUser || suppliedPassword !== expectedPassword) {
+    const isAuthorized = credentials.some(
+      ({ username, password }) =>
+        suppliedUsername === username && suppliedPassword === password,
+    );
+
+    if (!isAuthorized) {
       return unauthorized();
     }
   } catch {
