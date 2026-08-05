@@ -1,0 +1,161 @@
+name: DOE execution team test
+
+on:
+  push:
+    branches:
+      - test/doe-execution-team
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  run-execution-team:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run three DOE projects through deployed execution engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p execution-test-results
+
+          cat > /tmp/paducah.json <<'JSON'
+          {
+            "title": "Paducah GridCore Entry Package",
+            "projectType": "Data-center electrical proposal",
+            "objective": "Create a complete outreach-ready supplier entry package positioning Aridon GridCore for the DOE Paducah American Energy Hub, with a 250 kW demonstrator scaling to a 5 MW critical-power cell.",
+            "audience": "DOE PPPO small business office, Brookfield, NextEra Energy, Big Rivers Electric, Jackson Purchase Energy, Paducah Power System, and relevant prime contractors.",
+            "constraints": "Use only supplied facts. Do not invent contacts, certifications, performance guarantees, source citations, or pricing. Clearly label assumptions and verification needs. Hold outbound messages, engineering claims, spending, and contractual commitments for human approval.",
+            "requestedOutputs": [
+              "Executive opportunity brief",
+              "250 kW prototype architecture",
+              "5 MW commercial cell concept",
+              "Paducah capability statement",
+              "Stakeholder and supplier-entry map",
+              "Supplier introduction email",
+              "Small-business outreach email",
+              "Registration and qualification checklist",
+              "90-day action plan"
+            ]
+          }
+          JSON
+
+          cat > /tmp/los-alamos.json <<'JSON'
+          {
+            "title": "Los Alamos Remote Resilience Pilot",
+            "projectType": "Pilot outreach package",
+            "objective": "Create a complete outreach-ready pilot package for a non-safety-class Aridon Remote Resilience Pod supporting remote monitoring, groundwater investigation, temporary field operations, communications, and resilient power needs associated with Los Alamos legacy cleanup.",
+            "audience": "DOE EM Los Alamos Field Office, N3B small business and procurement personnel, technical program managers, and potential engineering partners.",
+            "constraints": "Do not claim qualification for nuclear safety systems or radiological work. Treat all site applications as conceptual and subject to DOE, contractor, environmental, cybersecurity, fire-protection, and licensed-engineering review. Do not invent contacts, field conditions, certifications, or prices. Hold outbound messages and engineering claims for human approval.",
+            "requestedOutputs": [
+              "Executive pilot brief",
+              "Remote Resilience Pod use-case matrix",
+              "Conceptual electrical and communications architecture",
+              "Preliminary equipment schedule",
+              "Paid feasibility scope",
+              "N3B capability statement",
+              "Small-business introduction email",
+              "Pilot discovery questions",
+              "Safety and regulatory limitations",
+              "60-day engagement plan"
+            ]
+          }
+          JSON
+
+          cat > /tmp/genesis.json <<'JSON'
+          {
+            "title": "Genesis Infrastructure Intelligence Concept",
+            "projectType": "Custom execution package",
+            "objective": "Create a partnership-ready concept for physics-informed AI applied to critical power, battery integration, AI-load smoothing, water-energy optimization, and infrastructure resilience for potential collaboration with DOE Genesis Mission participants, national laboratories, universities, and DOE contractors.",
+            "audience": "DOE national laboratories, Genesis Mission project teams, infrastructure researchers, university partners, engineering firms, and federal prime contractors.",
+            "constraints": "Do not imply selection, endorsement, validated performance, laboratory partnership, intellectual-property ownership, or scientific results that do not exist. Separate proposed research from demonstrated capability. Hold external submissions, IP decisions, engineering claims, and partnership commitments for human approval.",
+            "requestedOutputs": [
+              "Partnership concept paper",
+              "GridCore digital-twin description",
+              "Physics and sensor-data framework",
+              "AI load-shock-absorber research concept",
+              "Research questions and hypotheses",
+              "Demonstration requirements",
+              "Potential partner categories",
+              "Intellectual-property decision map",
+              "Partner outreach email",
+              "90-day research partnership plan"
+            ]
+          }
+          JSON
+
+          run_project() {
+            local name="$1"
+            local payload="$2"
+            echo "Running ${name}..."
+            curl --fail-with-body --silent --show-error \
+              --retry 3 --retry-delay 5 --max-time 240 \
+              -H 'Content-Type: application/json' \
+              --data-binary "@${payload}" \
+              'https://aridon-v02.vercel.app/api/execution' \
+              > "execution-test-results/${name}.json"
+          }
+
+          run_project paducah /tmp/paducah.json
+          run_project los-alamos /tmp/los-alamos.json
+          run_project genesis /tmp/genesis.json
+
+      - name: Score outputs against completion gates
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+
+          expected = {
+              "paducah": 9,
+              "los-alamos": 10,
+              "genesis": 10,
+          }
+          report = {"projects": {}, "overall_pass": True}
+
+          for name, minimum_deliverables in expected.items():
+              path = Path("execution-test-results") / f"{name}.json"
+              data = json.loads(path.read_text())
+              deliverables = data.get("deliverables") or []
+              agents = data.get("agents") or []
+              checks = {
+                  "has_title": bool(data.get("title")),
+                  "has_executive_summary": len(data.get("executiveSummary", "")) >= 120,
+                  "definition_of_done": len(data.get("definitionOfDone") or []) >= 4,
+                  "full_team": len(agents) >= 6,
+                  "minimum_deliverables": len(deliverables) >= minimum_deliverables,
+                  "all_content_substantive": all(len(item.get("content", "")) >= 180 for item in deliverables),
+                  "all_have_quality_checks": all(len(item.get("qualityChecks") or []) >= 1 for item in deliverables),
+                  "approval_gates_present": any(item.get("approvalRequired") for item in deliverables),
+                  "final_checks_present": len(data.get("finalChecks") or []) >= 3,
+                  "status_reviewable": data.get("status") in {"ready_for_approval", "complete"},
+              }
+              passed = all(checks.values())
+              report["projects"][name] = {
+                  "passed": passed,
+                  "checks": checks,
+                  "deliverable_count": len(deliverables),
+                  "agent_count": len(agents),
+                  "status": data.get("status"),
+                  "storageStatus": data.get("storageStatus"),
+                  "deliverable_titles": [item.get("title") for item in deliverables],
+              }
+              report["overall_pass"] = report["overall_pass"] and passed
+
+          Path("execution-test-results/scorecard.json").write_text(json.dumps(report, indent=2))
+          print(json.dumps(report, indent=2))
+          if not report["overall_pass"]:
+              raise SystemExit("Execution team output did not pass all completion gates")
+
+      - name: Upload execution test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: doe-execution-team-results
+          path: execution-test-results
+          if-no-files-found: error
+          retention-days: 30
