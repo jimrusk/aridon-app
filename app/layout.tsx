@@ -34,6 +34,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         >
           <Link
+            href="/execution/doe-test"
+            aria-label="Open DOE execution test portfolio"
+            style={{ ...launcherStyle, background: '#42D392' }}
+          >
+            ✓ DOE Test
+          </Link>
+          <Link
             href="/execution"
             aria-label="Open Execution Replacement Layer"
             style={{ ...launcherStyle, background: '#65B7FF' }}
