@@ -1,4 +1,4 @@
--- Aridon v0.3 — Supabase Schema
+-- Aridon v0.5 — Supabase Schema
 -- Run this in your Supabase project: SQL Editor → New query → paste → Run
 
 -- CRM Leads
@@ -40,3 +40,20 @@ create table if not exists knowledge_vault (
   content text,
   created_at timestamptz default now()
 );
+
+-- Execution Replacement Layer project memory
+create table if not exists execution_projects (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  project_type text not null,
+  objective text not null,
+  status text default 'ready_for_approval',
+  progress integer default 0 check (progress >= 0 and progress <= 100),
+  executive_summary text,
+  payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create index if not exists execution_projects_created_at_idx
+  on execution_projects (created_at desc);
