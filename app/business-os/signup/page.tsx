@@ -1,18 +1,23 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function BusinessOSSignup() {
   const router = useRouter();
-  const params = useSearchParams();
-  const defaultPlan = params.get('plan') || 'launch';
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
     ownerName: '', businessName: '', email: '', phone: '', website: '', industry: '',
-    teamSize: '', bottleneck: '', plan: defaultPlan, capabilities: '', companyTrap: ''
+    teamSize: '', bottleneck: '', plan: 'launch', capabilities: '', companyTrap: ''
   });
+
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get('plan');
+    if (requested && ['launch','growth','command'].includes(requested)) {
+      setForm(current => ({ ...current, plan: requested }));
+    }
+  }, []);
 
   const ready = useMemo(() => form.ownerName.trim() && form.businessName.trim() && form.email.trim() && form.industry.trim(), [form]);
 
