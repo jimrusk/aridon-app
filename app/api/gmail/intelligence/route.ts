@@ -3,7 +3,7 @@ import {
   decryptToken,
   GMAIL_REFRESH_COOKIE,
   refreshGmailAccessToken,
-} from '../../../../../lib/gmail';
+} from '../../../../lib/gmail';
 
 export const runtime = 'nodejs';
 
