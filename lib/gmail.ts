@@ -9,6 +9,7 @@ const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo';
 const GMAIL_SEND_SCOPE = 'https://www.googleapis.com/auth/gmail.send';
+const GMAIL_READ_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
 const USERINFO_SCOPE = 'https://www.googleapis.com/auth/userinfo.email';
 
 function required(name: string): string {
@@ -44,7 +45,7 @@ export function buildGoogleAuthorizationUrl(request: NextRequest, state: string)
   url.searchParams.set('access_type', 'offline');
   url.searchParams.set('prompt', 'consent');
   url.searchParams.set('include_granted_scopes', 'true');
-  url.searchParams.set('scope', `openid ${USERINFO_SCOPE} ${GMAIL_SEND_SCOPE}`);
+  url.searchParams.set('scope', `openid ${USERINFO_SCOPE} ${GMAIL_SEND_SCOPE} ${GMAIL_READ_SCOPE}`);
   url.searchParams.set('state', state);
   return url.toString();
 }

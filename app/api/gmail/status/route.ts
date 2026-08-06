@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       connected,
       email: connected ? email : '',
       approvalRequired: true,
-      mode: 'gmail-send-only',
+      mode: 'gmail-send-and-briefing-read',
     },
     { headers: { 'Cache-Control': 'no-store' } },
   );
