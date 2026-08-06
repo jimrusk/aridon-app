@@ -36,13 +36,22 @@ function isPublicCustomerRoute(pathname: string) {
     pathname.startsWith('/business-os/') ||
     pathname === '/workspace' ||
     pathname.startsWith('/workspace/') ||
-    pathname === '/api/business-os/signup'
+    pathname === '/customer' ||
+    pathname.startsWith('/customer/') ||
+    pathname === '/api/business-os/signup' ||
+    pathname === '/api/business-os/plans' ||
+    pathname === '/api/business-os/checkout' ||
+    pathname === '/api/business-os/activate' ||
+    pathname === '/api/business-os/beta/activate' ||
+    pathname.startsWith('/api/customer/') ||
+    pathname === '/api/stripe/webhook'
   );
 }
 
 export function middleware(request: NextRequest) {
-  // Customer acquisition and white-label workspace shells are intentionally
-  // separate from the password-protected Aridon operator command center.
+  // Customer acquisition, customer authentication, Stripe's signed webhook,
+  // and tenant workspace shells use their own auth controls and remain separate
+  // from the password-protected platform operator command center.
   if (isPublicCustomerRoute(request.nextUrl.pathname)) {
     return withSecurityHeaders(NextResponse.next());
   }
