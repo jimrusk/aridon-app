@@ -34,6 +34,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         >
           <Link
+            href="/advisors"
+            aria-label="Open Aridon Executive Challenge Suite"
+            style={{ ...launcherStyle, background: '#C9A7FF' }}
+          >
+            ◆ Challenge Suite
+          </Link>
+          <Link
             href="/intelligence"
             aria-label="Open Aridon Intelligence Center"
             style={{ ...launcherStyle, background: '#FFB454' }}
