@@ -36,12 +36,11 @@ export async function authenticatedCustomer(request: NextRequest) {
 
 export async function customerTenantForUser(userId: string, slug?: string) {
   const db = getServerClient();
-  const membershipQuery = db
+  const { data: memberships, error: membershipError } = await db
     .from('customer_memberships')
     .select('tenant_id,role')
     .eq('user_id', userId);
 
-  const { data: memberships, error: membershipError } = await membershipQuery;
   if (membershipError) throw membershipError;
   if (!memberships?.length) return null;
 
@@ -62,5 +61,5 @@ export async function customerTenantForUser(userId: string, slug?: string) {
 }
 
 export function subscriptionAllowsAccess(status: string | null | undefined) {
-  return ['active', 'trialing', 'past_due'].includes(status || '');
+  return ['active', 'trialing', 'past_due', 'beta'].includes(status || '');
 }
