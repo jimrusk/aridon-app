@@ -34,6 +34,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         >
           <Link
+            href="/intelligence"
+            aria-label="Open Aridon Intelligence Center"
+            style={{ ...launcherStyle, background: '#FFB454' }}
+          >
+            ◉ Morning Intel
+          </Link>
+          <Link
             href="/execution/doe-test"
             aria-label="Open DOE execution test portfolio"
             style={{ ...launcherStyle, background: '#42D392' }}
