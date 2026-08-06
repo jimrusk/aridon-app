@@ -36,7 +36,7 @@ async function uniqueSlug(base: string) {
 }
 
 function subscriptionStatusToTenantStatus(status?: string) {
-  if (status === 'active' || status === 'trialing') return 'active';
+  if (status === 'active' || status === 'trialing' || status === 'beta') return 'active';
   if (status === 'past_due') return 'billing_attention';
   if (status === 'canceled' || status === 'unpaid' || status === 'incomplete_expired') return 'billing_inactive';
   return 'onboarding';
@@ -145,15 +145,17 @@ async function findAuthUserByEmail(email: string) {
   return null;
 }
 
-export async function activateTenantAccount(session: StripeCheckoutSession, password: string, subscription: StripeSubscription) {
-  const email = clean(session.customer_details?.email || session.customer_email || session.metadata?.email, 254).toLowerCase();
-  if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error('Stripe did not return a valid customer email.');
+async function ensureOwnerAccount(
+  email: string,
+  password: string,
+  tenant: { id: string; slug: string; business_name: string },
+) {
+  if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error('A valid customer email is required.');
   if (password.length < 12) throw new Error('Use a password with at least 12 characters.');
 
-  const tenant = await ensureTenantFromCheckout(session, subscription);
   const db = getServerClient();
   let user = await findAuthUserByEmail(email);
-  let existingAccount = Boolean(user);
+  const existingAccount = Boolean(user);
 
   if (!user) {
     const { data, error } = await db.auth.admin.createUser({
@@ -168,18 +170,22 @@ export async function activateTenantAccount(session: StripeCheckoutSession, pass
     });
     if (error || !data.user) throw error || new Error('Customer account could not be created.');
     user = data.user;
-    existingAccount = false;
   }
 
   const { error: membershipError } = await db.from('customer_memberships').upsert(
-    {
-      tenant_id: tenant.id,
-      user_id: user.id,
-      role: 'owner',
-    },
+    { tenant_id: tenant.id, user_id: user.id, role: 'owner' },
     { onConflict: 'tenant_id,user_id' },
   );
   if (membershipError) throw membershipError;
+
+  return { user, existingAccount };
+}
+
+export async function activateTenantAccount(session: StripeCheckoutSession, password: string, subscription: StripeSubscription) {
+  const email = clean(session.customer_details?.email || session.customer_email || session.metadata?.email, 254).toLowerCase();
+  const tenant = await ensureTenantFromCheckout(session, subscription);
+  const account = await ensureOwnerAccount(email, password, tenant);
+  const db = getServerClient();
 
   const { error: activationError } = await db
     .from('customer_tenants')
@@ -187,5 +193,51 @@ export async function activateTenantAccount(session: StripeCheckoutSession, pass
     .eq('id', tenant.id);
   if (activationError) throw activationError;
 
-  return { tenant, user, existingAccount, email };
+  return { tenant, user: account.user, existingAccount: account.existingAccount, email };
+}
+
+export async function activateBetaTenant(input: {
+  businessName: string;
+  ownerName: string;
+  email: string;
+  industry: string;
+  password: string;
+  feedbackContact?: string;
+}) {
+  const db = getServerClient();
+  const businessName = clean(input.businessName, 180);
+  const ownerName = clean(input.ownerName, 120);
+  const industry = clean(input.industry, 160);
+  const email = clean(input.email, 254).toLowerCase();
+  if (!businessName || !ownerName || !industry || !/^\S+@\S+\.\S+$/.test(email)) {
+    throw new Error('Business name, owner, industry and a valid email are required.');
+  }
+
+  const slug = await uniqueSlug(slugify(businessName));
+  const { data: tenant, error: tenantError } = await db
+    .from('customer_tenants')
+    .insert({
+      slug,
+      business_name: businessName,
+      owner_name: ownerName,
+      contact_email: email,
+      billing_email: email,
+      industry,
+      plan: 'beta',
+      status: 'active',
+      subscription_status: 'beta',
+      beta_feedback_contact: clean(input.feedbackContact, 254) || null,
+      activated_at: new Date().toISOString(),
+    })
+    .select('*')
+    .single();
+  if (tenantError) throw tenantError;
+
+  try {
+    const account = await ensureOwnerAccount(email, input.password, tenant);
+    return { tenant, user: account.user, existingAccount: account.existingAccount, email };
+  } catch (error) {
+    await db.from('customer_tenants').delete().eq('id', tenant.id);
+    throw error;
+  }
 }
