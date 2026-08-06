@@ -13,6 +13,13 @@ type LoginCredential = {
   password: string;
 };
 
+function withSecurityHeaders(response: NextResponse) {
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+    response.headers.set(name, value);
+  }
+  return response;
+}
+
 function unauthorized() {
   return new NextResponse('Authentication required.', {
     status: 401,
@@ -23,15 +30,28 @@ function unauthorized() {
   });
 }
 
+function isPublicCustomerRoute(pathname: string) {
+  return (
+    pathname === '/business-os' ||
+    pathname.startsWith('/business-os/') ||
+    pathname === '/workspace' ||
+    pathname.startsWith('/workspace/') ||
+    pathname === '/api/business-os/signup'
+  );
+}
+
 export function middleware(request: NextRequest) {
-  // Primary names documented for Aridon. The shorter aliases support an
-  // earlier Vercel naming convention without weakening authentication.
+  // Customer acquisition and white-label workspace shells are intentionally
+  // separate from the password-protected Aridon operator command center.
+  if (isPublicCustomerRoute(request.nextUrl.pathname)) {
+    return withSecurityHeaders(NextResponse.next());
+  }
+
   const primaryUsername =
     process.env.ARIDON_APP_USERNAME || process.env.ARIDON_USERNAME;
   const primaryPassword =
     process.env.ARIDON_APP_PASSWORD || process.env.ARIDON_PASSWORD;
 
-  // Optional secondary account. Both values must be present together.
   const secondaryUsername =
     process.env.ARIDON_APP_SECONDARY_USERNAME ||
     process.env.ARIDON_SECONDARY_USERNAME;
@@ -57,7 +77,7 @@ export function middleware(request: NextRequest) {
 
   if (missing.length > 0) {
     if (process.env.NODE_ENV !== 'production' && !secondaryIsPartiallyConfigured) {
-      return NextResponse.next();
+      return withSecurityHeaders(NextResponse.next());
     }
 
     const commit = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'unknown';
@@ -113,11 +133,7 @@ export function middleware(request: NextRequest) {
     return unauthorized();
   }
 
-  const response = NextResponse.next();
-  for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
-    response.headers.set(name, value);
-  }
-  return response;
+  return withSecurityHeaders(NextResponse.next());
 }
 
 export const config = {
