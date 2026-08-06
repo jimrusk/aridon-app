@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function BusinessOSSignup() {
@@ -30,7 +31,7 @@ export default function BusinessOSSignup() {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) { setError(data.error || 'We could not save your request.'); setSending(false); return; }
-    const query = new URLSearchParams({ business: form.businessName, industry: form.industry, owner: form.ownerName });
+    const query = new URLSearchParams({ business: form.businessName, industry: form.industry, owner: form.ownerName, plan: form.plan });
     router.push(`/workspace/preview?${query.toString()}`);
   }
 
@@ -40,9 +41,9 @@ export default function BusinessOSSignup() {
   return (
     <main style={{ minHeight: '100vh', background: '#F5F2EA', color: '#171717', padding: '30px 18px 70px', fontFamily: 'Arial, sans-serif' }}>
       <div style={{ maxWidth: '920px', margin: '0 auto' }}>
-        <div style={{ fontSize: '12px', fontWeight: 950, letterSpacing: '1.2px' }}>PRIVATE BUSINESS OS</div>
-        <h1 style={{ fontSize: 'clamp(38px, 7vw, 64px)', lineHeight: 1, margin: '12px 0 14px', letterSpacing: '-2px' }}>Tell us how your business works.</h1>
-        <p style={{ color: '#56564F', fontSize: '18px', lineHeight: 1.6, maxWidth: '730px' }}>We use this to shape your private workspace, executive roles and first automation plan. Your customer site is branded around your business, not mixed into the Aridon command center.</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}><div style={{ fontSize: '12px', fontWeight: 950, letterSpacing: '1.2px' }}>PRIVATE BUSINESS OS</div><Link href="/customer/login" style={{ color: '#171717', fontWeight: 850 }}>Customer Login</Link></div>
+        <h1 style={{ fontSize: 'clamp(38px, 7vw, 64px)', lineHeight: 1, margin: '28px 0 14px', letterSpacing: '-2px' }}>Tell us how your business works.</h1>
+        <p style={{ color: '#56564F', fontSize: '18px', lineHeight: 1.6, maxWidth: '730px' }}>We use this to shape your private workspace, executive roles and first automation plan. Your customer site is branded around your business and kept separate from the platform operator’s internal command center.</p>
 
         <form onSubmit={submit} style={{ background: '#fff', border: '1px solid #D3CEC3', borderRadius: '20px', padding: '22px', marginTop: '26px', boxShadow: '0 20px 55px rgba(0,0,0,.07)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '14px' }} className="signup-grid">
@@ -62,7 +63,7 @@ export default function BusinessOSSignup() {
           </div>
           {error && <div style={{ marginTop: '14px', background: '#FDE8E6', border: '1px solid #EAB4AF', color: '#8D2F26', borderRadius: '10px', padding: '11px 13px' }}>{error}</div>}
           <button disabled={sending || !ready} type="submit" style={{ marginTop: '18px', width: '100%', border: 0, borderRadius: '12px', padding: '14px', background: '#171717', color: '#fff', fontSize: '16px', fontWeight: 950, cursor: sending ? 'wait' : 'pointer', opacity: ready ? 1 : .55 }}>{sending ? 'Building your preview…' : 'Create My Workspace Preview'}</button>
-          <p style={{ color: '#777268', fontSize: '12px', lineHeight: 1.5, marginBottom: 0 }}>Submitting this form requests a business-system consultation. It does not start billing or create a paid subscription.</p>
+          <p style={{ color: '#777268', fontSize: '12px', lineHeight: 1.5, marginBottom: 0 }}>Submitting this form requests a workspace preview. It does not start billing or create a paid subscription.</p>
         </form>
       </div>
       <style>{`@media (max-width:700px){.signup-grid{grid-template-columns:1fr !important}}`}</style>

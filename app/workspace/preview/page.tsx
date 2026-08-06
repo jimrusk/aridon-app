@@ -1,4 +1,6 @@
-type PreviewProps = { searchParams?: { business?: string; industry?: string; owner?: string } };
+import Link from 'next/link';
+
+type PreviewProps = { searchParams?: { business?: string; industry?: string; owner?: string; plan?: string } };
 
 const executives = [
   ['Operations Lead', 'Turns priorities into finished work and keeps projects moving.'],
@@ -13,13 +15,14 @@ export default function WorkspacePreview({ searchParams }: PreviewProps) {
   const business = (searchParams?.business || 'Your Company').slice(0, 100);
   const industry = (searchParams?.industry || 'Your Industry').slice(0, 100);
   const owner = (searchParams?.owner || 'Founder').slice(0, 100);
+  const plan = ['launch', 'growth', 'command'].includes(searchParams?.plan || '') ? searchParams?.plan : 'launch';
 
   return (
     <main style={{ minHeight: '100vh', background: '#0B1020', color: '#F7F9FD', fontFamily: 'Arial, sans-serif', padding: '26px 18px 90px' }}>
       <div style={{ maxWidth: '1180px', margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '28px' }}>
           <div><div style={{ fontWeight: 950, fontSize: '22px', letterSpacing: '-.5px' }}>{business}</div><div style={{ color: '#8EA0C3', fontSize: '12px', marginTop: '3px' }}>{industry} · Private Executive Command Center</div></div>
-          <div style={{ border: '1px solid #29405A', background: '#102033', color: '#9EF0CF', padding: '8px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 900 }}>● PRIVATE WORKSPACE</div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}><div style={{ border: '1px solid #29405A', background: '#102033', color: '#9EF0CF', padding: '8px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 900 }}>● PRIVATE WORKSPACE PREVIEW</div><Link href="/customer/login" style={{ color: '#DCE7F8', fontSize: '12px', fontWeight: 850, textDecoration: 'none', border: '1px solid #34415D', padding: '8px 12px', borderRadius: '999px' }}>Customer Login</Link></div>
         </header>
 
         <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.5fr) minmax(260px,.5fr)', gap: '16px' }} className="preview-grid">
@@ -49,7 +52,7 @@ export default function WorkspacePreview({ searchParams }: PreviewProps) {
           {['Projects & Tasks','CRM & Follow-Up','Company Knowledge','Competitor Intelligence','CEO Challenge Room','Financial Stress Tests','Execution Workflows','Morning Intelligence'].map(item=><div key={item} style={{ background: '#111827', border: '1px solid #293552', borderRadius: '14px', padding: '16px', fontWeight: 800 }}>{item}</div>)}
         </section>
 
-        <div style={{ marginTop: '28px', background: '#DDF8ED', color: '#102019', borderRadius: '18px', padding: '22px', textAlign: 'center' }}><div style={{ fontWeight: 950, fontSize: '24px' }}>This is the workspace shell we brand around {business}.</div><p style={{ lineHeight: 1.55, maxWidth: '720px', margin: '8px auto 0', color: '#385047' }}>Paid activation adds the company’s real projects, customers, documents, executive roles, workflows and private access controls. Customer data lives in separate customer-workspace tables rather than Aridon’s internal operating data.</p></div>
+        <div style={{ marginTop: '28px', background: '#DDF8ED', color: '#102019', borderRadius: '18px', padding: '22px', textAlign: 'center' }}><div style={{ fontWeight: 950, fontSize: '24px' }}>This is the workspace shell we brand around {business}.</div><p style={{ lineHeight: 1.55, maxWidth: '720px', margin: '8px auto 14px', color: '#385047' }}>Paid activation adds your real projects, customers, documents, executive roles, workflows and private access controls. Customer data stays in your own tenant layer rather than the platform operator’s internal business records.</p><Link href={`/business-os/checkout?plan=${plan}`} style={{ display: 'inline-block', background: '#102019', color: '#fff', borderRadius: '11px', padding: '13px 17px', textDecoration: 'none', fontWeight: 950 }}>Activate This Workspace</Link></div>
       </div>
       <style>{`@media(max-width:800px){.preview-grid{grid-template-columns:1fr !important}}`}</style>
     </main>
