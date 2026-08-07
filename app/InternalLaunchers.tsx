@@ -27,6 +27,8 @@ export default function InternalLaunchers() {
         display: 'flex', gap: '9px', flexWrap: 'wrap', justifyContent: 'flex-end',
       }}
     >
+      <Link href="/customers/metrics" aria-label="Open customer product health" style={{ ...launcherStyle, background: '#B9CFFF' }}>▣ Product Health</Link>
+      <Link href="/customers/feedback" aria-label="Review customer feedback" style={{ ...launcherStyle, background: '#FFD5A8' }}>✦ Customer Feedback</Link>
       <Link href="/customers/beta" aria-label="Create no-cost customer beta invite" style={{ ...launcherStyle, background: '#9EF0CF' }}>◌ Beta Invites</Link>
       <Link href="/business-os" aria-label="Open Private Business OS sales page" style={{ ...launcherStyle, background: '#E8DFC9' }}>◇ Sell Business OS</Link>
       <Link href="/advisors/awg1000" aria-label="Open AWG-1000 challenge pack" style={{ ...launcherStyle, background: '#A4F0CF' }}>◈ AWG Review</Link>

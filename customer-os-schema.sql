@@ -77,6 +77,51 @@ create table if not exists customer_feedback (
   created_at timestamptz default now()
 );
 
+-- Eva customer conversations are stored inside the customer's tenant layer so the
+-- product can provide continuity and measure support usage without mixing companies.
+create table if not exists customer_assistant_messages (
+  id uuid default gen_random_uuid() primary key,
+  tenant_id uuid not null references customer_tenants(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete set null,
+  role text not null check (role in ('user','assistant')),
+  content text not null,
+  web_research boolean default false,
+  created_at timestamptz default now()
+);
+
+-- Each active customer receives one referral code. Referred preview signups are
+-- attributed to the referrer without exposing the referred company's private tenant data.
+create table if not exists customer_referral_codes (
+  id uuid default gen_random_uuid() primary key,
+  tenant_id uuid not null unique references customer_tenants(id) on delete cascade,
+  code text not null unique,
+  created_at timestamptz default now()
+);
+
+create table if not exists customer_referrals (
+  id uuid default gen_random_uuid() primary key,
+  referrer_tenant_id uuid not null references customer_tenants(id) on delete cascade,
+  referral_code text not null,
+  lead_id text,
+  referred_business text,
+  referred_name text,
+  referred_email text,
+  status text default 'signup',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- Product telemetry captures coarse business events, not hidden chain-of-thought.
+-- It exists to measure activation, engagement, referrals, feedback and retention.
+create table if not exists customer_usage_events (
+  id uuid default gen_random_uuid() primary key,
+  tenant_id uuid references customer_tenants(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete set null,
+  event_name text not null,
+  event_data jsonb default '{}'::jsonb,
+  created_at timestamptz default now()
+);
+
 -- One-time no-cost beta invitations are generated from the protected operator console.
 -- Only a SHA-256 token hash is stored. The raw invitation token is shown once to the operator.
 create table if not exists customer_beta_invites (
@@ -98,6 +143,10 @@ create index if not exists customer_projects_tenant_idx on customer_projects(ten
 create index if not exists customer_tasks_tenant_idx on customer_tasks(tenant_id, created_at desc);
 create index if not exists customer_knowledge_tenant_idx on customer_knowledge(tenant_id, created_at desc);
 create index if not exists customer_feedback_tenant_idx on customer_feedback(tenant_id, created_at desc);
+create index if not exists customer_assistant_messages_tenant_idx on customer_assistant_messages(tenant_id, created_at desc);
+create index if not exists customer_referrals_tenant_idx on customer_referrals(referrer_tenant_id, created_at desc);
+create index if not exists customer_usage_events_tenant_idx on customer_usage_events(tenant_id, created_at desc);
+create index if not exists customer_usage_events_name_idx on customer_usage_events(event_name, created_at desc);
 create index if not exists customer_beta_invites_expiry_idx on customer_beta_invites(expires_at, used_at);
 create index if not exists customer_tenants_subscription_idx on customer_tenants(subscription_status, updated_at desc);
 
@@ -110,6 +159,10 @@ alter table customer_projects enable row level security;
 alter table customer_tasks enable row level security;
 alter table customer_knowledge enable row level security;
 alter table customer_feedback enable row level security;
+alter table customer_assistant_messages enable row level security;
+alter table customer_referral_codes enable row level security;
+alter table customer_referrals enable row level security;
+alter table customer_usage_events enable row level security;
 alter table customer_beta_invites enable row level security;
 
 -- Signed-in users may see their own membership rows. Customer workspace content is still
@@ -120,5 +173,6 @@ create policy "customer can read own memberships"
   to authenticated
   using (user_id = auth.uid());
 
--- Beta invitations, Stripe identifiers, billing state, tenant records and company content
--- have no direct browser policies. Access is brokered by the server after authentication.
+-- Beta invitations, Stripe identifiers, billing state, tenant records, conversations,
+-- referrals and company content have no anonymous direct-browser policies. Access is
+-- brokered by authenticated server routes or the protected operator command center.

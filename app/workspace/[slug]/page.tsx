@@ -84,7 +84,7 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
   const activeTasks = data.tasks.filter((task) => !['done', 'complete', 'completed', 'closed'].includes((task.status || '').toLowerCase()));
 
   return (
-    <main style={{ minHeight: '100vh', background: primary, color: '#F8FAFC', fontFamily: 'Arial, sans-serif', padding: '28px 18px 90px' }}>
+    <main style={{ minHeight: '100vh', background: primary, color: '#F8FAFC', fontFamily: 'Arial, sans-serif', padding: '28px 18px 100px' }}>
       <div style={{ maxWidth: '1120px', margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '28px' }}>
           <div>
@@ -92,6 +92,8 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
             <div style={{ color: '#C5CEDD', marginTop: '4px', fontSize: '13px' }}>{tenant.industry || 'Private Business'} · Executive Command Center</div>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <Link href="/customer/assistant" style={{ background: accent, color: '#07130F', borderRadius: '999px', padding: '9px 13px', fontSize: '12px', fontWeight: 950, textDecoration: 'none' }}>Ask Eva 24/7</Link>
+            <Link href="/customer/referrals" style={{ border: `1px solid ${accent}88`, color: accent, borderRadius: '999px', padding: '9px 12px', fontSize: '12px', fontWeight: 900, textDecoration: 'none' }}>Refer a Business</Link>
             <Link href={`/customer/feedback?workspace=${encodeURIComponent(tenant.slug)}`} style={{ border: `1px solid ${accent}88`, color: accent, borderRadius: '999px', padding: '9px 12px', fontSize: '12px', fontWeight: 900, textDecoration: 'none' }}>Send Feedback</Link>
             <Link href="/customer/account" style={{ border: '1px solid rgba(255,255,255,.2)', color: '#F8FAFC', borderRadius: '999px', padding: '9px 12px', fontSize: '12px', fontWeight: 850, textDecoration: 'none' }}>Account</Link>
             <button onClick={signOut} style={{ border: '1px solid rgba(255,255,255,.2)', background: 'transparent', color: '#F8FAFC', borderRadius: '999px', padding: '9px 12px', fontSize: '12px', fontWeight: 850, cursor: 'pointer' }}>Sign out</button>
@@ -102,6 +104,15 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
           <div style={{ color: accent, fontSize: '12px', fontWeight: 950, letterSpacing: '1px' }}>YOUR BUSINESS OPERATING SYSTEM</div>
           <h1 style={{ fontSize: 'clamp(38px,7vw,66px)', lineHeight: 1, margin: '10px 0 14px' }}>{tenant.tagline || `Run ${tenant.business_name} from one command center.`}</h1>
           <p style={{ color: '#C8D0DE', maxWidth: '780px', lineHeight: 1.65, fontSize: '18px' }}>Your company projects, tasks, knowledge and operating decisions are loaded through your customer login and tenant membership. This workspace does not expose the platform operator’s internal business records.</p>
+        </section>
+
+        <section style={{ marginTop: '16px', background: 'linear-gradient(135deg,rgba(114,214,178,.16),rgba(255,255,255,.04))', border: `1px solid ${accent}66`, borderRadius: '18px', padding: '20px', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: '18px', alignItems: 'center' }} className="eva-strip">
+          <div>
+            <div style={{ color: accent, fontSize: '12px', fontWeight: 950, letterSpacing: '.9px' }}>EVA · ALWAYS-AVAILABLE AI BUSINESS DESK</div>
+            <h2 style={{ margin: '7px 0 6px', fontSize: '28px' }}>You do not have to wait until tomorrow to get unstuck.</h2>
+            <p style={{ color: '#C5CEDD', lineHeight: 1.6, margin: 0 }}>Ask about customers, projects, competitors, research, writing, pricing, decisions or what to do next. Eva can use the company context stored in this tenant.</p>
+          </div>
+          <Link href="/customer/assistant" style={{ background: accent, color: '#07130F', borderRadius: '12px', padding: '13px 16px', fontWeight: 950, textDecoration: 'none', whiteSpace: 'nowrap' }}>Talk to Eva</Link>
         </section>
 
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))', gap: '12px', marginTop: '16px' }}>
@@ -132,12 +143,20 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
           </div>
         </section>
 
-        <section style={{ marginTop: '18px', border: `1px solid ${accent}55`, background: 'rgba(0,0,0,.18)', borderRadius: '16px', padding: '18px' }}>
-          <strong style={{ color: accent }}>Help shape the product while you use it.</strong>
-          <p style={{ color: '#C8D0DE', lineHeight: 1.6, margin: '6px 0 12px' }}>Use the system on real work, then tell us what saved time, what broke your flow, and what you expected it to do next.</p>
-          <Link href={`/customer/feedback?workspace=${encodeURIComponent(tenant.slug)}`} style={{ color: accent, fontWeight: 950 }}>Send product feedback →</Link>
+        <section style={{ marginTop: '18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: '14px' }}>
+          <div style={{ border: `1px solid ${accent}55`, background: 'rgba(0,0,0,.18)', borderRadius: '16px', padding: '18px' }}>
+            <strong style={{ color: accent }}>Help shape the product while you use it.</strong>
+            <p style={{ color: '#C8D0DE', lineHeight: 1.6, margin: '6px 0 12px' }}>Tell us what saved time, what broke your flow, and what you expected it to do next.</p>
+            <Link href={`/customer/feedback?workspace=${encodeURIComponent(tenant.slug)}`} style={{ color: accent, fontWeight: 950 }}>Send product feedback →</Link>
+          </div>
+          <div style={{ border: `1px solid ${accent}55`, background: 'rgba(0,0,0,.18)', borderRadius: '16px', padding: '18px' }}>
+            <strong style={{ color: accent }}>Know another company that would use this?</strong>
+            <p style={{ color: '#C8D0DE', lineHeight: 1.6, margin: '6px 0 12px' }}>Share a tracked preview invitation. Nobody is charged simply for following your referral.</p>
+            <Link href="/customer/referrals" style={{ color: accent, fontWeight: 950 }}>Get my referral link →</Link>
+          </div>
         </section>
       </div>
+      <style>{`@media(max-width:760px){.eva-strip{grid-template-columns:1fr !important}.eva-strip a{white-space:normal !important;text-align:center}}`}</style>
     </main>
   );
 }

@@ -20,17 +20,30 @@ export async function POST(request: NextRequest) {
 
     const ownerName = text(body?.ownerName, 120);
     const businessName = text(body?.businessName, 180);
-    const email = text(body?.email, 254);
+    const email = text(body?.email, 254).toLowerCase();
     const phone = text(body?.phone, 80);
     const website = text(body?.website, 500);
     const industry = text(body?.industry, 160);
     const teamSize = text(body?.teamSize, 60);
     const bottleneck = text(body?.bottleneck, 4000);
     const capabilities = text(body?.capabilities, 4000);
+    const referralCode = text(body?.referralCode, 40).toUpperCase();
     const plan = ['launch', 'growth', 'command'].includes(text(body?.plan, 30).toLowerCase()) ? text(body?.plan, 30).toLowerCase() : 'launch';
 
     if (!ownerName || !businessName || !industry || !/^\S+@\S+\.\S+$/.test(email)) {
       return NextResponse.json({ error: 'Name, business, industry and a valid email are required.' }, { status: 400, headers: NO_STORE });
+    }
+
+    const db = getServerClient();
+    let referrerTenantId = '';
+    if (referralCode) {
+      const { data: referral, error: referralLookupError } = await db
+        .from('customer_referral_codes')
+        .select('tenant_id')
+        .eq('code', referralCode)
+        .maybeSingle();
+      if (referralLookupError) throw referralLookupError;
+      referrerTenantId = referral?.tenant_id || '';
     }
 
     const notes = [
@@ -40,12 +53,12 @@ export async function POST(request: NextRequest) {
       teamSize ? `Team size: ${teamSize}` : '',
       phone ? `Phone: ${phone}` : '',
       website ? `Website: ${website}` : '',
+      referralCode && referrerTenantId ? `Customer referral: ${referralCode}` : '',
       bottleneck ? `Biggest owner-time bottleneck: ${bottleneck}` : '',
       capabilities ? `Requested first capabilities: ${capabilities}` : '',
       'Next step: qualify fit, confirm scope, then provision a separate customer tenant/workspace.',
     ].filter(Boolean).join('\n');
 
-    const db = getServerClient();
     const { data, error } = await db.from('leads').insert({
       name: ownerName,
       company: businessName,
@@ -55,6 +68,19 @@ export async function POST(request: NextRequest) {
     }).select('id').single();
 
     if (error) throw error;
+
+    if (referrerTenantId) {
+      const { error: referralError } = await db.from('customer_referrals').insert({
+        referrer_tenant_id: referrerTenantId,
+        referral_code: referralCode,
+        lead_id: data?.id || null,
+        referred_business: businessName,
+        referred_name: ownerName,
+        referred_email: email,
+        status: 'signup',
+      });
+      if (referralError) console.error('Customer referral attribution error', referralError);
+    }
 
     return NextResponse.json({ saved: true, leadId: data?.id || '' }, { status: 201, headers: NO_STORE });
   } catch (error) {

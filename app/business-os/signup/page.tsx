@@ -10,14 +10,18 @@ export default function BusinessOSSignup() {
   const [error, setError] = useState('');
   const [form, setForm] = useState({
     ownerName: '', businessName: '', email: '', phone: '', website: '', industry: '',
-    teamSize: '', bottleneck: '', plan: 'launch', capabilities: '', companyTrap: ''
+    teamSize: '', bottleneck: '', plan: 'launch', capabilities: '', companyTrap: '', referralCode: ''
   });
 
   useEffect(() => {
-    const requested = new URLSearchParams(window.location.search).get('plan');
-    if (requested && ['launch','growth','command'].includes(requested)) {
-      setForm(current => ({ ...current, plan: requested }));
-    }
+    const params = new URLSearchParams(window.location.search);
+    const requested = params.get('plan');
+    const referralCode = (params.get('ref') || '').trim().slice(0, 40).toUpperCase();
+    setForm(current => ({
+      ...current,
+      plan: requested && ['launch','growth','command'].includes(requested) ? requested : current.plan,
+      referralCode,
+    }));
   }, []);
 
   const ready = useMemo(() => form.ownerName.trim() && form.businessName.trim() && form.email.trim() && form.industry.trim(), [form]);
@@ -44,6 +48,8 @@ export default function BusinessOSSignup() {
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}><div style={{ fontSize: '12px', fontWeight: 950, letterSpacing: '1.2px' }}>PRIVATE BUSINESS OS</div><Link href="/customer/login" style={{ color: '#171717', fontWeight: 850 }}>Customer Login</Link></div>
         <h1 style={{ fontSize: 'clamp(38px, 7vw, 64px)', lineHeight: 1, margin: '28px 0 14px', letterSpacing: '-2px' }}>Tell us how your business works.</h1>
         <p style={{ color: '#56564F', fontSize: '18px', lineHeight: 1.6, maxWidth: '730px' }}>We use this to shape your private workspace, executive roles and first automation plan. Your customer site is branded around your business and kept separate from the platform operator’s internal command center.</p>
+
+        {form.referralCode && <div style={{ marginTop: '18px', background: '#E7F8F0', border: '1px solid #A7D9C5', color: '#173D30', borderRadius: '12px', padding: '12px 14px', fontWeight: 800 }}>You were invited by a current Private Business OS customer.</div>}
 
         <form onSubmit={submit} style={{ background: '#fff', border: '1px solid #D3CEC3', borderRadius: '20px', padding: '22px', marginTop: '26px', boxShadow: '0 20px 55px rgba(0,0,0,.07)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '14px' }} className="signup-grid">
