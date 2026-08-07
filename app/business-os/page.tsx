@@ -22,8 +22,8 @@ export default function BusinessOSLanding() {
         <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
           <div style={{ fontWeight: 950, fontSize: '20px' }}>PRIVATE BUSINESS OS</div>
           <div style={{ display: 'flex', gap: '9px', flexWrap: 'wrap' }}>
-            <Link href="/customer/login" style={outlinePill}>Customer Login</Link>
-            <Link href="/business-os/signup" style={darkPill}>See My Workspace</Link>
+            <Link href="/customer/login" style={outlinePill}>Sign In</Link>
+            <Link href="/business-os/beta" style={darkPill}>Start Free Beta</Link>
           </div>
         </nav>
 
@@ -33,10 +33,10 @@ export default function BusinessOSLanding() {
             <h1 style={{ fontSize: 'clamp(44px,8vw,82px)', lineHeight: .95, letterSpacing: '-3px', margin: '20px 0 24px', maxWidth: '900px' }}>Run your business with less chasing and more clarity.</h1>
             <p style={{ fontSize: '20px', lineHeight: 1.65, maxWidth: '780px', color: '#4B4B46' }}>Ask for help, organize work, research customers, prepare outreach and keep important company information together. You do not need to learn complicated AI commands.</p>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '30px' }}>
-              <Link href="/business-os/signup" style={primaryButton}>Show Me My Workspace</Link>
-              <a href="#how-it-works" style={secondaryButton}>How It Works</a>
+              <Link href="/business-os/beta" style={primaryButton}>Create My Free Business OS</Link>
+              <Link href="/business-os/signup" style={secondaryButton}>See a Preview First</Link>
             </div>
-            <p style={{ color: '#6A675F', fontSize: '13px', marginTop: '12px' }}>No charge for creating a preview. A preview does not start a subscription.</p>
+            <p style={{ color: '#6A675F', fontSize: '13px', marginTop: '12px' }}>The beta creates a real private workspace. No credit card is required and nothing is sent to customers automatically.</p>
           </div>
 
           <div style={{ background: '#171717', color: '#fff', borderRadius: '24px', padding: '24px', boxShadow: '0 28px 70px rgba(0,0,0,.16)' }}>
@@ -53,12 +53,12 @@ export default function BusinessOSLanding() {
 
       <section id="how-it-works" style={{ background: '#171717', color: '#fff', padding: '72px 20px' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto' }}>
-          <div style={{ color: '#A4F3D3', fontWeight: 900, fontSize: '12px' }}>HOW IT WORKS</div>
-          <h2 style={{ fontSize: 'clamp(34px,5vw,54px)', lineHeight: 1.05, margin: '10px 0 28px', maxWidth: '800px' }}>Three simple steps. No AI learning curve.</h2>
+          <div style={{ color: '#A4F3D3', fontWeight: 900, fontSize: '12px' }}>HOW THE FREE BETA WORKS</div>
+          <h2 style={{ fontSize: 'clamp(34px,5vw,54px)', lineHeight: 1.05, margin: '10px 0 28px', maxWidth: '800px' }}>One signup. Your business workspace builds itself.</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(250px,1fr))', gap: '14px' }}>
-            <Step number="1" title="Tell us about your business" text="Give us your company name, website and what you want help with." />
-            <Step number="2" title="Open your private workspace" text="Your company gets its own home screen and tools, separate from other businesses." />
-            <Step number="3" title="Ask for what you need" text="Talk to Eva, use Scout to find customers, and review work before anything important happens." />
+            <Step number="1" title="Tell us about your business" text="Enter your company name, website, what you sell and what you want help with first." />
+            <Step number="2" title="We create your workspace" text="Your login, private company workspace, starter project and first tasks are created automatically." />
+            <Step number="3" title="Open your startup guide" text="Use the link you receive to start with Eva, Scout and your company Home screen." />
           </div>
         </div>
       </section>
@@ -72,7 +72,7 @@ export default function BusinessOSLanding() {
 
       <section style={{ background: '#E9E5DB', padding: '72px 20px' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto' }}>
-          <div style={{ maxWidth: '780px', marginBottom: '28px' }}><div style={{ fontWeight: 900, fontSize: '12px' }}>PLANS</div><h2 style={{ fontSize: 'clamp(34px,5vw,52px)', margin: '10px 0' }}>Choose the level of help you need.</h2><p style={{ color: '#55554F', lineHeight: 1.6 }}>Not sure? Create the free preview first. You can decide on a plan later.</p></div>
+          <div style={{ maxWidth: '780px', marginBottom: '28px' }}><div style={{ fontWeight: 900, fontSize: '12px' }}>PLANS</div><h2 style={{ fontSize: 'clamp(34px,5vw,52px)', margin: '10px 0' }}>Beta first. Choose a paid plan later if it earns its place.</h2><p style={{ color: '#55554F', lineHeight: 1.6 }}>Beta access is for testing the product on real business work. Paid packages are available when you are ready for ongoing use.</p></div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: '14px' }}>
             {plans.map((plan, index) => (
               <article key={plan.name} style={{ background: index === 1 ? '#E7F8F0' : '#fff', border: '1px solid #CFC9BD', borderRadius: '18px', padding: '22px' }}>
@@ -86,7 +86,7 @@ export default function BusinessOSLanding() {
         </div>
       </section>
 
-      <section style={{ background: '#DDE9FF', padding: '64px 20px' }}><div style={{ maxWidth: '900px', margin: '0 auto', textAlign: 'center' }}><h2 style={{ fontSize: 'clamp(36px,6vw,60px)', margin: '0 0 18px', letterSpacing: '-2px' }}>See what it looks like for your company.</h2><p style={{ fontSize: '19px', color: '#3E4756', lineHeight: 1.6 }}>A preview takes only a few business details and does not charge you.</p><Link href="/business-os/signup" style={{ ...primaryButton, display: 'inline-block', marginTop: '14px' }}>Create My Free Preview</Link></div></section>
+      <section style={{ background: '#DDE9FF', padding: '64px 20px' }}><div style={{ maxWidth: '900px', margin: '0 auto', textAlign: 'center' }}><h2 style={{ fontSize: 'clamp(36px,6vw,60px)', margin: '0 0 18px', letterSpacing: '-2px' }}>Ready to build yours?</h2><p style={{ fontSize: '19px', color: '#3E4756', lineHeight: 1.6 }}>Use one simple form. Your Business OS will create the starting workspace for you.</p><Link href="/business-os/beta" style={{ ...primaryButton, display: 'inline-block', marginTop: '14px' }}>Start My Free Beta</Link></div></section>
 
       <footer style={{ padding: '28px 20px', textAlign: 'center', color: '#6D6D68', fontSize: '12px' }}>Private Business OS · AI tools inside your company’s private workspace</footer>
       <style>{`@media (max-width:820px){.hero-grid{grid-template-columns:1fr !important}.hero-grid h1{letter-spacing:-2px !important}}`}</style>
