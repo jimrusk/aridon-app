@@ -40,10 +40,8 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
         router.replace(`/customer/login?next=${encodeURIComponent(`/workspace/${params.slug}`)}`);
         return;
       }
-
       const response = await fetch(`/api/customer/workspace?slug=${encodeURIComponent(params.slug)}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: 'no-store',
+        headers: { Authorization: `Bearer ${token}` }, cache: 'no-store',
       });
       const result = await response.json().catch(() => ({}));
       if (response.status === 401 || response.status === 403) {
@@ -66,101 +64,86 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
     router.replace('/customer/login');
   }
 
-  if (loading) {
-    return <main style={{ minHeight: '100vh', background: '#0B1020', color: '#F8FAFC', display: 'grid', placeItems: 'center', fontFamily: 'Arial, sans-serif' }}>Opening your private workspace…</main>;
-  }
-
-  if (!data) {
-    return (
-      <main style={{ minHeight: '100vh', background: '#0B1020', color: '#F8FAFC', display: 'grid', placeItems: 'center', padding: '24px', fontFamily: 'Arial, sans-serif' }}>
-        <div style={{ maxWidth: '520px', textAlign: 'center' }}><h1>Workspace unavailable</h1><p style={{ color: '#B7C2D5', lineHeight: 1.6 }}>{error}</p><Link href="/customer/account" style={{ color: '#9EF0CF', fontWeight: 900 }}>Open account</Link></div>
-      </main>
-    );
-  }
+  if (loading) return <main style={loadingStyle}>Opening your company home…</main>;
+  if (!data) return <main style={loadingStyle}><div style={{ maxWidth: '520px', textAlign: 'center' }}><h1>We could not open your workspace.</h1><p style={{ color: '#B7C2D5' }}>{error}</p><Link href="/customer/account" style={{ color: '#9EF0CF', fontWeight: 900 }}>Open account</Link></div></main>;
 
   const tenant = data.tenant;
   const primary = tenant.primary_color || '#0B1020';
   const accent = tenant.accent_color || '#72D6B2';
   const activeTasks = data.tasks.filter((task) => !['done', 'complete', 'completed', 'closed'].includes((task.status || '').toLowerCase()));
+  const firstVisit = data.projects.length === 0 && activeTasks.length === 0 && data.knowledge.length === 0;
 
   return (
-    <main style={{ minHeight: '100vh', background: primary, color: '#F8FAFC', fontFamily: 'Arial, sans-serif', padding: '28px 18px 100px' }}>
-      <div style={{ maxWidth: '1120px', margin: '0 auto' }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '28px' }}>
-          <div>
-            <div style={{ fontSize: '26px', fontWeight: 950 }}>{tenant.business_name}</div>
-            <div style={{ color: '#C5CEDD', marginTop: '4px', fontSize: '13px' }}>{tenant.industry || 'Private Business'} · Executive Command Center</div>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <Link href="/customer/assistant" style={{ background: accent, color: '#07130F', borderRadius: '999px', padding: '9px 13px', fontSize: '12px', fontWeight: 950, textDecoration: 'none' }}>Ask Eva 24/7</Link>
-            <Link href="/customer/referrals" style={{ border: `1px solid ${accent}88`, color: accent, borderRadius: '999px', padding: '9px 12px', fontSize: '12px', fontWeight: 900, textDecoration: 'none' }}>Refer a Business</Link>
-            <Link href={`/customer/feedback?workspace=${encodeURIComponent(tenant.slug)}`} style={{ border: `1px solid ${accent}88`, color: accent, borderRadius: '999px', padding: '9px 12px', fontSize: '12px', fontWeight: 900, textDecoration: 'none' }}>Send Feedback</Link>
-            <Link href="/customer/account" style={{ border: '1px solid rgba(255,255,255,.2)', color: '#F8FAFC', borderRadius: '999px', padding: '9px 12px', fontSize: '12px', fontWeight: 850, textDecoration: 'none' }}>Account</Link>
-            <button onClick={signOut} style={{ border: '1px solid rgba(255,255,255,.2)', background: 'transparent', color: '#F8FAFC', borderRadius: '999px', padding: '9px 12px', fontSize: '12px', fontWeight: 850, cursor: 'pointer' }}>Sign out</button>
-          </div>
+    <main style={{ minHeight: '100vh', background: primary, color: '#F8FAFC', fontFamily: 'Arial, sans-serif', padding: '24px 18px 90px' }}>
+      <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap', marginBottom: '24px' }}>
+          <div><div style={{ fontSize: '26px', fontWeight: 950 }}>{tenant.business_name}</div><div style={{ color: '#C5CEDD', marginTop: '4px', fontSize: '13px' }}>Your company home</div></div>
+          <nav style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <Link href="/customer/start" style={navLink}>Start Here</Link>
+            <Link href="/customer/assistant" style={{ ...navLink, background: accent, color: '#07130F', borderColor: accent }}>Ask Eva</Link>
+            <Link href="/customer/sales" style={navLink}>Find Customers</Link>
+            <Link href="/customer/account" style={navLink}>Account</Link>
+            <button onClick={signOut} style={navButton}>Sign out</button>
+          </nav>
         </header>
 
-        <section style={{ background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)', borderRadius: '22px', padding: '26px' }}>
-          <div style={{ color: accent, fontSize: '12px', fontWeight: 950, letterSpacing: '1px' }}>YOUR BUSINESS OPERATING SYSTEM</div>
-          <h1 style={{ fontSize: 'clamp(38px,7vw,66px)', lineHeight: 1, margin: '10px 0 14px' }}>{tenant.tagline || `Run ${tenant.business_name} from one command center.`}</h1>
-          <p style={{ color: '#C8D0DE', maxWidth: '780px', lineHeight: 1.65, fontSize: '18px' }}>Your company projects, tasks, knowledge and operating decisions are loaded through your customer login and tenant membership. This workspace does not expose the platform operator’s internal business records.</p>
+        <section style={{ background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)', borderRadius: '22px', padding: '24px' }}>
+          <div style={{ color: accent, fontSize: '12px', fontWeight: 950 }}>TODAY</div>
+          <h1 style={{ fontSize: 'clamp(38px,7vw,62px)', lineHeight: 1, margin: '9px 0 12px' }}>{tenant.tagline || `What does ${tenant.business_name} need next?`}</h1>
+          <p style={{ color: '#C8D0DE', maxWidth: '760px', lineHeight: 1.65, fontSize: '17px' }}>Use Eva when you need help thinking or writing. Use Scout when you want to find possible customers. Your work and company information stay here in your private company space.</p>
         </section>
 
-        <section style={{ marginTop: '16px', background: 'linear-gradient(135deg,rgba(114,214,178,.16),rgba(255,255,255,.04))', border: `1px solid ${accent}66`, borderRadius: '18px', padding: '20px', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: '18px', alignItems: 'center' }} className="eva-strip">
-          <div>
-            <div style={{ color: accent, fontSize: '12px', fontWeight: 950, letterSpacing: '.9px' }}>EVA · ALWAYS-AVAILABLE AI BUSINESS DESK</div>
-            <h2 style={{ margin: '7px 0 6px', fontSize: '28px' }}>You do not have to wait until tomorrow to get unstuck.</h2>
-            <p style={{ color: '#C5CEDD', lineHeight: 1.6, margin: 0 }}>Ask about customers, projects, competitors, research, writing, pricing, decisions or what to do next. Eva can use the company context stored in this tenant.</p>
-          </div>
-          <Link href="/customer/assistant" style={{ background: accent, color: '#07130F', borderRadius: '12px', padding: '13px 16px', fontWeight: 950, textDecoration: 'none', whiteSpace: 'nowrap' }}>Talk to Eva</Link>
+        {firstVisit && (
+          <section style={{ marginTop: '16px', background: '#DDF8ED', color: '#102019', borderRadius: '18px', padding: '20px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 950 }}>FIRST VISIT?</div>
+            <h2 style={{ margin: '7px 0 8px' }}>Start with one of these. You cannot break anything.</h2>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <Link href="/customer/assistant" style={darkAction}>Ask Eva what to focus on</Link>
+              <Link href="/customer/sales" style={darkAction}>Find possible customers</Link>
+              <Link href="/customer/start" style={outlineAction}>Show me how this works</Link>
+            </div>
+          </section>
+        )}
+
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: '12px', marginTop: '16px' }}>
+          <HomeCard accent={accent} title="Ask Eva" text="Get help with priorities, customer emails, research, writing and decisions." href="/customer/assistant" button="Talk to Eva" />
+          <HomeCard accent={accent} title="Find Customers" text="Teach Scout what you sell and research companies that may be a good fit." href="/customer/sales" button="Open Sales" />
+          <HomeCard accent={accent} title="My Work" text={`${data.projects.length} project${data.projects.length === 1 ? '' : 's'} and ${activeTasks.length} open task${activeTasks.length === 1 ? '' : 's'} are currently here.`} href="#my-work" button="See My Work" />
         </section>
 
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))', gap: '12px', marginTop: '16px' }}>
-          {[
-            ['Active Projects', String(data.projects.length), 'Work currently tracked in your company tenant'],
-            ['Open Tasks', String(activeTasks.length), 'Items still waiting to be finished'],
-            ['Knowledge Items', String(data.knowledge.length), 'Company research and operating memory'],
-            ['Access', tenant.subscription_status === 'beta' ? 'BETA' : (tenant.plan || 'ACTIVE').toUpperCase(), tenant.subscription_status === 'beta' ? 'No-cost invited test workspace' : 'Customer subscription workspace'],
-          ].map(([label, value, note]) => (
-            <article key={label} style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.11)', borderRadius: '16px', padding: '18px' }}>
-              <div style={{ color: accent, fontWeight: 950, fontSize: '30px' }}>{value}</div>
-              <div style={{ fontWeight: 900, marginTop: '5px' }}>{label}</div>
-              <div style={{ color: '#BCC6D6', lineHeight: 1.45, marginTop: '5px', fontSize: '13px' }}>{note}</div>
-            </article>
-          ))}
-        </section>
-
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: '14px', marginTop: '18px' }}>
+        <section id="my-work" style={{ marginTop: '18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: '14px' }}>
           <div style={panelStyle}>
-            <div style={{ color: accent, fontSize: '12px', fontWeight: 950, letterSpacing: '.8px' }}>PROJECTS</div>
-            <h2 style={{ margin: '8px 0 12px' }}>What the company is moving</h2>
-            {data.projects.length === 0 ? <p style={mutedStyle}>No customer projects have been added yet.</p> : data.projects.slice(0, 6).map((project) => <div key={project.id} style={rowStyle}><strong>{project.name}</strong><span style={{ color: '#AEB9CB', fontSize: '12px' }}>{project.status || 'active'}</span></div>)}
+            <div style={{ color: accent, fontSize: '12px', fontWeight: 950 }}>PROJECTS</div>
+            <h2 style={{ margin: '8px 0 12px' }}>What we are working on</h2>
+            {data.projects.length === 0 ? <p style={mutedStyle}>No projects have been added yet. Ask Eva to help turn a goal into a project plan.</p> : data.projects.slice(0, 6).map((project) => <div key={project.id} style={rowStyle}><strong>{project.name}</strong><span style={statusStyle}>{project.status || 'active'}</span></div>)}
           </div>
           <div style={panelStyle}>
-            <div style={{ color: accent, fontSize: '12px', fontWeight: 950, letterSpacing: '.8px' }}>TASKS</div>
-            <h2 style={{ margin: '8px 0 12px' }}>What needs attention</h2>
-            {activeTasks.length === 0 ? <p style={mutedStyle}>No open customer tasks are waiting right now.</p> : activeTasks.slice(0, 8).map((task) => <div key={task.id} style={rowStyle}><strong>{task.title}</strong><span style={{ color: '#AEB9CB', fontSize: '12px' }}>{task.priority || 'medium'} · {task.status || 'open'}</span></div>)}
+            <div style={{ color: accent, fontSize: '12px', fontWeight: 950 }}>OPEN TASKS</div>
+            <h2 style={{ margin: '8px 0 12px' }}>What still needs attention</h2>
+            {activeTasks.length === 0 ? <p style={mutedStyle}>No open tasks are waiting right now.</p> : activeTasks.slice(0, 8).map((task) => <div key={task.id} style={rowStyle}><strong>{task.title}</strong><span style={statusStyle}>{task.priority || 'medium'}</span></div>)}
           </div>
         </section>
 
-        <section style={{ marginTop: '18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: '14px' }}>
-          <div style={{ border: `1px solid ${accent}55`, background: 'rgba(0,0,0,.18)', borderRadius: '16px', padding: '18px' }}>
-            <strong style={{ color: accent }}>Help shape the product while you use it.</strong>
-            <p style={{ color: '#C8D0DE', lineHeight: 1.6, margin: '6px 0 12px' }}>Tell us what saved time, what broke your flow, and what you expected it to do next.</p>
-            <Link href={`/customer/feedback?workspace=${encodeURIComponent(tenant.slug)}`} style={{ color: accent, fontWeight: 950 }}>Send product feedback →</Link>
-          </div>
-          <div style={{ border: `1px solid ${accent}55`, background: 'rgba(0,0,0,.18)', borderRadius: '16px', padding: '18px' }}>
-            <strong style={{ color: accent }}>Know another company that would use this?</strong>
-            <p style={{ color: '#C8D0DE', lineHeight: 1.6, margin: '6px 0 12px' }}>Share a tracked preview invitation. Nobody is charged simply for following your referral.</p>
-            <Link href="/customer/referrals" style={{ color: accent, fontWeight: 950 }}>Get my referral link →</Link>
-          </div>
+        <section style={{ marginTop: '18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(250px,1fr))', gap: '12px' }}>
+          <Link href={`/customer/feedback?workspace=${encodeURIComponent(tenant.slug)}`} style={quietCard}><strong style={{ color: accent }}>Something confusing?</strong><span style={{ color: '#C8D0DE', lineHeight: 1.5 }}>Tell us what felt unclear so we can fix it.</span></Link>
+          <Link href="/customer/referrals" style={quietCard}><strong style={{ color: accent }}>Know another business that could use this?</strong><span style={{ color: '#C8D0DE', lineHeight: 1.5 }}>Get a referral link to share a preview.</span></Link>
         </section>
       </div>
-      <style>{`@media(max-width:760px){.eva-strip{grid-template-columns:1fr !important}.eva-strip a{white-space:normal !important;text-align:center}}`}</style>
     </main>
   );
 }
 
+function HomeCard({ accent, title, text, href, button }: { accent: string; title: string; text: string; href: string; button: string }) {
+  return <article style={panelStyle}><div style={{ color: accent, fontWeight: 950, fontSize: '22px' }}>{title}</div><p style={{ color: '#C8D0DE', lineHeight: 1.6, minHeight: '76px' }}>{text}</p><Link href={href} style={{ display: 'inline-block', background: accent, color: '#07130F', borderRadius: '10px', padding: '10px 13px', textDecoration: 'none', fontWeight: 950 }}>{button}</Link></article>;
+}
+
+const loadingStyle = { minHeight: '100vh', background: '#0B1020', color: '#F8FAFC', display: 'grid', placeItems: 'center', padding: '24px', fontFamily: 'Arial, sans-serif' };
+const navLink = { border: '1px solid rgba(255,255,255,.2)', color: '#F8FAFC', borderRadius: '10px', padding: '9px 12px', fontSize: '13px', fontWeight: 850, textDecoration: 'none' };
+const navButton = { ...navLink, background: 'transparent', cursor: 'pointer' };
 const panelStyle = { background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.11)', borderRadius: '16px', padding: '18px' };
 const rowStyle = { display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,.08)', padding: '11px 0' };
+const statusStyle = { color: '#AEB9CB', fontSize: '12px' };
 const mutedStyle = { color: '#AEB9CB', lineHeight: 1.6 };
+const darkAction = { background: '#102019', color: '#fff', borderRadius: '10px', padding: '11px 14px', textDecoration: 'none', fontWeight: 900 };
+const outlineAction = { border: '1px solid #6A8A7D', color: '#102019', borderRadius: '10px', padding: '10px 13px', textDecoration: 'none', fontWeight: 900 };
+const quietCard = { ...panelStyle, textDecoration: 'none', display: 'grid', gap: '6px' };
