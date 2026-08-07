@@ -27,6 +27,7 @@ export default function InternalLaunchers() {
         display: 'flex', gap: '9px', flexWrap: 'wrap', justifyContent: 'flex-end',
       }}
     >
+      <Link href="/eva-core/memory" aria-label="Open Eva Core memory and recall console" style={{ ...launcherStyle, background: '#FFD5A8' }}>◇ Eva Memory</Link>
       <Link href="/eva-core" aria-label="Open Eva Core inner-world lab" style={{ ...launcherStyle, background: '#9EF0CF' }}>◉ Eva Core</Link>
       <Link href="/customers/metrics" aria-label="Open customer product health" style={{ ...launcherStyle, background: '#B9CFFF' }}>▣ Product Health</Link>
       <Link href="/customers/feedback" aria-label="Review customer feedback" style={{ ...launcherStyle, background: '#FFD5A8' }}>✦ Customer Feedback</Link>
