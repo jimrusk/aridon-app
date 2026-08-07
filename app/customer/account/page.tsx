@@ -29,19 +29,12 @@ export default function CustomerAccountPage() {
     const db = getBrowserClient();
     db.auth.getSession().then(async ({ data }) => {
       const accessToken = data.session?.access_token;
-      if (!accessToken) {
-        router.replace('/customer/login');
-        return;
-      }
+      if (!accessToken) { router.replace('/customer/login'); return; }
       setToken(accessToken);
       const response = await fetch('/api/customer/me', { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setMessage(result.error || 'Unable to load this account.');
-        return;
-      }
-      setAccount(result as AccountData);
-      setMessage('');
+      if (!response.ok) { setMessage(result.error || 'Unable to load this account.'); return; }
+      setAccount(result as AccountData); setMessage('');
     });
   }, [router]);
 
@@ -50,58 +43,51 @@ export default function CustomerAccountPage() {
     setBillingLoading(true);
     const response = await fetch('/api/customer/billing-portal', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.url) {
-      setMessage(data.error || 'Unable to open billing management.');
-      setBillingLoading(false);
-      return;
-    }
+    if (!response.ok || !data.url) { setMessage(data.error || 'Unable to open billing management.'); setBillingLoading(false); return; }
     window.location.assign(data.url);
   }
 
-  async function signOut() {
-    await getBrowserClient().auth.signOut();
-    router.replace('/customer/login');
-  }
+  async function signOut() { await getBrowserClient().auth.signOut(); router.replace('/customer/login'); }
 
   return (
     <main style={{ minHeight: '100vh', background: '#0B1020', color: '#F8FAFC', padding: '30px 18px 90px', fontFamily: 'Arial, sans-serif' }}>
       <div style={{ maxWidth: '880px', margin: '0 auto' }}>
-        <div style={{ color: '#9EF0CF', fontSize: '12px', fontWeight: 950, letterSpacing: '1px' }}>PRIVATE BUSINESS OS</div>
-        <h1 style={{ fontSize: 'clamp(38px,7vw,58px)', margin: '10px 0 22px' }}>Account & access</h1>
+        {account && <nav style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '28px' }}><Link href={`/workspace/${account.tenant.slug}`} style={navLink}>Home</Link><Link href="/customer/start" style={navLink}>Start Here</Link><Link href="/customer/assistant" style={navLink}>Ask Eva</Link><Link href="/customer/sales" style={navLink}>Find Customers</Link></nav>}
+        <div style={{ color: '#9EF0CF', fontSize: '12px', fontWeight: 950 }}>ACCOUNT</div>
+        <h1 style={{ fontSize: 'clamp(38px,7vw,58px)', margin: '10px 0 8px' }}>Your company account</h1>
+        <p style={{ color: '#AEBAD0', lineHeight: 1.6, marginBottom: '22px' }}>Use this page for login details, plan information, billing and sign-out.</p>
         {message && <div style={{ background: '#182238', border: '1px solid #314363', borderRadius: '12px', padding: '13px', color: '#D6E1F4', marginBottom: '16px' }}>{message}</div>}
 
-        {account && (
-          <>
-            <section style={{ background: '#111827', border: '1px solid #2A3857', borderRadius: '18px', padding: '20px', display: 'grid', gap: '10px' }}>
-              <div><strong>Business:</strong> {account.tenant.business_name}</div>
-              <div><strong>Login:</strong> {account.email}</div>
-              <div><strong>Role:</strong> {account.role}</div>
-              <div><strong>Plan:</strong> {account.tenant.plan || 'not set'}</div>
-              <div><strong>Access status:</strong> {account.tenant.subscription_status || account.tenant.status || 'unknown'}</div>
-            </section>
+        {account && <>
+          <section style={{ background: '#111827', border: '1px solid #2A3857', borderRadius: '18px', padding: '20px', display: 'grid', gap: '12px' }}>
+            <Info label="Business" value={account.tenant.business_name} />
+            <Info label="Email used to sign in" value={account.email} />
+            <Info label="Your access" value={account.role || 'member'} />
+            <Info label="Plan" value={account.tenant.plan || 'not set'} />
+            <Info label="Account status" value={account.tenant.subscription_status || account.tenant.status || 'unknown'} />
+          </section>
 
-            <section style={{ marginTop: '16px', background: '#102033', border: '1px solid #29405A', borderRadius: '16px', padding: '18px' }}>
-              <div style={{ color: '#9EF0CF', fontSize: '12px', fontWeight: 950, letterSpacing: '.8px' }}>ALWAYS-AVAILABLE AI DESK</div>
-              <h2 style={{ margin: '7px 0 6px' }}>Ask Eva whenever work gets stuck.</h2>
-              <p style={{ color: '#B9C7D9', lineHeight: 1.55, margin: '0 0 12px' }}>Eva can use your company workspace context to help with priorities, customer follow-up, research, decisions, writing, competitive analysis and execution planning.</p>
-              <Link href="/customer/assistant" style={primaryLink}>Ask Eva 24/7</Link>
-            </section>
+          <section style={{ marginTop: '16px', background: '#102033', border: '1px solid #29405A', borderRadius: '16px', padding: '18px' }}>
+            <h2 style={{ margin: '0 0 7px' }}>Need help using the system?</h2>
+            <p style={{ color: '#B9C7D9', lineHeight: 1.55, margin: '0 0 12px' }}>Open Start Here for a simple walkthrough, or ask Eva what you are trying to accomplish.</p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}><Link href="/customer/start" style={primaryLink}>Start Here</Link><Link href="/customer/assistant" style={secondaryLink}>Ask Eva</Link></div>
+          </section>
 
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '16px' }}>
-              <Link href={`/workspace/${account.tenant.slug}`} style={primaryLink}>Open workspace</Link>
-              <Link href="/customer/assistant" style={secondaryLink}>Ask Eva</Link>
-              <Link href="/customer/referrals" style={secondaryLink}>Refer a Business</Link>
-              <Link href={`/customer/feedback?workspace=${encodeURIComponent(account.tenant.slug)}`} style={secondaryLink}>Send feedback</Link>
-              {account.tenant.stripe_customer_id && <button onClick={openBilling} disabled={billingLoading} style={buttonStyle}>{billingLoading ? 'Opening…' : 'Manage billing'}</button>}
-              <button onClick={signOut} style={buttonStyle}>Sign out</button>
-            </div>
-          </>
-        )}
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '16px' }}>
+            {account.tenant.stripe_customer_id && <button onClick={openBilling} disabled={billingLoading} style={buttonStyle}>{billingLoading ? 'Opening billing…' : 'Manage billing'}</button>}
+            <Link href={`/customer/feedback?workspace=${encodeURIComponent(account.tenant.slug)}`} style={secondaryLink}>Send feedback</Link>
+            <Link href="/customer/referrals" style={secondaryLink}>Refer a business</Link>
+            <button onClick={signOut} style={buttonStyle}>Sign out</button>
+          </div>
+        </>}
       </div>
     </main>
   );
 }
 
-const primaryLink = { display: 'inline-block', background: '#9EF0CF', color: '#08130F', borderRadius: '11px', padding: '12px 15px', fontWeight: 950, textDecoration: 'none' };
-const secondaryLink = { border: '1px solid #415171', color: '#E4EAF5', borderRadius: '11px', padding: '12px 15px', fontWeight: 850, textDecoration: 'none' };
-const buttonStyle = { border: '1px solid #415171', background: '#111827', color: '#E4EAF5', borderRadius: '11px', padding: '12px 15px', fontWeight: 850, cursor: 'pointer' };
+function Info({ label, value }: { label: string; value: string }) { return <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: '12px', borderTop: '1px solid #273650', paddingTop: '10px' }}><strong style={{ color: '#9EF0CF' }}>{label}</strong><span>{value}</span></div>; }
+
+const navLink = { border: '1px solid #415171', color: '#E4EAF5', borderRadius: '10px', padding: '9px 12px', fontWeight: 850, textDecoration: 'none', fontSize: '13px' };
+const primaryLink = { display: 'inline-block', background: '#9EF0CF', color: '#08130F', borderRadius: '11px', padding: '11px 14px', fontWeight: 950, textDecoration: 'none' };
+const secondaryLink = { border: '1px solid #415171', color: '#E4EAF5', borderRadius: '11px', padding: '10px 13px', fontWeight: 850, textDecoration: 'none' };
+const buttonStyle = { border: '1px solid #415171', background: '#111827', color: '#E4EAF5', borderRadius: '11px', padding: '11px 14px', fontWeight: 850, cursor: 'pointer' };
