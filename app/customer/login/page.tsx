@@ -5,6 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getBrowserClient } from '../../../lib/supabase';
 
+function safeNext() {
+  if (typeof window === 'undefined') return '';
+  const next = new URLSearchParams(window.location.search).get('next') || '';
+  return next.startsWith('/') && !next.startsWith('//') ? next : '';
+}
+
 export default function CustomerLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -19,7 +25,7 @@ export default function CustomerLoginPage() {
       if (!token) return;
       const response = await fetch('/api/customer/me', { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
       const result = await response.json().catch(() => ({}));
-      if (response.ok && result.tenant?.slug) router.replace(`/workspace/${result.tenant.slug}`);
+      if (response.ok && result.tenant?.slug) router.replace(safeNext() || `/workspace/${result.tenant.slug}`);
     });
   }, [router]);
 
@@ -31,7 +37,7 @@ export default function CustomerLoginPage() {
     const response = await fetch('/api/customer/me', { headers: { Authorization: `Bearer ${data.session.access_token}` }, cache: 'no-store' });
     const result = await response.json().catch(() => ({}));
     if (!response.ok || !result.tenant?.slug) { setMessage(result.error || 'This login does not have a company workspace yet.'); setLoading(false); return; }
-    router.replace(`/workspace/${result.tenant.slug}`);
+    router.replace(safeNext() || `/workspace/${result.tenant.slug}`);
   }
 
   async function resetPassword() {
@@ -56,7 +62,7 @@ export default function CustomerLoginPage() {
           <button type="button" onClick={resetPassword} style={{ border: '1px solid #34415D', background: 'transparent', color: '#D5DEEE', padding: '11px', borderRadius: '11px', fontWeight: 800, cursor: 'pointer' }}>Reset password</button>
         </form>
 
-        <div style={{ marginTop: '16px', color: '#8190AB', fontSize: '13px', lineHeight: 1.6 }}>Do not have a workspace yet? <Link href="/business-os/signup" style={{ color: '#B9CFFF' }}>Create a free preview.</Link></div>
+        <div style={{ marginTop: '16px', color: '#8190AB', fontSize: '13px', lineHeight: 1.6 }}>Do not have a workspace yet? <Link href="/business-os/beta" style={{ color: '#B9CFFF' }}>Start the free beta.</Link></div>
       </div>
     </main>
   );
