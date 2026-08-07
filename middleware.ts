@@ -43,6 +43,7 @@ function isPublicCustomerRoute(pathname: string) {
     pathname === '/api/business-os/checkout' ||
     pathname === '/api/business-os/activate' ||
     pathname === '/api/business-os/beta/activate' ||
+    pathname === '/api/business-os/beta/signup' ||
     pathname.startsWith('/api/customer/') ||
     pathname === '/api/stripe/webhook'
   );
@@ -50,7 +51,7 @@ function isPublicCustomerRoute(pathname: string) {
 
 export function middleware(request: NextRequest) {
   // Customer acquisition, customer authentication, Stripe's signed webhook,
-  // and tenant workspace shells use their own auth controls and remain separate
+  // and customer workspace shells use their own auth controls and remain separate
   // from the password-protected platform operator command center.
   if (isPublicCustomerRoute(request.nextUrl.pathname)) {
     return withSecurityHeaders(NextResponse.next());
