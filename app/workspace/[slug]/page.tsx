@@ -73,6 +73,7 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
   const activeTasks = data.tasks.filter((task) => !['done', 'complete', 'completed', 'closed'].includes((task.status || '').toLowerCase()));
   const firstVisit = data.projects.length === 0 && activeTasks.length === 0 && data.knowledge.length === 0;
   const feedbackHref = `/customer/feedback?workspace=${encodeURIComponent(tenant.slug)}`;
+  const isBeta = tenant.plan === 'beta';
 
   return (
     <main style={{ minHeight: '100vh', background: primary, color: '#F8FAFC', fontFamily: 'Arial, sans-serif', padding: '24px 18px 110px' }}>
@@ -83,6 +84,7 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
             <Link href="/customer/start" style={navLink}>Start Here</Link>
             <Link href="/customer/assistant" style={{ ...navLink, background: accent, color: '#07130F', borderColor: accent }}>Ask Eva</Link>
             <Link href="/customer/sales" style={navLink}>Find Customers</Link>
+            {isBeta && <Link href="/customer/upgrade" style={{ ...navLink, background: '#F4D88B', color: '#241C08', borderColor: '#F4D88B' }}>Keep My Business OS</Link>}
             <Link href={feedbackHref} style={{ ...navLink, borderColor: accent, color: accent }}>Send Feedback</Link>
             <Link href="/customer/account" style={navLink}>Account</Link>
             <button onClick={signOut} style={navButton}>Sign out</button>
@@ -95,10 +97,10 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
           <p style={{ color: '#C8D0DE', maxWidth: '760px', lineHeight: 1.65, fontSize: '17px' }}>Use Eva when you need help thinking or writing. Use Scout when you want to find possible customers. Your work and company information stay here in your private company space.</p>
         </section>
 
-        {tenant.plan === 'beta' && (
-          <section style={{ marginTop: '16px', display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap', background: '#162237', border: '1px solid #334766', borderRadius: '16px', padding: '16px 18px' }}>
-            <div><strong style={{ color: '#F4F7FB' }}>Testing something that feels confusing, slow, or broken?</strong><div style={{ color: '#AEBAD0', fontSize: '13px', marginTop: '4px' }}>Send the details while they are fresh. Specific feedback helps us reproduce the problem.</div></div>
-            <Link href={feedbackHref} style={{ background: accent, color: '#07130F', borderRadius: '10px', padding: '11px 14px', textDecoration: 'none', fontWeight: 950 }}>Send Beta Feedback</Link>
+        {isBeta && (
+          <section style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: '14px', alignItems: 'center', background: '#162237', border: '1px solid #334766', borderRadius: '16px', padding: '18px' }} className="beta-banner">
+            <div><div style={{ color: '#F4D88B', fontSize: '11px', fontWeight: 950 }}>FREE BETA</div><h2 style={{ margin: '6px 0 5px' }}>If this is earning its place in your business, you can keep the same workspace.</h2><div style={{ color: '#AEBAD0', fontSize: '13px', lineHeight: 1.55 }}>Upgrading does not reset your projects, tasks, Eva history, company knowledge or sales work.</div></div>
+            <div style={{ display: 'grid', gap: '8px' }}><Link href="/customer/upgrade" style={{ background: '#F4D88B', color: '#241C08', borderRadius: '10px', padding: '11px 14px', textDecoration: 'none', fontWeight: 950, textAlign: 'center' }}>See Paid Plans</Link><Link href={feedbackHref} style={{ border: '1px solid #516987', color: '#DDE6F3', borderRadius: '10px', padding: '10px 13px', textDecoration: 'none', fontWeight: 850, textAlign: 'center' }}>Send Beta Feedback</Link></div>
           </section>
         )}
 
@@ -139,7 +141,8 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
         </section>
       </div>
 
-      {tenant.plan === 'beta' && <Link href={feedbackHref} style={{ position: 'fixed', right: '18px', bottom: '18px', zIndex: 20, background: accent, color: '#07130F', borderRadius: '999px', padding: '12px 16px', textDecoration: 'none', fontWeight: 950, boxShadow: '0 12px 28px rgba(0,0,0,.28)' }}>Feedback</Link>}
+      {isBeta && <Link href={feedbackHref} style={{ position: 'fixed', right: '18px', bottom: '18px', zIndex: 20, background: accent, color: '#07130F', borderRadius: '999px', padding: '12px 16px', textDecoration: 'none', fontWeight: 950, boxShadow: '0 12px 28px rgba(0,0,0,.28)' }}>Feedback</Link>}
+      <style>{`@media(max-width:760px){.beta-banner{grid-template-columns:1fr !important}}`}</style>
     </main>
   );
 }

@@ -50,6 +50,7 @@ export async function ensureTenantFromCheckout(
   const subscriptionId = stripeObjectId(subscription || session.subscription);
   const customerId = stripeObjectId(session.customer || subscription?.customer);
   const metadata = session.metadata || subscription?.metadata || {};
+  const existingTenantId = clean(metadata.existing_tenant_id, 80);
   const businessName = clean(metadata.business_name, 180) || 'Customer Business';
   const ownerName = clean(metadata.owner_name, 120);
   const industry = clean(metadata.industry, 160);
@@ -61,6 +62,34 @@ export async function ensureTenantFromCheckout(
   const periodEnd = subscription?.current_period_end
     ? new Date(subscription.current_period_end * 1000).toISOString()
     : null;
+
+  if (existingTenantId) {
+    const { data: betaTenant, error: betaTenantError } = await db
+      .from('customer_tenants')
+      .select('id,slug,business_name,contact_email')
+      .eq('id', existingTenantId)
+      .maybeSingle();
+    if (betaTenantError) throw betaTenantError;
+    if (!betaTenant) throw new Error('The existing beta workspace could not be found.');
+
+    const { data, error } = await db
+      .from('customer_tenants')
+      .update({
+        stripe_customer_id: customerId || null,
+        stripe_subscription_id: subscriptionId || null,
+        billing_email: email || betaTenant.contact_email,
+        plan,
+        subscription_status: subscriptionStatus,
+        status: subscriptionStatusToTenantStatus(subscriptionStatus),
+        current_period_end: periodEnd,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', betaTenant.id)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data;
+  }
 
   if (subscriptionId) {
     const { data: existing, error: existingError } = await db
