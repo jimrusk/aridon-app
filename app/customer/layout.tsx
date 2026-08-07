@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import CustomerSessionControls from '../components/CustomerSessionControls';
 
 export const metadata: Metadata = {
   title: 'Private Business OS',
@@ -7,10 +6,5 @@ export const metadata: Metadata = {
 };
 
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <CustomerSessionControls />
-      {children}
-    </>
-  );
+  return children;
 }
