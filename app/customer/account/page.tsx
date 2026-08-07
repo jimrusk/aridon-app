@@ -24,6 +24,7 @@ export default function CustomerAccountPage() {
   const [token, setToken] = useState('');
   const [message, setMessage] = useState('Loading your account…');
   const [billingLoading, setBillingLoading] = useState(false);
+  const [websiteLoading, setWebsiteLoading] = useState(false);
 
   useEffect(() => {
     const db = getBrowserClient();
@@ -47,6 +48,25 @@ export default function CustomerAccountPage() {
     window.location.assign(data.url);
   }
 
+  async function refreshWebsiteKnowledge() {
+    if (!token) return;
+    setWebsiteLoading(true);
+    setMessage('');
+    const response = await fetch('/api/customer/website-ingestion', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(data.error || 'Unable to refresh website knowledge.');
+      setWebsiteLoading(false);
+      return;
+    }
+    setMessage(`Website knowledge refreshed from ${data.pages || 0} public page${data.pages === 1 ? '' : 's'}. Eva and Scout can use the updated website context now.`);
+    setWebsiteLoading(false);
+  }
+
   async function signOut() { await getBrowserClient().auth.signOut(); router.replace('/customer/login'); }
 
   return (
@@ -55,7 +75,7 @@ export default function CustomerAccountPage() {
         {account && <nav style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '28px' }}><Link href={`/workspace/${account.tenant.slug}`} style={navLink}>Home</Link><Link href="/customer/start" style={navLink}>Start Here</Link><Link href="/customer/assistant" style={navLink}>Ask Eva</Link><Link href="/customer/sales" style={navLink}>Find Customers</Link></nav>}
         <div style={{ color: '#9EF0CF', fontSize: '12px', fontWeight: 950 }}>ACCOUNT</div>
         <h1 style={{ fontSize: 'clamp(38px,7vw,58px)', margin: '10px 0 8px' }}>Your company account</h1>
-        <p style={{ color: '#AEBAD0', lineHeight: 1.6, marginBottom: '22px' }}>Use this page for login details, plan information, billing and sign-out.</p>
+        <p style={{ color: '#AEBAD0', lineHeight: 1.6, marginBottom: '22px' }}>Use this page for login details, company knowledge, plan information, billing and sign-out.</p>
         {message && <div style={{ background: '#182238', border: '1px solid #314363', borderRadius: '12px', padding: '13px', color: '#D6E1F4', marginBottom: '16px' }}>{message}</div>}
 
         {account && <>
@@ -65,6 +85,13 @@ export default function CustomerAccountPage() {
             <Info label="Your access" value={account.role || 'member'} />
             <Info label="Plan" value={account.tenant.plan || 'not set'} />
             <Info label="Account status" value={account.tenant.subscription_status || account.tenant.status || 'unknown'} />
+          </section>
+
+          <section style={{ marginTop: '16px', background: '#111827', border: '1px solid #2A3857', borderRadius: '16px', padding: '18px' }}>
+            <div style={{ color: '#9EF0CF', fontSize: '12px', fontWeight: 950 }}>WEBSITE INTELLIGENCE</div>
+            <h2 style={{ margin: '7px 0' }}>Let the Business OS relearn your public website.</h2>
+            <p style={{ color: '#B9C7D9', lineHeight: 1.55, margin: '0 0 12px' }}>If you supplied a company website during beta signup, the system can rescan up to three high-signal public pages and refresh the website context used by Eva and Scout. Private pages and logged-in content are not accessed.</p>
+            <button onClick={refreshWebsiteKnowledge} disabled={websiteLoading} style={buttonStyle}>{websiteLoading ? 'Refreshing website…' : 'Refresh website knowledge'}</button>
           </section>
 
           <section style={{ marginTop: '16px', background: '#102033', border: '1px solid #29405A', borderRadius: '16px', padding: '18px' }}>
