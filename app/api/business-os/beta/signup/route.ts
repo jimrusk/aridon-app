@@ -16,6 +16,12 @@ function text(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
 
+function normalizeWebsite(value: unknown) {
+  const raw = text(value, 500);
+  if (!raw) return '';
+  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+}
+
 async function existingWorkspaceForEmail(email: string) {
   const db = getServerClient();
   for (let page = 1; page <= 10; page += 1) {
@@ -64,7 +70,7 @@ export async function POST(request: NextRequest) {
     const ownerName = text(body?.ownerName, 120);
     const email = text(body?.email, 254).toLowerCase();
     const industry = text(body?.industry, 160);
-    const website = text(body?.website, 500);
+    const website = normalizeWebsite(body?.website);
     const offer = text(body?.offer, 2500);
     const goal = text(body?.goal, 2500);
     const password = text(body?.password, 500);
@@ -74,9 +80,6 @@ export async function POST(request: NextRequest) {
     }
     if (password.length < 12) {
       return NextResponse.json({ error: 'Please use a password with at least 12 characters.' }, { status: 400, headers: NO_STORE });
-    }
-    if (website && !/^https?:\/\//i.test(website)) {
-      return NextResponse.json({ error: 'Website should begin with http:// or https://.' }, { status: 400, headers: NO_STORE });
     }
 
     const existing = await existingWorkspaceForEmail(email);
