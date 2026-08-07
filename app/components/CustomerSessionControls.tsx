@@ -12,30 +12,50 @@ export default function CustomerSessionControls() {
   const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
-    const db = getBrowserClient();
     let mounted = true;
+    let unsubscribe: (() => void) | null = null;
 
-    db.auth.getSession().then(({ data }) => {
-      if (mounted) setSignedIn(Boolean(data.session));
-    });
+    try {
+      const db = getBrowserClient();
 
-    const { data: listener } = db.auth.onAuthStateChange((_event, session) => {
-      if (mounted) setSignedIn(Boolean(session));
-    });
+      db.auth.getSession()
+        .then(({ data }) => {
+          if (mounted) setSignedIn(Boolean(data.session));
+        })
+        .catch((error) => {
+          console.error('Customer session lookup failed', error);
+          if (mounted) setSignedIn(false);
+        });
+
+      const { data: listener } = db.auth.onAuthStateChange((_event, session) => {
+        if (mounted) setSignedIn(Boolean(session));
+      });
+      unsubscribe = () => listener.subscription.unsubscribe();
+    } catch (error) {
+      // Public pages must never crash just because customer auth configuration is
+      // unavailable or malformed. Keep Sign In visible and degrade gracefully.
+      console.error('Customer session controls unavailable', error);
+      if (mounted) setSignedIn(false);
+    }
 
     return () => {
       mounted = false;
-      listener.subscription.unsubscribe();
+      unsubscribe?.();
     };
   }, []);
 
   async function signOut() {
     setSigningOut(true);
-    await getBrowserClient().auth.signOut();
-    setSignedIn(false);
-    router.replace('/customer/login');
-    router.refresh();
-    setSigningOut(false);
+    try {
+      await getBrowserClient().auth.signOut();
+    } catch (error) {
+      console.error('Customer sign out failed', error);
+    } finally {
+      setSignedIn(false);
+      router.replace('/customer/login');
+      router.refresh();
+      setSigningOut(false);
+    }
   }
 
   return (
