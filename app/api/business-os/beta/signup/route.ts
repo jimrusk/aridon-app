@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
     const starterTasks = [
       { tenant_id: activated.tenant.id, title: 'Ask Eva about my most important business priority', owner: ownerName, priority: 'high', status: 'open' },
       { tenant_id: activated.tenant.id, title: websiteIngested ? 'Ask Eva what she learned from my website' : 'Teach Scout what we sell and find possible customers', owner: ownerName, priority: 'medium', status: 'open' },
-      { tenant_id: activated.tenant.id, title: websiteIngested ? 'Have Scout find customers who fit what my website sells' : 'Send beta feedback after trying the system on real work', owner: ownerName, priority: 'medium', status: 'open' },
+      { tenant_id: activated.tenant.id, title: websiteIngested ? 'Open Scout and build my sales profile from my website' : 'Send beta feedback after trying the system on real work', owner: ownerName, priority: 'medium', status: 'open' },
     ];
 
     const { error: taskError } = await db.from('customer_tasks').insert(starterTasks);
