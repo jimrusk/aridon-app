@@ -72,9 +72,10 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
   const accent = tenant.accent_color || '#72D6B2';
   const activeTasks = data.tasks.filter((task) => !['done', 'complete', 'completed', 'closed'].includes((task.status || '').toLowerCase()));
   const firstVisit = data.projects.length === 0 && activeTasks.length === 0 && data.knowledge.length === 0;
+  const feedbackHref = `/customer/feedback?workspace=${encodeURIComponent(tenant.slug)}`;
 
   return (
-    <main style={{ minHeight: '100vh', background: primary, color: '#F8FAFC', fontFamily: 'Arial, sans-serif', padding: '24px 18px 90px' }}>
+    <main style={{ minHeight: '100vh', background: primary, color: '#F8FAFC', fontFamily: 'Arial, sans-serif', padding: '24px 18px 110px' }}>
       <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap', marginBottom: '24px' }}>
           <div><div style={{ fontSize: '26px', fontWeight: 950 }}>{tenant.business_name}</div><div style={{ color: '#C5CEDD', marginTop: '4px', fontSize: '13px' }}>Your company home</div></div>
@@ -82,6 +83,7 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
             <Link href="/customer/start" style={navLink}>Start Here</Link>
             <Link href="/customer/assistant" style={{ ...navLink, background: accent, color: '#07130F', borderColor: accent }}>Ask Eva</Link>
             <Link href="/customer/sales" style={navLink}>Find Customers</Link>
+            <Link href={feedbackHref} style={{ ...navLink, borderColor: accent, color: accent }}>Send Feedback</Link>
             <Link href="/customer/account" style={navLink}>Account</Link>
             <button onClick={signOut} style={navButton}>Sign out</button>
           </nav>
@@ -92,6 +94,13 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
           <h1 style={{ fontSize: 'clamp(38px,7vw,62px)', lineHeight: 1, margin: '9px 0 12px' }}>{tenant.tagline || `What does ${tenant.business_name} need next?`}</h1>
           <p style={{ color: '#C8D0DE', maxWidth: '760px', lineHeight: 1.65, fontSize: '17px' }}>Use Eva when you need help thinking or writing. Use Scout when you want to find possible customers. Your work and company information stay here in your private company space.</p>
         </section>
+
+        {tenant.plan === 'beta' && (
+          <section style={{ marginTop: '16px', display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap', background: '#162237', border: '1px solid #334766', borderRadius: '16px', padding: '16px 18px' }}>
+            <div><strong style={{ color: '#F4F7FB' }}>Testing something that feels confusing, slow, or broken?</strong><div style={{ color: '#AEBAD0', fontSize: '13px', marginTop: '4px' }}>Send the details while they are fresh. Specific feedback helps us reproduce the problem.</div></div>
+            <Link href={feedbackHref} style={{ background: accent, color: '#07130F', borderRadius: '10px', padding: '11px 14px', textDecoration: 'none', fontWeight: 950 }}>Send Beta Feedback</Link>
+          </section>
+        )}
 
         {firstVisit && (
           <section style={{ marginTop: '16px', background: '#DDF8ED', color: '#102019', borderRadius: '18px', padding: '20px' }}>
@@ -125,10 +134,12 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
         </section>
 
         <section style={{ marginTop: '18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(250px,1fr))', gap: '12px' }}>
-          <Link href={`/customer/feedback?workspace=${encodeURIComponent(tenant.slug)}`} style={quietCard}><strong style={{ color: accent }}>Something confusing?</strong><span style={{ color: '#C8D0DE', lineHeight: 1.5 }}>Tell us what felt unclear so we can fix it.</span></Link>
+          <Link href={feedbackHref} style={quietCard}><strong style={{ color: accent }}>Something confusing?</strong><span style={{ color: '#C8D0DE', lineHeight: 1.5 }}>Tell us what felt unclear so we can fix it.</span></Link>
           <Link href="/customer/referrals" style={quietCard}><strong style={{ color: accent }}>Know another business that could use this?</strong><span style={{ color: '#C8D0DE', lineHeight: 1.5 }}>Get a referral link to share a preview.</span></Link>
         </section>
       </div>
+
+      {tenant.plan === 'beta' && <Link href={feedbackHref} style={{ position: 'fixed', right: '18px', bottom: '18px', zIndex: 20, background: accent, color: '#07130F', borderRadius: '999px', padding: '12px 16px', textDecoration: 'none', fontWeight: 950, boxShadow: '0 12px 28px rgba(0,0,0,.28)' }}>Feedback</Link>}
     </main>
   );
 }
