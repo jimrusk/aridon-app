@@ -69,10 +69,12 @@ export default function CustomerAccountPage() {
 
   async function signOut() { await getBrowserClient().auth.signOut(); router.replace('/customer/login'); }
 
+  const isBeta = account?.tenant.plan === 'beta';
+
   return (
     <main style={{ minHeight: '100vh', background: '#0B1020', color: '#F8FAFC', padding: '30px 18px 90px', fontFamily: 'Arial, sans-serif' }}>
       <div style={{ maxWidth: '880px', margin: '0 auto' }}>
-        {account && <nav style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '28px' }}><Link href={`/workspace/${account.tenant.slug}`} style={navLink}>Home</Link><Link href="/customer/start" style={navLink}>Start Here</Link><Link href="/customer/assistant" style={navLink}>Ask Eva</Link><Link href="/customer/sales" style={navLink}>Find Customers</Link></nav>}
+        {account && <nav style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '28px' }}><Link href={`/workspace/${account.tenant.slug}`} style={navLink}>Home</Link><Link href="/customer/start" style={navLink}>Start Here</Link><Link href="/customer/assistant" style={navLink}>Ask Eva</Link><Link href="/customer/sales" style={navLink}>Find Customers</Link>{isBeta && <Link href="/customer/upgrade" style={{ ...navLink, background: '#F4D88B', color: '#241C08', borderColor: '#F4D88B' }}>Keep My Business OS</Link>}</nav>}
         <div style={{ color: '#9EF0CF', fontSize: '12px', fontWeight: 950 }}>ACCOUNT</div>
         <h1 style={{ fontSize: 'clamp(38px,7vw,58px)', margin: '10px 0 8px' }}>Your company account</h1>
         <p style={{ color: '#AEBAD0', lineHeight: 1.6, marginBottom: '22px' }}>Use this page for login details, company knowledge, plan information, billing and sign-out.</p>
@@ -86,6 +88,13 @@ export default function CustomerAccountPage() {
             <Info label="Plan" value={account.tenant.plan || 'not set'} />
             <Info label="Account status" value={account.tenant.subscription_status || account.tenant.status || 'unknown'} />
           </section>
+
+          {isBeta && <section style={{ marginTop: '16px', background: '#2B2514', border: '1px solid #665827', borderRadius: '16px', padding: '18px' }}>
+            <div style={{ color: '#F4D88B', fontSize: '12px', fontWeight: 950 }}>FREE BETA</div>
+            <h2 style={{ margin: '7px 0' }}>Want to keep this same workspace after the beta?</h2>
+            <p style={{ color: '#DED3B3', lineHeight: 1.55, margin: '0 0 12px' }}>Choose a paid plan without rebuilding your account. Your current projects, tasks, company knowledge, Eva history and sales work stay in place.</p>
+            <Link href="/customer/upgrade" style={{ display: 'inline-block', background: '#F4D88B', color: '#241C08', borderRadius: '11px', padding: '11px 14px', fontWeight: 950, textDecoration: 'none' }}>See Paid Plans</Link>
+          </section>}
 
           <section style={{ marginTop: '16px', background: '#111827', border: '1px solid #2A3857', borderRadius: '16px', padding: '18px' }}>
             <div style={{ color: '#9EF0CF', fontSize: '12px', fontWeight: 950 }}>WEBSITE INTELLIGENCE</div>
@@ -102,6 +111,7 @@ export default function CustomerAccountPage() {
 
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '16px' }}>
             {account.tenant.stripe_customer_id && <button onClick={openBilling} disabled={billingLoading} style={buttonStyle}>{billingLoading ? 'Opening billing…' : 'Manage billing'}</button>}
+            {isBeta && <Link href="/customer/upgrade" style={primaryLink}>Upgrade</Link>}
             <Link href={`/customer/feedback?workspace=${encodeURIComponent(account.tenant.slug)}`} style={secondaryLink}>Send feedback</Link>
             <Link href="/customer/referrals" style={secondaryLink}>Refer a business</Link>
             <button onClick={signOut} style={buttonStyle}>Sign out</button>
