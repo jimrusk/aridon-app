@@ -63,7 +63,7 @@ export default function CustomerAccountPage() {
       setWebsiteLoading(false);
       return;
     }
-    setMessage(`Website knowledge refreshed from ${data.pages || 0} public page${data.pages === 1 ? '' : 's'}. Eva and Scout can use the updated website context now.`);
+    setMessage(`Website knowledge refreshed from ${data.pages || 0} public page${data.pages === 1 ? '' : 's'}. Eva can use the updated context immediately. Open Find Customers and update Scout's sales profile when you want Scout to relearn the site too.`);
     setWebsiteLoading(false);
   }
 
@@ -90,7 +90,7 @@ export default function CustomerAccountPage() {
           <section style={{ marginTop: '16px', background: '#111827', border: '1px solid #2A3857', borderRadius: '16px', padding: '18px' }}>
             <div style={{ color: '#9EF0CF', fontSize: '12px', fontWeight: 950 }}>WEBSITE INTELLIGENCE</div>
             <h2 style={{ margin: '7px 0' }}>Let the Business OS relearn your public website.</h2>
-            <p style={{ color: '#B9C7D9', lineHeight: 1.55, margin: '0 0 12px' }}>If you supplied a company website during beta signup, the system can rescan up to three high-signal public pages and refresh the website context used by Eva and Scout. Private pages and logged-in content are not accessed.</p>
+            <p style={{ color: '#B9C7D9', lineHeight: 1.55, margin: '0 0 12px' }}>If you supplied a company website during beta signup, the system can rescan up to three high-signal public pages and refresh the website context used by Eva. Scout performs its own sales-focused learning when you update its profile in Find Customers. Private pages and logged-in content are not accessed.</p>
             <button onClick={refreshWebsiteKnowledge} disabled={websiteLoading} style={buttonStyle}>{websiteLoading ? 'Refreshing website…' : 'Refresh website knowledge'}</button>
           </section>
 
