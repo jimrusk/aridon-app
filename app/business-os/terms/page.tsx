@@ -1,15 +1,23 @@
 import Link from 'next/link';
 
-export default function BetaTermsPage() {
+export default function BusinessOSTermsPage() {
   return (
     <main style={pageStyle}>
       <article style={cardStyle}>
-        <div style={eyebrow}>BETA TERMS</div>
-        <h1 style={titleStyle}>Simple rules for testing Business OS.</h1>
-        <p style={bodyStyle}>Last updated August 7, 2026. These beta terms describe the practical rules for using the test product. They are intended to be readable, not ceremonial wallpaper.</p>
+        <div style={eyebrow}>BUSINESS OS TERMS</div>
+        <h1 style={titleStyle}>Simple rules for using Business OS.</h1>
+        <p style={bodyStyle}>Last updated August 7, 2026. These terms describe the practical rules for using the free beta and paid Business OS subscriptions.</p>
 
-        <Section title="Beta access">
-          <p>Beta access is provided for evaluation and real-world business testing. Features may change, move, break, or be removed while the product is being developed. Beta access may be limited or ended.</p>
+        <Section title="Free beta access">
+          <p>Beta access is provided for evaluation and real-world business testing. Features may change, move, break, or be removed while the product is being developed. Free beta access may be limited or ended.</p>
+        </Section>
+
+        <Section title="Paid subscriptions">
+          <p>Paid plans are recurring subscriptions. The plan, price, billing interval, and payment details are shown in Stripe before you complete checkout. Completing Stripe checkout authorizes recurring billing for the selected plan until the subscription is canceled.</p>
+        </Section>
+
+        <Section title="Canceling or changing a subscription">
+          <p>Subscription changes and cancellations are handled through the available billing tools or support path. Any change takes effect according to the billing terms shown in Stripe. Refund rights, if any, follow applicable law and any policy displayed at the time of purchase.</p>
         </Section>
 
         <Section title="Your account and business information">
@@ -25,28 +33,25 @@ export default function BetaTermsPage() {
         </Section>
 
         <Section title="Appropriate use">
-          <p>Do not use the beta to break laws, impersonate people, send unlawful spam, attack systems, distribute malware, violate privacy rights, or access information you are not authorized to use.</p>
+          <p>Do not use Business OS to break laws, impersonate people, send unlawful spam, attack systems, distribute malware, violate privacy rights, or access information you are not authorized to use.</p>
         </Section>
 
-        <Section title="No guarantee of uninterrupted service">
-          <p>This is a beta product. Availability, accuracy, performance, integrations, and data workflows are still being tested. Keep independent copies of important business records and do not rely on the beta as your only system of record.</p>
+        <Section title="Availability and backups">
+          <p>Availability, accuracy, performance, integrations, and data workflows can change. Keep independent copies of important business records and do not rely on Business OS as your only system of record.</p>
         </Section>
 
         <Section title="Feedback">
           <p>Feedback is welcome and may be used to improve the product. Do not put secrets or information you do not want reviewed by the product team into a feedback submission.</p>
         </Section>
 
-        <Section title="Future paid plans">
-          <p>Creating this free beta account does not start billing. If paid plans are offered later, you will be shown the applicable price and terms before a paid subscription begins.</p>
-        </Section>
-
         <div style={footerBox}>
-          <strong>Using the beta means you agree to these beta rules and the Privacy Notice.</strong>
-          <span>If the terms change materially during testing, the updated date on this page will change.</span>
+          <strong>Using Business OS means you agree to these terms and the Privacy Notice.</strong>
+          <span>If these terms change materially, the updated date on this page will change.</span>
         </div>
 
         <div style={linksStyle}>
-          <Link href="/business-os/beta" style={linkStyle}>Back to beta signup</Link>
+          <Link href="/business-os" style={linkStyle}>Back to Business OS</Link>
+          <Link href="/business-os/beta" style={linkStyle}>Start free beta</Link>
           <Link href="/business-os/privacy" style={linkStyle}>Privacy Notice</Link>
         </div>
       </article>

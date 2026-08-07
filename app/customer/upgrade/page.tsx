@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getBrowserClient } from '../../../lib/supabase';
+import { directCheckout, directCheckoutUrl } from '../../../lib/directCheckout';
 
 type PlanPrice = {
   plan: string;
@@ -42,8 +43,8 @@ const planCopy = {
   },
 } as const;
 
-function money(plan?: PlanPrice) {
-  if (!plan || plan.unitAmount == null) return 'Price shown in checkout';
+function money(plan?: PlanPrice, fallback?: string) {
+  if (!plan || plan.unitAmount == null) return fallback || 'Price shown in checkout';
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: plan.currency.toUpperCase(),
@@ -91,7 +92,14 @@ export default function CustomerUpgradePage() {
   const alreadyPaid = account && account.tenant.plan && account.tenant.plan !== 'beta';
 
   async function startUpgrade() {
-    if (!token || alreadyPaid) return;
+    if (!account || alreadyPaid) return;
+
+    if (!billingReady) {
+      window.location.assign(directCheckoutUrl(selected, account.email));
+      return;
+    }
+
+    if (!token) return;
     setLoading(true);
     setMessage('');
     const response = await fetch('/api/customer/upgrade', {
@@ -101,8 +109,9 @@ export default function CustomerUpgradePage() {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.checkoutUrl) {
-      setMessage(data.error || 'Secure checkout could not be started.');
+      setMessage(data.error || 'Secure checkout could not be started. Opening the direct Stripe checkout instead.');
       setLoading(false);
+      window.location.assign(directCheckoutUrl(selected, account.email));
       return;
     }
     window.location.assign(data.checkoutUrl);
@@ -133,7 +142,7 @@ export default function CustomerUpgradePage() {
         <nav style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '26px' }}><Link href={home} style={secondaryLink}>Home</Link><Link href="/customer/account" style={secondaryLink}>Account</Link></nav>
         <div style={eyebrow}>KEEP YOUR BUSINESS OS</div>
         <h1 style={{ fontSize: 'clamp(42px,8vw,70px)', lineHeight: .98, margin: '10px 0 14px', letterSpacing: '-2px', maxWidth: '900px' }}>If it is earning its place, keep it working for your business.</h1>
-        <p style={{ ...bodyStyle, fontSize: '18px', maxWidth: '790px' }}>Your beta workspace stays intact. Upgrading changes the plan on the same company account, so your projects, tasks, knowledge, Eva history and sales work do not need to be rebuilt.</p>
+        <p style={{ ...bodyStyle, fontSize: '18px', maxWidth: '790px' }}>Your beta workspace stays available. When the full billing connection is active, upgrading changes the plan on this same company account so your projects, tasks, knowledge, Eva history and sales work do not need to be rebuilt.</p>
 
         <section className="plan-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: '12px', marginTop: '26px' }}>
           {(Object.keys(planCopy) as Array<keyof typeof planCopy>).map((key) => {
@@ -144,7 +153,7 @@ export default function CustomerUpgradePage() {
               <button key={key} type="button" onClick={() => setSelected(key)} style={{ textAlign: 'left', background: active ? '#DDF8ED' : '#111827', color: active ? '#102019' : '#F8FAFC', border: `2px solid ${active ? '#61D8AC' : '#2A3857'}`, borderRadius: '18px', padding: '20px', cursor: 'pointer' }}>
                 {key === 'growth' && <div style={{ fontSize: '11px', fontWeight: 950, color: active ? '#1D6C50' : '#9EF0CF', marginBottom: '8px' }}>RECOMMENDED</div>}
                 <div style={{ fontSize: '25px', fontWeight: 950 }}>{copy.name}</div>
-                <div style={{ fontSize: '22px', fontWeight: 950, margin: '8px 0' }}>{money(price)}{price?.unitAmount != null ? `/${price.interval}` : ''}</div>
+                <div style={{ fontSize: '22px', fontWeight: 950, margin: '8px 0' }}>{money(price, directCheckout[key].price)}{price?.unitAmount != null ? `/${price.interval}` : ''}</div>
                 <p style={{ lineHeight: 1.55, color: active ? '#35483F' : '#B8C4D6', minHeight: '96px' }}>{copy.line}</p>
                 <ul style={{ paddingLeft: '20px', lineHeight: 1.8, marginBottom: 0 }}>{copy.bullets.map((item) => <li key={item}>{item}</li>)}</ul>
               </button>
@@ -153,12 +162,12 @@ export default function CustomerUpgradePage() {
         </section>
 
         <section style={{ marginTop: '16px', background: '#111827', border: '1px solid #2A3857', borderRadius: '18px', padding: '20px', display: 'grid', gap: '12px' }}>
-          <div><strong style={{ fontSize: '20px' }}>Selected: {planCopy[selected].name} at {money(selectedPrice)}{selectedPrice?.unitAmount != null ? `/${selectedPrice.interval}` : ''}</strong></div>
-          <div style={{ color: '#B9C7D9', lineHeight: 1.6 }}>Checkout is handled by Stripe. Your existing beta workspace is converted in place after Stripe confirms the subscription.</div>
-          {!billingReady && <div style={{ background: '#3A2F16', border: '1px solid #715C29', color: '#F1D990', borderRadius: '10px', padding: '12px' }}>Paid billing is not configured on this deployment yet. The beta workspace remains available while billing is finished.</div>}
+          <div><strong style={{ fontSize: '20px' }}>Selected: {planCopy[selected].name} at {selectedPrice?.unitAmount != null ? `${money(selectedPrice)}/${selectedPrice.interval}` : directCheckout[selected].price}</strong></div>
+          <div style={{ color: '#B9C7D9', lineHeight: 1.6 }}>Checkout is hosted by Stripe. You review the recurring price and payment details there before the subscription begins.</div>
+          {!billingReady && <div style={{ background: '#213A2F', border: '1px solid #3E755E', color: '#C9F4DF', borderRadius: '10px', padding: '12px' }}>Direct Stripe checkout is available now. Your current workspace remains available after purchase. Automatic plan syncing may lag until the server-side Stripe connection is completed, but the Stripe subscription itself begins when checkout succeeds.</div>}
           {message && <div style={{ background: '#2A1718', border: '1px solid #663238', color: '#F2B6AD', borderRadius: '10px', padding: '12px' }}>{message}</div>}
-          <button onClick={startUpgrade} disabled={loading || !billingReady} style={{ border: 0, borderRadius: '12px', padding: '15px', background: '#9EF0CF', color: '#08130F', fontWeight: 950, fontSize: '16px', cursor: loading ? 'wait' : billingReady ? 'pointer' : 'not-allowed', opacity: billingReady ? 1 : .55 }}>{loading ? 'Opening secure checkout…' : `Keep My Business OS on ${planCopy[selected].name}`}</button>
-          <div style={{ color: '#8190A9', fontSize: '12px', lineHeight: 1.55 }}>You can review the final price and payment details in Stripe before completing the subscription. No charge occurs from selecting a plan on this page.</div>
+          <button onClick={startUpgrade} disabled={loading} style={{ border: 0, borderRadius: '12px', padding: '15px', background: '#9EF0CF', color: '#08130F', fontWeight: 950, fontSize: '16px', cursor: loading ? 'wait' : 'pointer' }}>{loading ? 'Opening secure checkout…' : `Subscribe to ${planCopy[selected].name}`}</button>
+          <div style={{ color: '#8190A9', fontSize: '12px', lineHeight: 1.55 }}>Selecting a plan here does not charge you. Stripe is the final checkout and review step. Use the same business email at checkout so payment and workspace records can be reconciled cleanly.</div>
         </section>
       </div>
       <style>{`@media(max-width:820px){.plan-grid{grid-template-columns:1fr !important}}`}</style>

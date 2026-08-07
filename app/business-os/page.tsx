@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { directCheckout } from '../../lib/directCheckout';
 
 const benefits = [
   ['Know what needs attention', 'See priorities, open work and decisions in one place instead of chasing notes and tabs.'],
@@ -10,9 +11,9 @@ const benefits = [
 ];
 
 const plans = [
-  { id: 'launch', name: 'Launch', line: 'A simple private workspace for an owner getting started.', items: ['Company workspace', 'Eva AI business partner', 'Projects and tasks', 'Company knowledge', 'Initial setup'] },
-  { id: 'growth', name: 'Growth', line: 'For a business that wants stronger sales, research and recurring execution.', items: ['Everything in Launch', 'Scout sales tools', 'Customer follow-up tools', 'Competitor research', 'Execution workflows'] },
-  { id: 'command', name: 'Command', line: 'For teams that need deeper automation, integrations and custom workflows.', items: ['Everything in Growth', 'Custom AI roles', 'Custom domain option', 'Workflow integrations', 'Priority build support'] },
+  { id: 'launch' as const, name: 'Launch', line: 'A simple private workspace for an owner getting started.', items: ['Company workspace', 'Eva AI business partner', 'Projects and tasks', 'Company knowledge', 'Initial setup'] },
+  { id: 'growth' as const, name: 'Growth', line: 'For a business that wants stronger sales, research and recurring execution.', items: ['Everything in Launch', 'Scout sales tools', 'Customer follow-up tools', 'Competitor research', 'Execution workflows'] },
+  { id: 'command' as const, name: 'Command', line: 'For teams that need deeper automation, integrations and custom workflows.', items: ['Everything in Growth', 'Custom AI roles', 'Custom domain option', 'Workflow integrations', 'Priority build support'] },
 ];
 
 export default function BusinessOSLanding() {
@@ -34,9 +35,9 @@ export default function BusinessOSLanding() {
             <p style={{ fontSize: '20px', lineHeight: 1.65, maxWidth: '780px', color: '#4B4B46' }}>Ask for help, organize work, research customers, prepare outreach and keep important company information together. You do not need to learn complicated AI commands.</p>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '30px' }}>
               <Link href="/business-os/beta" style={primaryButton}>Create My Free Business OS</Link>
-              <Link href="/business-os/signup" style={secondaryButton}>See a Preview First</Link>
+              <a href="#plans" style={secondaryButton}>See Paid Plans</a>
             </div>
-            <p style={{ color: '#6A675F', fontSize: '13px', marginTop: '12px' }}>The beta creates a real private workspace. No credit card is required and nothing is sent to customers automatically.</p>
+            <p style={{ color: '#6A675F', fontSize: '13px', marginTop: '12px' }}>Try the real workspace free first, or subscribe today through secure Stripe checkout. Nothing is sent to customers automatically.</p>
           </div>
 
           <div style={{ background: '#171717', color: '#fff', borderRadius: '24px', padding: '24px', boxShadow: '0 28px 70px rgba(0,0,0,.16)' }}>
@@ -56,7 +57,7 @@ export default function BusinessOSLanding() {
           <div style={{ color: '#A4F3D3', fontWeight: 900, fontSize: '12px' }}>HOW THE FREE BETA WORKS</div>
           <h2 style={{ fontSize: 'clamp(34px,5vw,54px)', lineHeight: 1.05, margin: '10px 0 28px', maxWidth: '800px' }}>One signup. Your business workspace builds itself.</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(250px,1fr))', gap: '14px' }}>
-            <Step number="1" title="Tell us about your business" text="Enter your company name, website, what you sell and what you want help with first." />
+            <Step number="1" title="Tell us about your business" text="Enter your company name, website if you have one, what you sell and what you want help with first." />
             <Step number="2" title="We create your workspace" text="Your login, private company workspace, starter project and first tasks are created automatically." />
             <Step number="3" title="Open your startup guide" text="Use the link you receive to start with Eva, Scout and your company Home screen." />
           </div>
@@ -70,25 +71,31 @@ export default function BusinessOSLanding() {
         </div>
       </section>
 
-      <section style={{ background: '#E9E5DB', padding: '72px 20px' }}>
+      <section id="plans" style={{ background: '#E9E5DB', padding: '72px 20px' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto' }}>
-          <div style={{ maxWidth: '780px', marginBottom: '28px' }}><div style={{ fontWeight: 900, fontSize: '12px' }}>PLANS</div><h2 style={{ fontSize: 'clamp(34px,5vw,52px)', margin: '10px 0' }}>Beta first. Choose a paid plan later if it earns its place.</h2><p style={{ color: '#55554F', lineHeight: 1.6 }}>Beta access is for testing the product on real business work. Paid packages are available when you are ready for ongoing use.</p></div>
+          <div style={{ maxWidth: '800px', marginBottom: '28px' }}><div style={{ fontWeight: 900, fontSize: '12px' }}>LIVE MONTHLY PLANS</div><h2 style={{ fontSize: 'clamp(34px,5vw,52px)', margin: '10px 0' }}>Start free, or put Business OS to work today.</h2><p style={{ color: '#55554F', lineHeight: 1.6 }}>Paid subscriptions are processed by Stripe. If you subscribe before creating your workspace, use the same email at checkout and during Business OS signup so we can keep the account path clean.</p></div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: '14px' }}>
             {plans.map((plan, index) => (
-              <article key={plan.name} style={{ background: index === 1 ? '#E7F8F0' : '#fff', border: '1px solid #CFC9BD', borderRadius: '18px', padding: '22px' }}>
+              <article key={plan.name} style={{ background: index === 1 ? '#E7F8F0' : '#fff', border: `1px solid ${index === 1 ? '#7BC8AA' : '#CFC9BD'}`, borderRadius: '18px', padding: '22px' }}>
+                {index === 1 && <div style={{ fontWeight: 950, fontSize: '11px', color: '#1D6C50', marginBottom: '8px' }}>RECOMMENDED</div>}
                 <div style={{ fontWeight: 950, fontSize: '24px' }}>{plan.name}</div>
+                <div style={{ fontWeight: 950, fontSize: '28px', margin: '7px 0' }}>{directCheckout[plan.id].price}</div>
                 <p style={{ color: '#56564F', lineHeight: 1.55, minHeight: '70px' }}>{plan.line}</p>
                 <ul style={{ lineHeight: 1.8, paddingLeft: '20px' }}>{plan.items.map(item => <li key={item}>{item}</li>)}</ul>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}><Link href={`/business-os/signup?plan=${plan.id}`} style={secondaryButton}>Preview</Link><Link href={`/business-os/checkout?plan=${plan.id}`} style={primaryButton}>Choose {plan.name}</Link></div>
+                <div style={{ display: 'grid', gap: '8px', marginTop: '12px' }}>
+                  <a href={directCheckout[plan.id].url} style={{ ...primaryButton, textAlign: 'center' }}>Subscribe to {plan.name}</a>
+                  <Link href="/business-os/beta" style={{ ...secondaryButton, textAlign: 'center' }}>Try Free First</Link>
+                </div>
               </article>
             ))}
           </div>
+          <div style={{ marginTop: '18px', color: '#625E55', lineHeight: 1.6, fontSize: '13px' }}>Stripe shows the final recurring price and payment details before you subscribe. You can review everything before completing checkout. See the <Link href="/business-os/terms" style={{ color: '#171717', fontWeight: 850 }}>Business OS Terms</Link> and <Link href="/business-os/privacy" style={{ color: '#171717', fontWeight: 850 }}>Privacy Notice</Link>.</div>
         </div>
       </section>
 
-      <section style={{ background: '#DDE9FF', padding: '64px 20px' }}><div style={{ maxWidth: '900px', margin: '0 auto', textAlign: 'center' }}><h2 style={{ fontSize: 'clamp(36px,6vw,60px)', margin: '0 0 18px', letterSpacing: '-2px' }}>Ready to build yours?</h2><p style={{ fontSize: '19px', color: '#3E4756', lineHeight: 1.6 }}>Use one simple form. Your Business OS will create the starting workspace for you.</p><Link href="/business-os/beta" style={{ ...primaryButton, display: 'inline-block', marginTop: '14px' }}>Start My Free Beta</Link></div></section>
+      <section style={{ background: '#DDE9FF', padding: '64px 20px' }}><div style={{ maxWidth: '900px', margin: '0 auto', textAlign: 'center' }}><h2 style={{ fontSize: 'clamp(36px,6vw,60px)', margin: '0 0 18px', letterSpacing: '-2px' }}>Ready to build yours?</h2><p style={{ fontSize: '19px', color: '#3E4756', lineHeight: 1.6 }}>Start with a free workspace, or choose Growth and begin a paid subscription today.</p><div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '14px' }}><Link href="/business-os/beta" style={primaryButton}>Start My Free Beta</Link><a href={directCheckout.growth.url} style={secondaryButton}>Subscribe to Growth · $99/month</a></div></div></section>
 
-      <footer style={{ padding: '28px 20px', textAlign: 'center', color: '#6D6D68', fontSize: '12px' }}>Private Business OS · AI tools inside your company’s private workspace</footer>
+      <footer style={{ padding: '28px 20px', textAlign: 'center', color: '#6D6D68', fontSize: '12px' }}>Private Business OS · AI tools inside your company’s private workspace · <Link href="/business-os/terms" style={{ color: 'inherit' }}>Terms</Link> · <Link href="/business-os/privacy" style={{ color: 'inherit' }}>Privacy</Link></footer>
       <style>{`@media (max-width:820px){.hero-grid{grid-template-columns:1fr !important}.hero-grid h1{letter-spacing:-2px !important}}`}</style>
     </main>
   );
