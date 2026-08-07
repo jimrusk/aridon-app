@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import CustomerSessionControls from '../components/CustomerSessionControls';
 
 export const metadata: Metadata = {
   title: 'Private Executive Command Center',
@@ -9,6 +10,7 @@ export const metadata: Metadata = {
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      <CustomerSessionControls />
       {children}
       <Link
         href="/customer/sales"
