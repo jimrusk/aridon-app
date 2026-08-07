@@ -80,8 +80,17 @@ export default function CustomerAccountPage() {
               <div><strong>Access status:</strong> {account.tenant.subscription_status || account.tenant.status || 'unknown'}</div>
             </section>
 
+            <section style={{ marginTop: '16px', background: '#102033', border: '1px solid #29405A', borderRadius: '16px', padding: '18px' }}>
+              <div style={{ color: '#9EF0CF', fontSize: '12px', fontWeight: 950, letterSpacing: '.8px' }}>ALWAYS-AVAILABLE AI DESK</div>
+              <h2 style={{ margin: '7px 0 6px' }}>Ask Eva whenever work gets stuck.</h2>
+              <p style={{ color: '#B9C7D9', lineHeight: 1.55, margin: '0 0 12px' }}>Eva can use your company workspace context to help with priorities, customer follow-up, research, decisions, writing, competitive analysis and execution planning.</p>
+              <Link href="/customer/assistant" style={primaryLink}>Ask Eva 24/7</Link>
+            </section>
+
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '16px' }}>
               <Link href={`/workspace/${account.tenant.slug}`} style={primaryLink}>Open workspace</Link>
+              <Link href="/customer/assistant" style={secondaryLink}>Ask Eva</Link>
+              <Link href="/customer/referrals" style={secondaryLink}>Refer a Business</Link>
               <Link href={`/customer/feedback?workspace=${encodeURIComponent(account.tenant.slug)}`} style={secondaryLink}>Send feedback</Link>
               {account.tenant.stripe_customer_id && <button onClick={openBilling} disabled={billingLoading} style={buttonStyle}>{billingLoading ? 'Opening…' : 'Manage billing'}</button>}
               <button onClick={signOut} style={buttonStyle}>Sign out</button>
@@ -93,6 +102,6 @@ export default function CustomerAccountPage() {
   );
 }
 
-const primaryLink = { background: '#9EF0CF', color: '#08130F', borderRadius: '11px', padding: '12px 15px', fontWeight: 950, textDecoration: 'none' };
+const primaryLink = { display: 'inline-block', background: '#9EF0CF', color: '#08130F', borderRadius: '11px', padding: '12px 15px', fontWeight: 950, textDecoration: 'none' };
 const secondaryLink = { border: '1px solid #415171', color: '#E4EAF5', borderRadius: '11px', padding: '12px 15px', fontWeight: 850, textDecoration: 'none' };
 const buttonStyle = { border: '1px solid #415171', background: '#111827', color: '#E4EAF5', borderRadius: '11px', padding: '12px 15px', fontWeight: 850, cursor: 'pointer' };
