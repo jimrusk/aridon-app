@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticatedCustomer, customerTenantForUser } from '../../../../lib/customerAuth';
 import { appBaseUrl } from '../../../../lib/stripeBilling';
@@ -6,7 +7,7 @@ import { appBaseUrl } from '../../../../lib/stripeBilling';
 export const runtime = 'nodejs';
 const NO_STORE = { 'Cache-Control': 'no-store' };
 
-async function referralCode(db: ReturnType<typeof import('../../../../lib/supabase').getServerClient>, tenantId: string) {
+async function referralCode(db: SupabaseClient, tenantId: string) {
   const { data: existing, error: existingError } = await db
     .from('customer_referral_codes')
     .select('code,created_at')
