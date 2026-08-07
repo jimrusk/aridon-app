@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { activateBetaTenant } from '../../../../../lib/customerProvisioning';
 import { getServerClient } from '../../../../../lib/supabase';
+import { ingestPublicWebsite } from '../../../../../lib/websiteIngestion';
 
 export const runtime = 'nodejs';
 const NO_STORE = { 'Cache-Control': 'no-store' };
@@ -106,7 +107,32 @@ export async function POST(request: NextRequest) {
 
     const db = getServerClient();
     const knowledgeRows: KnowledgeRow[] = [];
-    if (website) knowledgeRows.push({ tenant_id: activated.tenant.id, title: 'Company website', category: 'company profile', content: website });
+    let websiteIngested = false;
+    let websitePages = 0;
+
+    if (website) {
+      knowledgeRows.push({ tenant_id: activated.tenant.id, title: 'Company website', category: 'company profile', content: website });
+      try {
+        const ingestion = await ingestPublicWebsite(website);
+        websiteIngested = ingestion.pages.length > 0;
+        websitePages = ingestion.pages.length;
+        knowledgeRows.push({
+          tenant_id: activated.tenant.id,
+          title: 'Public website intelligence',
+          category: 'website intelligence',
+          content: ingestion.knowledge,
+        });
+      } catch (ingestionError) {
+        console.error('Self-serve beta website ingestion error', ingestionError);
+        knowledgeRows.push({
+          tenant_id: activated.tenant.id,
+          title: 'Website ingestion status',
+          category: 'website intelligence',
+          content: `The website URL was saved, but the public website scan could not be completed during signup. Website: ${website}`,
+        });
+      }
+    }
+
     if (offer) knowledgeRows.push({ tenant_id: activated.tenant.id, title: 'What we sell', category: 'company profile', content: offer });
     if (goal) knowledgeRows.push({ tenant_id: activated.tenant.id, title: 'What we want help with first', category: 'goals', content: goal });
 
@@ -123,18 +149,26 @@ export async function POST(request: NextRequest) {
     });
     if (projectError) console.error('Self-serve beta project seed error', projectError);
 
-    const { error: taskError } = await db.from('customer_tasks').insert([
+    const starterTasks = [
       { tenant_id: activated.tenant.id, title: 'Ask Eva about my most important business priority', owner: ownerName, priority: 'high', status: 'open' },
-      { tenant_id: activated.tenant.id, title: 'Teach Scout what we sell and find possible customers', owner: ownerName, priority: 'medium', status: 'open' },
-      { tenant_id: activated.tenant.id, title: 'Send beta feedback after trying the system on real work', owner: ownerName, priority: 'medium', status: 'open' },
-    ]);
+      { tenant_id: activated.tenant.id, title: websiteIngested ? 'Ask Eva what she learned from my website' : 'Teach Scout what we sell and find possible customers', owner: ownerName, priority: 'medium', status: 'open' },
+      { tenant_id: activated.tenant.id, title: websiteIngested ? 'Have Scout find customers who fit what my website sells' : 'Send beta feedback after trying the system on real work', owner: ownerName, priority: 'medium', status: 'open' },
+    ];
+
+    const { error: taskError } = await db.from('customer_tasks').insert(starterTasks);
     if (taskError) console.error('Self-serve beta task seed error', taskError);
 
     const { error: eventError } = await db.from('customer_usage_events').insert({
       tenant_id: activated.tenant.id,
       user_id: activated.user.id,
       event_name: 'beta_self_signup',
-      event_data: { websiteProvided: Boolean(website), offerProvided: Boolean(offer), goalProvided: Boolean(goal) },
+      event_data: {
+        websiteProvided: Boolean(website),
+        websiteIngested,
+        websitePages,
+        offerProvided: Boolean(offer),
+        goalProvided: Boolean(goal),
+      },
     });
     if (eventError) console.error('Self-serve beta usage event error', eventError);
 
@@ -144,6 +178,8 @@ export async function POST(request: NextRequest) {
         email: activated.email,
         businessName: activated.tenant.business_name,
         slug: activated.tenant.slug,
+        websiteIngested,
+        websitePages,
         startUrl: `${request.nextUrl.origin}/customer/start`,
         workspaceUrl: `${request.nextUrl.origin}/workspace/${activated.tenant.slug}`,
         loginUrl: `${request.nextUrl.origin}/customer/login?next=${encodeURIComponent('/customer/start')}`,
