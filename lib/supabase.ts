@@ -3,6 +3,10 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 let browserClient: SupabaseClient | null = null;
 let serverClient: SupabaseClient | null = null;
 
+// The Supabase project URL is public configuration, not a secret. Keep a known-good
+// project URL here so a malformed Vercel public env value cannot take down the app.
+const ARIDON_SUPABASE_URL = 'https://pkshvdobcsoowlkoolmt.supabase.co';
+
 function requiredValue(name: string, value: string | undefined): string {
   const trimmed = value?.trim();
   if (!trimmed) {
@@ -11,15 +15,34 @@ function requiredValue(name: string, value: string | undefined): string {
   return trimmed;
 }
 
-// Browser-exposed environment variables must be referenced statically so Next.js
-// can inline them into the client bundle. Dynamic process.env[name] access is not
-// replaced in browser code and can cause a client-side exception after hydration.
+function validHttpUrl(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    return null;
+  }
+}
+
+function supabaseUrl(): string {
+  // Browser-exposed environment variables must be referenced statically so Next.js
+  // can inline them. If the configured value is malformed, use the verified public
+  // Aridon Supabase project URL instead of allowing createClient() to crash hydration.
+  return validHttpUrl(process.env.NEXT_PUBLIC_SUPABASE_URL) || ARIDON_SUPABASE_URL;
+}
+
 export function getBrowserClient(): SupabaseClient {
   if (!browserClient) {
-    const url = requiredValue('NEXT_PUBLIC_SUPABASE_URL', process.env.NEXT_PUBLIC_SUPABASE_URL);
-    const anonKey = requiredValue('NEXT_PUBLIC_SUPABASE_ANON_KEY', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+    const anonKey = requiredValue(
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    );
 
-    browserClient = createClient(url, anonKey);
+    browserClient = createClient(supabaseUrl(), anonKey);
   }
   return browserClient;
 }
@@ -27,10 +50,12 @@ export function getBrowserClient(): SupabaseClient {
 // Service-role access stays server-only and is initialized lazily.
 export function getServerClient(): SupabaseClient {
   if (!serverClient) {
-    const url = requiredValue('NEXT_PUBLIC_SUPABASE_URL', process.env.NEXT_PUBLIC_SUPABASE_URL);
-    const serviceRoleKey = requiredValue('SUPABASE_SERVICE_ROLE_KEY', process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const serviceRoleKey = requiredValue(
+      'SUPABASE_SERVICE_ROLE_KEY',
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+    );
 
-    serverClient = createClient(url, serviceRoleKey, {
+    serverClient = createClient(supabaseUrl(), serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
