@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { activateBetaTenant } from '../../../../../../lib/customerProvisioning';
-import { getServerClient } from '../../../../../../lib/supabase';
+import { activateBetaTenant } from '../../../../../lib/customerProvisioning';
+import { getServerClient } from '../../../../../lib/supabase';
 
 export const runtime = 'nodejs';
 const NO_STORE = { 'Cache-Control': 'no-store' };
