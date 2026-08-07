@@ -23,6 +23,7 @@ export default function BusinessOSLanding() {
         <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
           <div style={{ fontWeight: 950, fontSize: '20px' }}>PRIVATE BUSINESS OS</div>
           <div style={{ display: 'flex', gap: '9px', flexWrap: 'wrap' }}>
+            <Link href="/business-os/revenue" style={outlinePill}>Revenue Calculator</Link>
             <Link href="/customer/login" style={outlinePill}>Sign In</Link>
             <Link href="/business-os/beta" style={darkPill}>Start Free Beta</Link>
           </div>
@@ -35,9 +36,10 @@ export default function BusinessOSLanding() {
             <p style={{ fontSize: '20px', lineHeight: 1.65, maxWidth: '780px', color: '#4B4B46' }}>Ask for help, organize work, research customers, prepare outreach and keep important company information together. You do not need to learn complicated AI commands.</p>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '30px' }}>
               <Link href="/business-os/beta" style={primaryButton}>Create My Free Business OS</Link>
+              <Link href="/business-os/revenue" style={secondaryButton}>See the Revenue Opportunity</Link>
               <a href="#plans" style={secondaryButton}>See Paid Plans</a>
             </div>
-            <p style={{ color: '#6A675F', fontSize: '13px', marginTop: '12px' }}>Try the real workspace free first, or subscribe today through secure Stripe checkout. Nothing is sent to customers automatically.</p>
+            <p style={{ color: '#6A675F', fontSize: '13px', marginTop: '12px' }}>Try the real workspace free first, calculate the opportunity with your own numbers, or subscribe today through secure Stripe checkout. Nothing is sent to customers automatically.</p>
           </div>
 
           <div style={{ background: '#171717', color: '#fff', borderRadius: '24px', padding: '24px', boxShadow: '0 28px 70px rgba(0,0,0,.16)' }}>
@@ -71,6 +73,15 @@ export default function BusinessOSLanding() {
         </div>
       </section>
 
+      <section style={{ background: '#DDE9FF', padding: '60px 20px' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto', textAlign: 'center' }}>
+          <div style={{ fontWeight: 950, fontSize: '12px' }}>PUT NUMBERS ON IT</div>
+          <h2 style={{ fontSize: 'clamp(36px,6vw,58px)', lineHeight: 1, margin: '10px 0 16px' }}>What would one better follow-up be worth?</h2>
+          <p style={{ fontSize: '18px', color: '#3E4756', lineHeight: 1.6 }}>Use your own lead volume, average sale, close rate, and admin time. The calculator shows the size of the possible revenue and time opportunity without pretending results are guaranteed.</p>
+          <Link href="/business-os/revenue" style={{ ...primaryButton, display: 'inline-block', marginTop: '12px' }}>Calculate My Revenue Opportunity</Link>
+        </div>
+      </section>
+
       <section id="plans" style={{ background: '#E9E5DB', padding: '72px 20px' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto' }}>
           <div style={{ maxWidth: '800px', marginBottom: '28px' }}><div style={{ fontWeight: 900, fontSize: '12px' }}>LIVE MONTHLY PLANS</div><h2 style={{ fontSize: 'clamp(34px,5vw,52px)', margin: '10px 0' }}>Start free, or put Business OS to work today.</h2><p style={{ color: '#55554F', lineHeight: 1.6 }}>Paid subscriptions are processed by Stripe. If you subscribe before creating your workspace, use the same email at checkout and during Business OS signup so we can keep the account path clean.</p></div>
@@ -95,7 +106,7 @@ export default function BusinessOSLanding() {
 
       <section style={{ background: '#DDE9FF', padding: '64px 20px' }}><div style={{ maxWidth: '900px', margin: '0 auto', textAlign: 'center' }}><h2 style={{ fontSize: 'clamp(36px,6vw,60px)', margin: '0 0 18px', letterSpacing: '-2px' }}>Ready to build yours?</h2><p style={{ fontSize: '19px', color: '#3E4756', lineHeight: 1.6 }}>Start with a free workspace, or choose Growth and begin a paid subscription today.</p><div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '14px' }}><Link href="/business-os/beta" style={primaryButton}>Start My Free Beta</Link><a href={directCheckout.growth.url} style={secondaryButton}>Subscribe to Growth · $99/month</a></div></div></section>
 
-      <footer style={{ padding: '28px 20px', textAlign: 'center', color: '#6D6D68', fontSize: '12px' }}>Private Business OS · AI tools inside your company’s private workspace · <Link href="/business-os/terms" style={{ color: 'inherit' }}>Terms</Link> · <Link href="/business-os/privacy" style={{ color: 'inherit' }}>Privacy</Link></footer>
+      <footer style={{ padding: '28px 20px', textAlign: 'center', color: '#6D6D68', fontSize: '12px' }}>Private Business OS · AI tools inside your company’s private workspace · <Link href="/business-os/revenue" style={{ color: 'inherit' }}>Revenue Calculator</Link> · <Link href="/business-os/terms" style={{ color: 'inherit' }}>Terms</Link> · <Link href="/business-os/privacy" style={{ color: 'inherit' }}>Privacy</Link></footer>
       <style>{`@media (max-width:820px){.hero-grid{grid-template-columns:1fr !important}.hero-grid h1{letter-spacing:-2px !important}}`}</style>
     </main>
   );
