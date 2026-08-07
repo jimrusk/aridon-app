@@ -5,6 +5,13 @@ import { getServerClient } from '../../../../../../lib/supabase';
 export const runtime = 'nodejs';
 const NO_STORE = { 'Cache-Control': 'no-store' };
 
+type KnowledgeRow = {
+  tenant_id: string;
+  title: string;
+  category: string;
+  content: string;
+};
+
 function text(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
@@ -22,16 +29,19 @@ async function existingWorkspaceForEmail(email: string) {
 
     const { data: membership, error: membershipError } = await db
       .from('customer_memberships')
-      .select('tenant_id,customer_tenants(slug,business_name)')
+      .select('tenant_id')
       .eq('user_id', user.id)
       .limit(1)
       .maybeSingle();
     if (membershipError) throw membershipError;
-    if (!membership) return null;
+    if (!membership?.tenant_id) return null;
 
-    const tenant = Array.isArray(membership.customer_tenants)
-      ? membership.customer_tenants[0]
-      : membership.customer_tenants;
+    const { data: tenant, error: tenantError } = await db
+      .from('customer_tenants')
+      .select('slug,business_name')
+      .eq('id', membership.tenant_id)
+      .maybeSingle();
+    if (tenantError) throw tenantError;
     if (!tenant) return null;
     return { slug: tenant.slug, businessName: tenant.business_name };
   }
@@ -76,7 +86,7 @@ export async function POST(request: NextRequest) {
           error: 'This email already has a Business OS workspace. Sign in instead of creating another beta workspace.',
           existing: true,
           workspaceUrl: `${request.nextUrl.origin}/workspace/${existing.slug}`,
-          loginUrl: `${request.nextUrl.origin}/customer/login`,
+          loginUrl: `${request.nextUrl.origin}/customer/login?next=${encodeURIComponent('/customer/start')}`,
         },
         { status: 409, headers: NO_STORE },
       );
@@ -92,11 +102,10 @@ export async function POST(request: NextRequest) {
     });
 
     const db = getServerClient();
-    const knowledgeRows = [
-      website ? { tenant_id: activated.tenant.id, title: 'Company website', category: 'company profile', content: website } : null,
-      offer ? { tenant_id: activated.tenant.id, title: 'What we sell', category: 'company profile', content: offer } : null,
-      goal ? { tenant_id: activated.tenant.id, title: 'What we want help with first', category: 'goals', content: goal } : null,
-    ].filter(Boolean);
+    const knowledgeRows: KnowledgeRow[] = [];
+    if (website) knowledgeRows.push({ tenant_id: activated.tenant.id, title: 'Company website', category: 'company profile', content: website });
+    if (offer) knowledgeRows.push({ tenant_id: activated.tenant.id, title: 'What we sell', category: 'company profile', content: offer });
+    if (goal) knowledgeRows.push({ tenant_id: activated.tenant.id, title: 'What we want help with first', category: 'goals', content: goal });
 
     if (knowledgeRows.length > 0) {
       const { error: knowledgeError } = await db.from('customer_knowledge').insert(knowledgeRows);
