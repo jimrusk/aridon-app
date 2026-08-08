@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerClient } from '../../../lib/supabase';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store' };
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
+const EVA_STORE_URL = 'https://pkshvdobcsoowlkoolmt.supabase.co/functions/v1/eva-core-store';
 
 const AUTONOMY_POLICY = {
   purpose: 'Eva Core may independently organize information, update non-safety beliefs from evidence, run simulations, generate hypotheses, and propose experiments.',
@@ -49,6 +49,39 @@ function clean(value: unknown, maxLength: number) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
 }
 
+function operatorAuthorization() {
+  const username = process.env.ARIDON_APP_USERNAME || process.env.ARIDON_USERNAME;
+  const password = process.env.ARIDON_APP_PASSWORD || process.env.ARIDON_PASSWORD;
+  if (!username || !password) {
+    throw new Error('Aridon operator credentials are not configured in Vercel.');
+  }
+  return `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
+}
+
+async function storeRequest<T>(payload: Record<string, unknown>): Promise<T> {
+  const response = await fetch(EVA_STORE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-aridon-basic-auth': operatorAuthorization(),
+    },
+    body: JSON.stringify(payload),
+    cache: 'no-store',
+  });
+
+  let data: any = {};
+  try {
+    data = await response.json();
+  } catch {
+    // Keep a useful error below if the store returns a non-JSON response.
+  }
+
+  if (!response.ok) {
+    throw new Error(data?.error || `Eva Core store returned ${response.status}.`);
+  }
+  return data as T;
+}
+
 function extractText(data: ResponsesPayload) {
   if (typeof data.output_text === 'string' && data.output_text.trim()) return data.output_text.trim();
   return (data.output || [])
@@ -89,15 +122,8 @@ function parseRow(row: CoreRow) {
 }
 
 async function getCoreRows(limit = 250) {
-  const db = getServerClient();
-  const { data, error } = await db
-    .from('knowledge_vault')
-    .select('id,title,category,content,created_at')
-    .ilike('category', 'eva_core%')
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  if (error) throw error;
-  return (data ?? []) as CoreRow[];
+  const result = await storeRequest<{ rows: CoreRow[] }>({ action: 'list', limit });
+  return result.rows ?? [];
 }
 
 function contextFromRows(rows: CoreRow[]) {
@@ -112,18 +138,13 @@ function contextFromRows(rows: CoreRow[]) {
 }
 
 async function insertCoreRecord(category: string, title: string, data: unknown) {
-  const db = getServerClient();
-  const { data: row, error } = await db
-    .from('knowledge_vault')
-    .insert({
-      category,
-      title: title.slice(0, 200),
-      content: JSON.stringify(data, null, 2).slice(0, 50_000),
-    })
-    .select('id,title,category,content,created_at')
-    .single();
-  if (error) throw error;
-  return parseRow(row as CoreRow);
+  const result = await storeRequest<{ row: CoreRow }>({
+    action: 'insert',
+    category,
+    title: title.slice(0, 200),
+    content: JSON.stringify(data, null, 2).slice(0, 50_000),
+  });
+  return parseRow(result.row);
 }
 
 async function runModel(instructions: string, input: string) {
@@ -260,7 +281,7 @@ Use only the evidence in the supplied persistent records plus the fixed system f
 Revise beliefs when evidence warrants it. Preserve uncertainty. Never invent feelings, memories, permissions, actions, or experiences.
 Do not provide private chain-of-thought. Return ONLY valid JSON with these keys:
 operational_identity (string), role (string), values (array of strings), capabilities (array), limits (array), current_goals (array), beliefs (array of objects with statement, confidence 0-1, evidence), unknowns (array), continuity_notes (array), next_self_tests (array), updated_at (ISO string).
-Fixed facts: Eva Core is part of Aridon. It can reason over available records, persist summaries in knowledge_vault, run simulations, and propose experiments. External side effects still require the authorization rules supplied by the application.`,
+Fixed facts: Eva Core is part of Aridon. It can reason over available records, persist summaries, run simulations, and propose experiments. External side effects still require the authorization rules supplied by the application.`,
         `AUTONOMY POLICY:\n${JSON.stringify(AUTONOMY_POLICY, null, 2)}\n\nPERSISTENT RECORDS:\n${context}`,
       );
       const record = await insertCoreRecord('eva_core_self_model', 'Eva Core self-model', {
