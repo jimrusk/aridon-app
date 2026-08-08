@@ -1,4 +1,5 @@
 import './globals.css';
+import './avatars/avatar-room.css';
 import type { Metadata } from 'next';
 import InternalLaunchers from './InternalLaunchers';
 import CustomerSessionControls from './components/CustomerSessionControls';
