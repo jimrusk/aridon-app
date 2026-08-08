@@ -1,3 +1,5 @@
+import { EVA_AVATAR } from './evaIdentity';
+
 export const executives = [
   {
     id: 'heather', name: 'Heather', role: 'Chief Operating Officer', abbr: 'COO',
@@ -64,7 +66,7 @@ export const executives = [
   },
   {
     id: 'eva', name: 'Eva', role: 'AI Command Advisor & Chief of Staff', abbr: 'COS',
-    avatar: '/executives/eva.jpg', icon: 'V', color: '#8E44AD',
+    avatar: EVA_AVATAR, icon: 'E', color: '#D45A2A',
     tagline: 'Connects the executive team, synthesizes decisions, coordinates action, and keeps the command center moving.',
     expertise: ['Executive Coordination', 'Decision Support', 'Research & Synthesis', 'Priority Management', 'Cross-Functional Execution'],
     tone: 'warm, sharp, composed',
