@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-const EXECUTIVES = ['Heather', 'Nova', 'Scout', 'Atlas', 'Oracle', 'Ethos', 'Ledger', 'Eva'];
+const HANDLERS = ['Heather', 'Nova', 'Scout', 'Atlas', 'Oracle', 'Ethos', 'Ledger', 'Eva', 'Jim'];
 const WEBHOOK_URL = 'https://aridon-v02.vercel.app/api/sms/webhook/textbee';
 
 type Contact = {
@@ -16,6 +16,11 @@ type Contact = {
   last_inbound_at?: string | null;
   last_outbound_at?: string | null;
   updated_at: string;
+  last_triage_category?: string | null;
+  last_triage_reason?: string | null;
+  last_triage_confidence?: number | null;
+  financing_fit?: string | null;
+  last_triaged_at?: string | null;
 };
 
 type Message = {
@@ -25,6 +30,11 @@ type Message = {
   executive: string;
   body: string;
   created_at: string;
+  triage_category?: string | null;
+  triage_reason?: string | null;
+  triage_confidence?: number | null;
+  financing_fit?: string | null;
+  triaged_by?: string | null;
 };
 
 type Inbox = { ok?: boolean; contacts?: Contact[]; messages?: Message[]; error?: string };
@@ -163,7 +173,7 @@ export default function SmsPage() {
         displayName: contact.display_name || '',
         assignedExecutive: contact.assigned_executive,
         consentStatus: contact.consent_status,
-        autoReply: contact.auto_reply,
+        autoReply: contact.assigned_executive === 'Jim' ? false : contact.auto_reply,
       }),
     });
     const data = await response.json();
@@ -171,7 +181,7 @@ export default function SmsPage() {
       setError(data?.error || 'Unable to update contact.');
       return;
     }
-    setNotice(`${contact.assigned_executive} now owns this SMS thread${contact.auto_reply ? ' with automatic replies enabled' : ''}.`);
+    setNotice(`${contact.assigned_executive} now owns this SMS thread${contact.assigned_executive !== 'Jim' && contact.auto_reply ? ' with automatic replies enabled' : ''}.`);
     await load();
   }
 
@@ -239,8 +249,8 @@ export default function SmsPage() {
       <div style={{ maxWidth: 1280, margin: '0 auto', display: 'grid', gap: 18 }}>
         <section style={panel}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-            <div><div style={eyebrow}>LIVE PHONE LINE</div><h1 style={h1}>Executive SMS Command Center</h1><p style={muted}>Texts leave through your existing Verizon number. Incoming replies are recorded here and routed to the executive you assign.</p></div>
-            <div style={liveBadge}>● Phone gateway paired</div>
+            <div><div style={eyebrow}>LIVE PHONE LINE · EVA TRIAGE</div><h1 style={h1}>Executive SMS Command Center</h1><p style={muted}>Every incoming text is read by Eva first. She routes it to the appropriate executive, sends loan offers to Nova as debt/not-a-fit, and sends anything she cannot confidently classify to Jim.</p></div>
+            <div style={liveBadge}>● Eva triage active</div>
           </div>
           {notice && <p style={success}>{notice}</p>}
           {error && <p style={errorStyle}>{error}</p>}
@@ -251,7 +261,7 @@ export default function SmsPage() {
             <h2 style={h2}>New text</h2>
             <form onSubmit={sendSms} style={{ display: 'grid', gap: 12 }}>
               <label style={label}>Phone number<input style={inputStyle} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+15055551234" required /></label>
-              <label style={label}>Executive<select style={inputStyle} value={executive} onChange={(e) => setExecutive(e.target.value)}>{EXECUTIVES.map((name) => <option key={name}>{name}</option>)}</select></label>
+              <label style={label}>Sender<select style={inputStyle} value={executive} onChange={(e) => setExecutive(e.target.value)}>{HANDLERS.map((name) => <option key={name}>{name}</option>)}</select></label>
               <label style={label}>Message<textarea style={{ ...inputStyle, minHeight: 130, resize: 'vertical' }} value={message} onChange={(e) => setMessage(e.target.value)} maxLength={1450} required /></label>
               <label style={{ ...label, display: 'flex', flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}><input type="checkbox" checked={confirmConsent} onChange={(e) => setConfirmConsent(e.target.checked)} />I have permission to text this person, or this person previously texted this number.</label>
               <button style={primaryButton} disabled={sending}>{sending ? 'Sending through phone…' : `Send as ${executive}`}</button>
@@ -259,14 +269,16 @@ export default function SmsPage() {
           </div>
 
           <div style={panel}>
-            <h2 style={h2}>Contacts & routing</h2>
-            {contacts.length === 0 ? <p style={muted}>No SMS contacts yet. Incoming messages will appear here.</p> : (
+            <h2 style={h2}>Contacts & Eva routing</h2>
+            {contacts.length === 0 ? <p style={muted}>No SMS contacts yet. Incoming messages will appear here after Eva routes them.</p> : (
               <div style={{ display: 'grid', gap: 10 }}>
                 {contacts.map((contact) => (
                   <button key={contact.id} onClick={() => { setSelectedId(contact.id); setPhone(contact.phone_e164); setExecutive(contact.assigned_executive); }} style={{ ...contactButton, borderColor: selected?.id === contact.id ? '#9EF0CF' : '#2B3957' }}>
                     <strong>{contact.display_name || contact.phone_e164}</strong>
-                    <span style={{ color: '#9BA8C6' }}>{contact.phone_e164} · {contact.assigned_executive}</span>
-                    <small style={{ color: contact.consent_status === 'opted_out' ? '#FF8C80' : '#75E1B0' }}>{contact.consent_status}{contact.auto_reply ? ' · auto reply on' : ''}</small>
+                    <span style={{ color: '#9BA8C6' }}>{contact.phone_e164} · Eva → {contact.assigned_executive}</span>
+                    <small style={{ color: contact.financing_fit === 'debt_not_fit' ? '#FFB26F' : contact.consent_status === 'opted_out' ? '#FF8C80' : '#75E1B0' }}>
+                      {contact.last_triage_category || contact.consent_status}{contact.financing_fit === 'debt_not_fit' ? ' · Debt / Not a Fit' : contact.financing_fit === 'backing_fit' ? ' · Financial Backing' : ''}{contact.auto_reply ? ' · auto reply on' : ''}
+                    </small>
                   </button>
                 ))}
               </div>
@@ -278,11 +290,19 @@ export default function SmsPage() {
           <section style={{ display: 'grid', gridTemplateColumns: 'minmax(300px,.72fr) minmax(380px,1.28fr)', gap: 18 }}>
             <div style={panel}>
               <h2 style={h2}>Thread settings</h2>
+              {selected.last_triage_reason && (
+                <div style={triageBox}>
+                  <strong>Eva → {selected.assigned_executive}</strong>
+                  <span>{selected.last_triage_category || 'general'}{selected.financing_fit === 'debt_not_fit' ? ' · Debt / Not a Fit' : selected.financing_fit === 'backing_fit' ? ' · Financial Backing' : ''}</span>
+                  <span>{selected.last_triage_reason}</span>
+                  {typeof selected.last_triage_confidence === 'number' && <small>Confidence: {Math.round(selected.last_triage_confidence * 100)}%</small>}
+                </div>
+              )}
               <div style={{ display: 'grid', gap: 12 }}>
                 <label style={label}>Name<input style={inputStyle} value={selected.display_name || ''} onChange={(e) => patchContact(selected.id, { display_name: e.target.value })} /></label>
-                <label style={label}>Executive<select style={inputStyle} value={selected.assigned_executive} onChange={(e) => patchContact(selected.id, { assigned_executive: e.target.value })}>{EXECUTIVES.map((name) => <option key={name}>{name}</option>)}</select></label>
+                <label style={label}>Assigned to<select style={inputStyle} value={selected.assigned_executive} onChange={(e) => patchContact(selected.id, { assigned_executive: e.target.value, auto_reply: e.target.value === 'Jim' ? false : selected.auto_reply })}>{HANDLERS.map((name) => <option key={name}>{name}</option>)}</select></label>
                 <label style={label}>SMS permission<select style={inputStyle} value={selected.consent_status} onChange={(e) => patchContact(selected.id, { consent_status: e.target.value as Contact['consent_status'] })}><option value="unknown">Unknown / do not send</option><option value="inbound">They initiated this thread</option><option value="opted_in">Permission confirmed</option><option value="opted_out">Opted out</option></select></label>
-                <label style={{ ...label, display: 'flex', flexDirection: 'row', gap: 10 }}><input type="checkbox" checked={selected.auto_reply} disabled={selected.consent_status === 'opted_out'} onChange={(e) => patchContact(selected.id, { auto_reply: e.target.checked })} />Allow {selected.assigned_executive} to answer future incoming texts automatically.</label>
+                <label style={{ ...label, display: 'flex', flexDirection: 'row', gap: 10 }}><input type="checkbox" checked={selected.auto_reply} disabled={selected.consent_status === 'opted_out' || selected.assigned_executive === 'Jim'} onChange={(e) => patchContact(selected.id, { auto_reply: e.target.checked })} />{selected.assigned_executive === 'Jim' ? 'Messages routed to Jim stay human-only.' : `Allow ${selected.assigned_executive} to answer future incoming texts automatically.`}</label>
                 <button style={primaryButton} onClick={() => void saveContact(selected)}>Save Thread Settings</button>
               </div>
             </div>
@@ -292,8 +312,9 @@ export default function SmsPage() {
               <div style={{ display: 'grid', gap: 9, maxHeight: 520, overflowY: 'auto', paddingRight: 4 }}>
                 {thread.length === 0 ? <p style={muted}>No stored messages in this thread yet.</p> : thread.map((item) => (
                   <div key={item.id} style={{ ...bubble, marginLeft: item.direction === 'outbound' ? '14%' : 0, marginRight: item.direction === 'inbound' ? '14%' : 0, borderColor: item.direction === 'outbound' ? '#4A90D9' : '#334263' }}>
-                    <small style={{ color: '#8FA0C0' }}>{item.direction === 'outbound' ? item.executive : 'Incoming'} · {new Date(item.created_at).toLocaleString()}</small>
+                    <small style={{ color: '#8FA0C0' }}>{item.direction === 'outbound' ? item.executive : `Eva → ${item.executive}`} · {new Date(item.created_at).toLocaleString()}</small>
                     <div style={{ marginTop: 5, lineHeight: 1.5 }}>{item.body}</div>
+                    {item.direction === 'inbound' && item.triage_reason && <small style={{ display: 'block', marginTop: 7, color: item.financing_fit === 'debt_not_fit' ? '#FFB26F' : '#7F91B4' }}>{item.triage_category || 'general'} · {item.triage_reason}</small>}
                   </div>
                 ))}
               </div>
@@ -322,3 +343,4 @@ const errorStyle: React.CSSProperties = { color: '#FF948A', fontWeight: 800, mar
 const liveBadge: React.CSSProperties = { border: '1px solid #42D392', color: '#8DEAB7', borderRadius: 999, padding: '9px 13px', fontWeight: 900, whiteSpace: 'nowrap' };
 const contactButton: React.CSSProperties = { textAlign: 'left', display: 'grid', gap: 4, background: '#090F1C', color: '#F5F7FB', border: '1px solid #2B3957', borderRadius: 12, padding: 12, cursor: 'pointer' };
 const bubble: React.CSSProperties = { background: '#080E1A', border: '1px solid #334263', borderRadius: 13, padding: 12 };
+const triageBox: React.CSSProperties = { display: 'grid', gap: 5, background: '#080E1A', border: '1px solid #34466C', borderRadius: 12, padding: 12, marginBottom: 15, color: '#B9C7E2', lineHeight: 1.4 };

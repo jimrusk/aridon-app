@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { smsOwnerTokenFromCookie, smsRpc } from '../../../../lib/smsRpc';
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
-const EXECUTIVES = new Set(['Heather', 'Nova', 'Scout', 'Atlas', 'Oracle', 'Ethos', 'Ledger', 'Eva']);
+const HANDLERS = new Set(['Heather', 'Nova', 'Scout', 'Atlas', 'Oracle', 'Ethos', 'Ledger', 'Eva', 'Jim']);
 const CONSENT = new Set(['unknown', 'inbound', 'opted_in', 'opted_out']);
 
 function clean(value: unknown, max: number) {
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     const assignedExecutive = clean(body?.assignedExecutive, 40);
     const consentStatus = clean(body?.consentStatus, 30);
 
-    if (!contactId || !EXECUTIVES.has(assignedExecutive) || !CONSENT.has(consentStatus)) {
+    if (!contactId || !HANDLERS.has(assignedExecutive) || !CONSENT.has(consentStatus)) {
       return NextResponse.json({ error: 'Invalid SMS contact update.' }, { status: 400, headers: NO_STORE });
     }
 
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       p_display_name: clean(body?.displayName, 160),
       p_assigned_executive: assignedExecutive,
       p_consent_status: consentStatus,
-      p_auto_reply: Boolean(body?.autoReply),
+      p_auto_reply: assignedExecutive === 'Jim' ? false : Boolean(body?.autoReply),
     });
 
     if (!result?.ok) {
