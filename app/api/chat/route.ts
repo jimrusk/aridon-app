@@ -4,6 +4,7 @@ import { buildSystemPrompt } from '../../../lib/systemPrompt';
 
 const ALLOWED_EXECUTIVES = new Set([
   'Heather',
+  'Nova',
   'Ethos',
   'Atlas',
   'Eva',
