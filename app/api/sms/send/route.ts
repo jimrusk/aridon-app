@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { smsOwnerTokenFromCookie, smsRpc } from '../../../../lib/smsRpc';
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
-const EXECUTIVES = new Set(['Heather', 'Nova', 'Scout', 'Atlas', 'Oracle', 'Ethos', 'Ledger', 'Eva']);
+const SENDERS = new Set(['Heather', 'Nova', 'Scout', 'Atlas', 'Oracle', 'Ethos', 'Ledger', 'Eva', 'Jim']);
 
 function clean(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -20,8 +20,8 @@ export async function POST(req: NextRequest) {
     const message = clean(body?.message, 1450);
     const executive = clean(body?.executive, 40);
 
-    if (!/^\+[1-9][0-9]{7,14}$/.test(phone) || !message || !EXECUTIVES.has(executive)) {
-      return NextResponse.json({ error: 'Phone, message, or executive is invalid.' }, { status: 400, headers: NO_STORE });
+    if (!/^\+[1-9][0-9]{7,14}$/.test(phone) || !message || !SENDERS.has(executive)) {
+      return NextResponse.json({ error: 'Phone, message, or sender is invalid.' }, { status: 400, headers: NO_STORE });
     }
 
     const result = await smsRpc<{ ok?: boolean; error?: string }>('sms_owner_send', {
