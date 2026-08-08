@@ -5,7 +5,7 @@ const SECURITY_HEADERS: Record<string, string> = {
   'Referrer-Policy': 'no-referrer',
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Permissions-Policy': 'camera=(), microphone=(self), geolocation=()',
 };
 
 function withSecurityHeaders(response: NextResponse) {
@@ -18,6 +18,7 @@ function withSecurityHeaders(response: NextResponse) {
 export function middleware() {
   // The Aridon operator interface is intentionally open at the application layer.
   // Customer billing/workspace APIs still enforce their own Supabase/Stripe auth.
+  // Same-origin microphone access is allowed for the hands-free executive voice room.
   return withSecurityHeaders(NextResponse.next());
 }
 
