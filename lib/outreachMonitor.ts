@@ -24,7 +24,7 @@ export const OUTREACH_TARGETS: OutreachTarget[] = [
     sentAt: '2026-08-08T17:00:10-05:00',
     status: 'awaiting_reply',
     priority: 'high',
-    nextAction: 'Watch for reply; if no response, follow up in 2 business days.',
+    nextAction: 'Benedikte Webb is out until Tuesday, August 11. For immediate routing, contact Geoff Newman (gnewman@farmingtonnm.gov), Cody Ginn (cginn@farmingtonnm.gov), or Jon Ficken (jficken@farmingtonnm.gov). Continue watching for Mark Hathcock or mayor-office response.',
   },
   {
     id: 'aztec-water-pilot',
