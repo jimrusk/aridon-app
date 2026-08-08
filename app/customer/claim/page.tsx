@@ -1,18 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { getBrowserClient } from '../../../lib/supabase';
 
 export default function CustomerClaimPage() {
   const router = useRouter();
-  const search = useSearchParams();
   const [message, setMessage] = useState('Verifying your Aridon owner account…');
 
   useEffect(() => {
     let active = true;
 
     async function claim() {
+      const search = new URLSearchParams(window.location.search);
       const tokenHash = search.get('token_hash') || '';
       const type = search.get('type') || 'recovery';
       if (!tokenHash) {
@@ -36,7 +36,7 @@ export default function CustomerClaimPage() {
 
     claim();
     return () => { active = false; };
-  }, [router, search]);
+  }, [router]);
 
   return (
     <main style={{ minHeight: '100vh', background: '#0B1020', color: '#F8FAFC', display: 'grid', placeItems: 'center', padding: '24px', fontFamily: 'Arial, sans-serif' }}>
