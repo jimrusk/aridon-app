@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { EVA_AVATAR } from '../lib/evaIdentity';
 
 const launcherStyle = {
   color: '#101421',
@@ -17,16 +18,31 @@ export default function InternalLaunchers() {
   if (
     pathname.startsWith('/business-os') ||
     pathname.startsWith('/workspace') ||
-    pathname.startsWith('/customer')
+    pathname.startsWith('/customer') ||
+    pathname.startsWith('/eva-chat')
   ) return null;
 
   return (
     <div
       style={{
         position: 'fixed', right: '18px', bottom: '18px', zIndex: 1000,
-        display: 'flex', gap: '9px', flexWrap: 'wrap', justifyContent: 'flex-end',
+        display: 'flex', gap: '9px', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center',
       }}
     >
+      <Link
+        href="/eva-chat"
+        aria-label="Chat with Eva"
+        title="Chat with Eva"
+        style={{
+          display: 'flex', alignItems: 'center', gap: '9px',
+          background: '#151A28', color: '#F5F7FB', border: '2px solid #D45A2A',
+          borderRadius: '999px', padding: '4px 12px 4px 4px', fontWeight: 900,
+          textDecoration: 'none', boxShadow: '0 12px 32px rgba(0,0,0,.42)',
+        }}
+      >
+        <img src={EVA_AVATAR} alt="Eva" style={{ width: '46px', height: '46px', borderRadius: '50%', objectFit: 'cover', display: 'block' }} />
+        <span>Eva Chat</span>
+      </Link>
       <Link href="/eva-core" aria-label="Open Eva Core inner-world lab" style={{ ...launcherStyle, background: '#9EF0CF' }}>◉ Eva Core</Link>
       <Link href="/customers/metrics" aria-label="Open customer product health" style={{ ...launcherStyle, background: '#B9CFFF' }}>▣ Product Health</Link>
       <Link href="/customers/feedback" aria-label="Review customer feedback" style={{ ...launcherStyle, background: '#FFD5A8' }}>✦ Customer Feedback</Link>
