@@ -6,7 +6,7 @@ import { executives } from '../../lib/executives';
 
 type Executive = (typeof executives)[number];
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
-type VoiceEngine = 'studio' | 'browser';
+type VoiceEngine = 'studio' | 'unavailable';
 
 type BrowserSpeechRecognition = {
   continuous: boolean;
@@ -20,44 +20,11 @@ type BrowserSpeechRecognition = {
   onend: (() => void) | null;
 };
 
-const browserVoiceHints: Record<string, string[]> = {
-  Heather: ['Samantha', 'Ava', 'Karen', 'female'],
-  Nova: ['Samantha', 'Ava', 'Zira', 'female'],
-  Scout: ['Daniel', 'Alex', 'male'],
-  Atlas: ['Aaron', 'Daniel', 'male'],
-  Oracle: ['Samantha', 'Ava', 'female'],
-  Ethos: ['Daniel', 'Alex', 'male'],
-  Ledger: ['Daniel', 'Alex', 'male'],
-  Eva: ['Moira', 'Fiona', 'Samantha', 'Ava', 'female'],
-};
-
-const browserVoiceSettings: Record<string, { rate: number; pitch: number }> = {
-  Heather: { rate: 1.02, pitch: 1.05 },
-  Nova: { rate: 0.96, pitch: 1.02 },
-  Scout: { rate: 1.02, pitch: 0.92 },
-  Atlas: { rate: 0.94, pitch: 0.82 },
-  Oracle: { rate: 1.02, pitch: 1.04 },
-  Ethos: { rate: 0.9, pitch: 0.78 },
-  Ledger: { rate: 0.93, pitch: 0.8 },
-  Eva: { rate: 0.98, pitch: 1.08 },
-};
-
 function introFor(executive: Executive) {
   if (executive.name === 'Eva') {
     return 'Hello Jim. Eva here. The executive voice room is online with the upgraded natural voice system. You can speak normally, and in hands-free mode I will keep the conversation moving without making you tap between turns. What shall we tackle first?';
   }
   return `Hello Jim. I am ${executive.name}, your ${executive.role}. My focus is ${executive.focus}. I am ready when you are.`;
-}
-
-function findBrowserVoice(name: string, voices: SpeechSynthesisVoice[]) {
-  const hints = browserVoiceHints[name] ?? [];
-  for (const hint of hints) {
-    const voice = voices.find((candidate) =>
-      `${candidate.name} ${candidate.lang}`.toLowerCase().includes(hint.toLowerCase()),
-    );
-    if (voice) return voice;
-  }
-  return voices.find((voice) => voice.lang.toLowerCase().startsWith('en')) ?? voices[0];
 }
 
 export default function TalkingAvatarsPage() {
@@ -70,7 +37,6 @@ export default function TalkingAvatarsPage() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [handsFree, setHandsFree] = useState(false);
   const [listening, setListening] = useState(false);
-  const [browserSpeechSupported, setBrowserSpeechSupported] = useState(true);
   const [recognitionSupported, setRecognitionSupported] = useState(true);
   const [voiceEngine, setVoiceEngine] = useState<VoiceEngine>('studio');
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
@@ -78,6 +44,8 @@ export default function TalkingAvatarsPage() {
   const audioUrlRef = useRef<string | null>(null);
   const handsFreeRef = useRef(false);
   const busyRef = useRef(false);
+  const playbackIdRef = useRef(0);
+  const lastSpeechRef = useRef<{ key: string; at: number } | null>(null);
 
   const selected = useMemo(
     () => executives.find((executive) => executive.name === selectedName) ?? executives[0],
@@ -85,22 +53,21 @@ export default function TalkingAvatarsPage() {
   );
 
   useEffect(() => {
-    const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
     const canListen = typeof window !== 'undefined' && Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
-    setBrowserSpeechSupported(canSpeak);
     setRecognitionSupported(canListen);
 
     return () => {
       handsFreeRef.current = false;
+      playbackIdRef.current += 1;
       try { recognitionRef.current?.abort?.(); } catch {}
       try { recognitionRef.current?.stop(); } catch {}
       if (audioRef.current) {
         audioRef.current.onended = null;
         audioRef.current.onerror = null;
+        audioRef.current.ontimeupdate = null;
         audioRef.current.pause();
       }
       if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     };
   }, []);
 
@@ -117,7 +84,7 @@ export default function TalkingAvatarsPage() {
       audioRef.current.onerror = null;
       audioRef.current.ontimeupdate = null;
       audioRef.current.pause();
-      audioRef.current.src = '';
+      audioRef.current.removeAttribute('src');
       audioRef.current = null;
     }
     if (audioUrlRef.current) {
@@ -127,68 +94,50 @@ export default function TalkingAvatarsPage() {
   }
 
   function stopSpeaking() {
+    playbackIdRef.current += 1;
     releaseAudio();
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     setSpeakingName('');
   }
 
   function resumeHandsFree(delay = 450) {
     if (!handsFreeRef.current || busyRef.current) return;
     window.setTimeout(() => {
-      if (handsFreeRef.current && !busyRef.current) startListening(true);
+      if (handsFreeRef.current && !busyRef.current && !audioRef.current) startListening(true);
     }, delay);
   }
 
-  function browserSpeakFallback(executive: Executive, text: string) {
-    const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
-    if (!voiceEnabled || !canSpeak || !text.trim()) {
-      setSpeakingName('');
-      resumeHandsFree();
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voices = window.speechSynthesis.getVoices();
-    const voice = findBrowserVoice(executive.name, voices);
-    const settings = browserVoiceSettings[executive.name] ?? { rate: 1, pitch: 1 };
-
-    if (voice) utterance.voice = voice;
-    utterance.rate = settings.rate;
-    utterance.pitch = settings.pitch;
-    utterance.volume = 1;
-    utterance.onstart = () => setSpeakingName(executive.name);
-    utterance.onboundary = () => setSpeechBeat((beat) => beat + 1);
-    utterance.onend = () => {
-      setSpeakingName('');
-      resumeHandsFree(350);
-    };
-    utterance.onerror = () => {
-      setSpeakingName('');
-      resumeHandsFree(500);
-    };
-    window.speechSynthesis.speak(utterance);
-  }
-
   async function speak(executive: Executive, text: string) {
-    if (!voiceEnabled || !text.trim()) {
+    const cleaned = text.trim();
+    if (!voiceEnabled || !cleaned) {
       resumeHandsFree();
       return;
     }
+
+    const speechKey = `${executive.name}:${cleaned}`;
+    const now = Date.now();
+    if (lastSpeechRef.current?.key === speechKey && now - lastSpeechRef.current.at < 2500) {
+      return;
+    }
+    lastSpeechRef.current = { key: speechKey, at: now };
 
     stopListening();
     stopSpeaking();
+    const playbackId = playbackIdRef.current;
     setSpeakingName(executive.name);
+    setVoiceEngine('studio');
 
     try {
       const response = await fetch('/api/voice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ executive: executive.name, text }),
+        body: JSON.stringify({ executive: executive.name, text: cleaned }),
       });
 
+      if (playbackId !== playbackIdRef.current) return;
       if (!response.ok) throw new Error('Studio voice request failed.');
+
       const blob = await response.blob();
+      if (playbackId !== playbackIdRef.current) return;
       if (!blob.size) throw new Error('Studio voice returned empty audio.');
 
       const url = URL.createObjectURL(blob);
@@ -196,29 +145,35 @@ export default function TalkingAvatarsPage() {
       audio.preload = 'auto';
       audioUrlRef.current = url;
       audioRef.current = audio;
-      setVoiceEngine('studio');
 
-      audio.onplaying = () => setSpeakingName(executive.name);
-      audio.ontimeupdate = () => setSpeechBeat((beat) => beat + 1);
+      audio.onplaying = () => {
+        if (playbackId === playbackIdRef.current) setSpeakingName(executive.name);
+      };
+      audio.ontimeupdate = () => {
+        if (playbackId === playbackIdRef.current) setSpeechBeat((beat) => beat + 1);
+      };
       audio.onended = () => {
+        if (playbackId !== playbackIdRef.current) return;
         releaseAudio();
         setSpeakingName('');
         resumeHandsFree(350);
       };
       audio.onerror = () => {
+        if (playbackId !== playbackIdRef.current) return;
         releaseAudio();
         setSpeakingName('');
-        setVoiceEngine('browser');
-        browserSpeakFallback(executive, text);
+        setVoiceEngine('unavailable');
+        resumeHandsFree(500);
       };
 
       await audio.play();
     } catch (error) {
-      console.warn('Studio voice unavailable, using browser voice fallback.', error);
+      if (playbackId !== playbackIdRef.current) return;
+      console.warn('Studio voice unavailable. Written answer remains available.', error);
       releaseAudio();
       setSpeakingName('');
-      setVoiceEngine('browser');
-      browserSpeakFallback(executive, text);
+      setVoiceEngine('unavailable');
+      resumeHandsFree(500);
     }
   }
 
@@ -231,7 +186,7 @@ export default function TalkingAvatarsPage() {
   }
 
   function startListening(autoSend = false) {
-    if (busyRef.current || speakingName) return;
+    if (busyRef.current || speakingName || audioRef.current) return;
     const SpeechRecognitionConstructor =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
@@ -341,7 +296,7 @@ export default function TalkingAvatarsPage() {
           <div>
             <div className="avatar-room-brand">ARIDON</div>
             <h1>Hands-Free Executive Room</h1>
-            <p>Choose an executive, speak naturally, and hear a generated studio voice. Hands-Free automatically listens again after each spoken response.</p>
+            <p>Choose an executive, speak naturally, and hear one generated studio response. Hands-Free automatically listens again after each spoken response.</p>
           </div>
           <div className="avatar-room-header-actions">
             <button className={`handsfree-toggle ${handsFree ? 'on' : ''}`} onClick={toggleHandsFree}>
@@ -374,7 +329,7 @@ export default function TalkingAvatarsPage() {
               {isSelectedSpeaking && <div className="avatar-speaking-label">Speaking</div>}
             </div>
             <div className="avatar-feature-copy">
-              <div className="avatar-online">● Online · {voiceEngine === 'studio' ? 'Studio voice' : 'Device fallback'}</div>
+              <div className="avatar-online">● Online · {voiceEngine === 'studio' ? 'Studio voice' : 'Voice unavailable'}</div>
               <h2>{selected.name}</h2>
               <div className="avatar-role">{selected.role}</div>
               <p>{selected.tagline}</p>
@@ -395,7 +350,7 @@ export default function TalkingAvatarsPage() {
             <div className="avatar-conversation-head">
               <div>
                 <h3>Talk with {selected.name}</h3>
-                <p>{handsFree ? 'Hands-Free loop active: listen → answer → natural voice → listen again.' : 'Type, dictate, or turn on Hands-Free.'}</p>
+                <p>{handsFree ? 'Hands-Free loop active: listen → answer → one natural voice → listen again.' : 'Type, dictate, or turn on Hands-Free.'}</p>
               </div>
               <div className={`voice-status ${listening ? 'listening' : isSelectedSpeaking ? 'speaking' : handsFree ? 'ready' : ''}`}>
                 {listening ? '● Listening' : isSelectedSpeaking ? '● Speaking' : handsFree ? '● Ready' : '● Manual'}
@@ -415,10 +370,9 @@ export default function TalkingAvatarsPage() {
             <div className="avatar-reply" aria-live="polite">
               {reply || `Tap “Hear ${selected.name}” for an introduction, dictate one question, or turn on Hands-Free.`}
             </div>
-            {voiceEngine === 'browser' && <div className="avatar-browser-note">The natural studio voice service did not answer, so this turn is using the phone's built-in fallback voice.</div>}
-            {!browserSpeechSupported && voiceEngine === 'browser' && <div className="avatar-browser-note">This browser has no built-in speech fallback. Written answers will still work.</div>}
+            {voiceEngine === 'unavailable' && <div className="avatar-browser-note">Studio voice could not play this turn. The answer stays on screen and will not be repeated through the phone's robot voice.</div>}
             {!recognitionSupported && <div className="avatar-browser-note">This browser does not expose speech recognition. Spoken answers still work, but voice input needs a supported browser.</div>}
-            <div className="avatar-sync-note">Portrait motion follows audio playback events. Static photos are animated while the executive is speaking; this is not phoneme-level mouth reshaping.</div>
+            <div className="avatar-sync-note">Portrait motion follows the single active audio playback. Static photos are animated while the executive is speaking; this is not phoneme-level mouth reshaping.</div>
           </div>
         </section>
 
