@@ -8,6 +8,7 @@ export default function CustomerSessionControls() {
 
   const links = [
     { href: '/', label: 'Dashboard' },
+    { href: '/avatars', label: 'Voice Room' },
     { href: '/eva-chat', label: 'Eva Chat' },
     { href: '/eva-core', label: 'Eva Core' },
     { href: '/business-os', label: 'Business OS' },
