@@ -1,122 +1,173 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { directCheckout } from '../../lib/directCheckout';
+import { executives } from '../../lib/executives';
+import BoardroomChallenge from './BoardroomChallenge';
 
-const benefits = [
-  ['Know what needs attention', 'See priorities, open work and decisions in one place instead of chasing notes and tabs.'],
-  ['Ask Eva for help', 'Get help with writing, research, planning, customer follow-up and business decisions in normal language.'],
-  ['Find new customers', 'Scout learns what you sell, researches possible buyers and prepares outreach for your review.'],
-  ['Keep company knowledge together', 'Store useful company information, research and decisions inside your private business workspace.'],
-  ['Stay in control', 'The system can research and draft. Actions that contact customers or start paid services remain approval-gated.'],
-  ['Use your own company identity', 'Your team works in a company-branded workspace that is separate from the platform operator’s internal system.'],
+export const metadata: Metadata = {
+  title: 'Aridon Executive Operating System | Your AI Executive Team',
+  description: 'Give your business an AI executive team, Company Brain, Executive Boardroom, CEO Brief, execution workflows and human approval controls inside one private workspace.',
+};
+
+const loop = [
+  ['1', 'Company Brain', 'Your business context, decisions, projects, CRM, tasks and useful knowledge stay together.'],
+  ['2', 'Executive Boardroom', 'Eva routes important decisions to the executives whose specialties matter.'],
+  ['3', 'Decision', 'The team surfaces tradeoffs, risk and disagreement, then gives the owner one recommended move.'],
+  ['4', 'Execution Team', 'Turn the chosen outcome into projects, deliverables, research, drafts and next actions.'],
+  ['5', 'Human Approval', 'External sends, spending, signatures, commitments and consequential claims stop at approval gates.'],
+  ['6', 'CEO Brief', 'Eva compresses the operating picture into priorities, revenue, risk, opportunity and the next three moves.'],
 ];
 
+const liveFoundation = ['Eight named AI executives', 'Hands-Free Executive Room', 'Company Brain / knowledge layer', 'CRM, projects and tasks', 'Execution Engine', 'Email Queue', 'SMS workspace', 'Stripe subscriptions', 'Supabase-backed private workspaces'];
+const connectorRoadmap = ['Gmail and Outlook', 'Google and Microsoft Calendar', 'Drive and OneDrive', 'QuickBooks', 'HubSpot and Salesforce', 'Slack and Microsoft Teams', 'Shopify', 'Additional phone and business-line providers'];
+
 const plans = [
-  { id: 'launch' as const, name: 'Launch', line: 'A simple private workspace for an owner getting started.', items: ['Company workspace', 'Eva AI business partner', 'Projects and tasks', 'Company knowledge', 'Initial setup'] },
+  { id: 'launch' as const, name: 'Launch', line: 'A private executive workspace for an owner getting organized.', items: ['Company workspace', 'Eva AI Chief of Staff', 'Projects and tasks', 'Company Brain', 'Initial setup'] },
   { id: 'growth' as const, name: 'Growth', line: 'For a business that wants stronger sales, research and recurring execution.', items: ['Everything in Launch', 'Scout sales tools', 'Customer follow-up tools', 'Competitor research', 'Execution workflows'] },
   { id: 'command' as const, name: 'Command', line: 'For teams that need deeper automation, integrations and custom workflows.', items: ['Everything in Growth', 'Custom AI roles', 'Custom domain option', 'Workflow integrations', 'Priority build support'] },
 ];
 
 export default function BusinessOSLanding() {
   return (
-    <main style={{ minHeight: '100vh', background: '#F5F2EA', color: '#171717', fontFamily: 'Arial, sans-serif' }}>
-      <section style={{ maxWidth: '1180px', margin: '0 auto', padding: '28px 20px 72px' }}>
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-          <div style={{ fontWeight: 950, fontSize: '20px' }}>PRIVATE BUSINESS OS</div>
-          <div style={{ display: 'flex', gap: '9px', flexWrap: 'wrap' }}>
-            <Link href="/business-os/revenue" style={outlinePill}>Revenue Calculator</Link>
-            <Link href="/customer/login" style={outlinePill}>Sign In</Link>
-            <Link href="/business-os/beta" style={darkPill}>Start Free Beta</Link>
-          </div>
-        </nav>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.25fr) minmax(300px,.75fr)', gap: '42px', alignItems: 'center', paddingTop: '68px' }} className="hero-grid">
-          <div>
-            <div style={{ display: 'inline-block', border: '1px solid #B9B3A7', borderRadius: '999px', padding: '7px 11px', fontWeight: 800, fontSize: '12px' }}>AN AI BUSINESS TEAM INSIDE YOUR OWN PRIVATE WORKSPACE</div>
-            <h1 style={{ fontSize: 'clamp(44px,8vw,82px)', lineHeight: .95, letterSpacing: '-3px', margin: '20px 0 24px', maxWidth: '900px' }}>Run your business with less chasing and more clarity.</h1>
-            <p style={{ fontSize: '20px', lineHeight: 1.65, maxWidth: '780px', color: '#4B4B46' }}>Ask for help, organize work, research customers, prepare outreach and keep important company information together. You do not need to learn complicated AI commands.</p>
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '30px' }}>
-              <Link href="/business-os/beta" style={primaryButton}>Create My Free Business OS</Link>
-              <Link href="/business-os/revenue" style={secondaryButton}>See the Revenue Opportunity</Link>
-              <a href="#plans" style={secondaryButton}>See Paid Plans</a>
+    <main style={{ minHeight: '100vh', background: '#F4F1E9', color: '#171717', fontFamily: 'Arial, sans-serif' }}>
+      <section style={{ background: '#07101D', color: '#F8FAFC' }}>
+        <div style={{ maxWidth: 1180, margin: '0 auto', padding: '24px 20px 76px' }}>
+          <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <Link href="/business-os" style={{ color: '#F8FAFC', textDecoration: 'none', fontWeight: 950, letterSpacing: 1 }}>ARIDON · EXECUTIVE OS</Link>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <a href="#team" style={darkOutline}>The Team</a>
+              <a href="#challenge" style={darkOutline}>Live Challenge</a>
+              <Link href="/customer/login" style={darkOutline}>Sign In</Link>
+              <Link href="/business-os/beta" style={mintPill}>Build My Team</Link>
             </div>
-            <p style={{ color: '#6A675F', fontSize: '13px', marginTop: '12px' }}>Try the real workspace free first, calculate the opportunity with your own numbers, or subscribe today through secure Stripe checkout. Nothing is sent to customers automatically.</p>
-          </div>
+          </nav>
 
-          <div style={{ background: '#171717', color: '#fff', borderRadius: '24px', padding: '24px', boxShadow: '0 28px 70px rgba(0,0,0,.16)' }}>
-            <div style={{ fontSize: '12px', color: '#A4F3D3', fontWeight: 900 }}>YOUR HOME SCREEN</div>
-            <h2 style={{ fontSize: '32px', margin: '12px 0 20px' }}>Good morning. Here is what matters today.</h2>
-            <div style={{ display: 'grid', gap: '10px' }}>
-              {['Ask Eva for help', 'See open work', 'Find possible customers', 'Review decisions and risks', 'Pick the next best action'].map((item, index) => (
-                <div key={item} style={{ background: '#222', border: '1px solid #343434', borderRadius: '12px', padding: '13px 14px', display: 'flex', gap: '10px', alignItems: 'center' }}><span style={{ width: '24px', height: '24px', borderRadius: '999px', display: 'grid', placeItems: 'center', background: index < 2 ? '#A4F3D3' : '#E8DFC9', color: '#111', fontWeight: 950, fontSize: '12px' }}>{index + 1}</span><span>{item}</span></div>
+          <div className="hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.25fr) minmax(320px,.75fr)', gap: 38, alignItems: 'center', paddingTop: 68 }}>
+            <div>
+              <div style={eyebrowDark}>THE AI EXECUTIVE OPERATING SYSTEM</div>
+              <h1 style={{ fontSize: 'clamp(48px,8vw,86px)', lineHeight: .92, letterSpacing: -3, margin: '18px 0 24px', maxWidth: 900 }}>Your company doesn’t need another chatbot. It needs an executive team.</h1>
+              <p style={{ fontSize: 20, lineHeight: 1.65, color: '#BFC9D8', maxWidth: 790 }}>Aridon gives an owner eight specialized AI executives, a shared Company Brain, an Executive Boardroom, controlled execution, and one Chief of Staff who keeps the business moving.</p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 28 }}>
+                <Link href="/business-os/beta" style={heroPrimary}>Create My Free Business OS</Link>
+                <a href="#challenge" style={heroSecondary}>Challenge the Executive Team</a>
+              </div>
+              <p style={{ color: '#8796AC', fontSize: 13, marginTop: 12 }}>Start with a private beta workspace. No credit card. Important external actions remain under your control.</p>
+            </div>
+
+            <div style={{ background: '#0D1728', border: '1px solid #2A3A57', borderRadius: 24, padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.22)' }}>
+              <div style={eyebrowDark}>EVA · CHIEF OF STAFF</div>
+              <h2 style={{ fontSize: 32, margin: '9px 0 16px' }}>“Here is what matters today.”</h2>
+              {['Top three priorities', 'Revenue and follow-up', 'Operational blockers', 'Risks needing owner attention', 'Best next decision', 'What the team can execute next'].map((item, index) => (
+                <div key={item} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 0', borderTop: index ? '1px solid #23324B' : 0 }}>
+                  <span style={{ width: 26, height: 26, borderRadius: 999, background: index < 3 ? '#9EF0CF' : '#E8DFC9', color: '#07130F', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 950 }}>{index + 1}</span>
+                  <span>{item}</span>
+                </div>
               ))}
             </div>
           </div>
         </div>
       </section>
 
-      <section id="how-it-works" style={{ background: '#171717', color: '#fff', padding: '72px 20px' }}>
-        <div style={{ maxWidth: '1180px', margin: '0 auto' }}>
-          <div style={{ color: '#A4F3D3', fontWeight: 900, fontSize: '12px' }}>HOW THE FREE BETA WORKS</div>
-          <h2 style={{ fontSize: 'clamp(34px,5vw,54px)', lineHeight: 1.05, margin: '10px 0 28px', maxWidth: '800px' }}>One signup. Your business workspace builds itself.</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(250px,1fr))', gap: '14px' }}>
-            <Step number="1" title="Tell us about your business" text="Enter your company name, website if you have one, what you sell and what you want help with first." />
-            <Step number="2" title="We create your workspace" text="Your login, private company workspace, starter project and first tasks are created automatically." />
-            <Step number="3" title="Open your startup guide" text="Use the link you receive to start with Eva, Scout and your company Home screen." />
+      <section id="team" style={{ maxWidth: 1180, margin: '0 auto', padding: '76px 20px' }}>
+        <div style={{ maxWidth: 820 }}><div style={eyebrow}>YOUR DIGITAL C-SUITE</div><h2 style={sectionTitle}>Eight executives. Clear ownership.</h2><p style={body}>You do not build agents from scratch and hope they cooperate. Aridon starts with a leadership structure that business owners already understand.</p></div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(245px,1fr))', gap: 12, marginTop: 26 }}>
+          {executives.map((executive) => (
+            <article key={executive.id} style={{ background: '#fff', border: '1px solid #D0CBC0', borderTop: `4px solid ${executive.color}`, borderRadius: 17, padding: 18 }}>
+              <div style={{ display: 'flex', gap: 11, alignItems: 'center' }}><span style={{ width: 42, height: 42, display: 'grid', placeItems: 'center', borderRadius: 12, background: `${executive.color}22`, color: executive.color, fontWeight: 950, fontSize: 18 }}>{executive.icon}</span><div><strong style={{ fontSize: 20 }}>{executive.name}</strong><div style={{ color: '#77736B', fontSize: 12 }}>{executive.abbr} · {executive.role}</div></div></div>
+              <p style={{ ...body, fontSize: 14, marginBottom: 10 }}>{executive.tagline}</p>
+              <div style={{ color: '#6D6A63', fontSize: 12, lineHeight: 1.7 }}>{executive.expertise.slice(0, 3).join(' · ')}</div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ background: '#171717', color: '#fff', padding: '76px 20px' }}>
+        <div style={{ maxWidth: 1180, margin: '0 auto' }}>
+          <div style={{ maxWidth: 850 }}><div style={eyebrowDark}>THE ARIDON OPERATING LOOP</div><h2 style={{ ...sectionTitle, color: '#fff' }}>From company memory to finished action, without losing owner control.</h2></div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(250px,1fr))', gap: 10, marginTop: 26 }}>
+            {loop.map(([number, title, text]) => <article key={title} style={{ background: '#212121', border: '1px solid #333', borderRadius: 16, padding: 19 }}><div style={{ width: 32, height: 32, display: 'grid', placeItems: 'center', borderRadius: 10, background: '#9EF0CF', color: '#07130F', fontWeight: 950 }}>{number}</div><h3 style={{ fontSize: 21, margin: '12px 0 7px' }}>{title}</h3><p style={{ color: '#C4C4C0', lineHeight: 1.6, marginBottom: 0 }}>{text}</p></article>)}
           </div>
         </div>
       </section>
 
-      <section style={{ maxWidth: '1180px', margin: '0 auto', padding: '72px 20px' }}>
-        <div style={{ maxWidth: '760px', marginBottom: '28px' }}><div style={{ fontWeight: 900, fontSize: '12px' }}>WHAT IT HELPS WITH</div><h2 style={{ fontSize: 'clamp(34px,5vw,52px)', margin: '10px 0' }}>Useful business help, in plain English.</h2></div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: '14px' }}>
-          {benefits.map(([title, text]) => <article key={title} style={{ background: '#fff', border: '1px solid #D0CBC0', borderRadius: '16px', padding: '20px' }}><h3 style={{ marginTop: 0 }}>{title}</h3><p style={{ color: '#56564F', lineHeight: 1.6, marginBottom: 0 }}>{text}</p></article>)}
+      <section id="challenge" style={{ maxWidth: 1080, margin: '0 auto', padding: '76px 20px' }}>
+        <div style={{ textAlign: 'center', maxWidth: 820, margin: '0 auto 28px' }}><div style={eyebrow}>DON’T TAKE OUR WORD FOR IT</div><h2 style={sectionTitle}>Challenge the Aridon Executive Team.</h2><p style={body}>Give the boardroom one genuine business problem and watch Aridon route the decision across multiple executive specialties before producing one recommended move.</p></div>
+        <BoardroomChallenge />
+      </section>
+
+      <section style={{ background: '#DDE9FF', padding: '76px 20px' }}>
+        <div className="two-col" style={{ maxWidth: 1120, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 18 }}>
+          <article style={featureCard}>
+            <div style={eyebrow}>COMPANY BRAIN</div><h2 style={{ fontSize: 36, margin: '9px 0 12px' }}>Your executives should know the business they are helping run.</h2><p style={body}>Store company knowledge, projects, tasks, decisions, customer context and useful operating information in one private workspace so the team can reason from shared context instead of starting over every chat.</p>
+          </article>
+          <article style={featureCard}>
+            <div style={eyebrow}>CONTROLLED AUTONOMY</div><h2 style={{ fontSize: 36, margin: '9px 0 12px' }}>AI can move fast without quietly taking authority from the owner.</h2><p style={body}>Research, analysis and drafting can move freely. External messages, spending, signatures, legal commitments, consequential claims and destructive actions can be held behind explicit owner approval gates.</p>
+          </article>
         </div>
       </section>
 
-      <section style={{ background: '#DDE9FF', padding: '60px 20px' }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto', textAlign: 'center' }}>
-          <div style={{ fontWeight: 950, fontSize: '12px' }}>PUT NUMBERS ON IT</div>
-          <h2 style={{ fontSize: 'clamp(36px,6vw,58px)', lineHeight: 1, margin: '10px 0 16px' }}>What would one better follow-up be worth?</h2>
-          <p style={{ fontSize: '18px', color: '#3E4756', lineHeight: 1.6 }}>Use your own lead volume, average sale, close rate, and admin time. The calculator shows the size of the possible revenue and time opportunity without pretending results are guaranteed.</p>
-          <Link href="/business-os/revenue" style={{ ...primaryButton, display: 'inline-block', marginTop: '12px' }}>Calculate My Revenue Opportunity</Link>
+      <section style={{ maxWidth: 1120, margin: '0 auto', padding: '76px 20px' }}>
+        <div style={{ maxWidth: 820 }}><div style={eyebrow}>ONBOARDING</div><h2 style={sectionTitle}>Tell Aridon about the business once. Open a working executive workspace.</h2><p style={body}>The beta already creates a private company space, login, starter project and first tasks from a short plain-English setup. The next layer is designed to make company context and executive recommendations useful immediately.</p></div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 11, marginTop: 22 }}>
+          <Step number="1" title="Tell us about the company" text="Business name, website if available, industry, what you sell, and what you want help with first." />
+          <Step number="2" title="Aridon builds the workspace" text="Private login, company home, starter work and the executive-team operating structure are created." />
+          <Step number="3" title="Give the team a real problem" text="Use Eva, the Boardroom or the Executive Room on something that matters in the business today." />
         </div>
       </section>
 
-      <section id="plans" style={{ background: '#E9E5DB', padding: '72px 20px' }}>
-        <div style={{ maxWidth: '1180px', margin: '0 auto' }}>
-          <div style={{ maxWidth: '800px', marginBottom: '28px' }}><div style={{ fontWeight: 900, fontSize: '12px' }}>LIVE MONTHLY PLANS</div><h2 style={{ fontSize: 'clamp(34px,5vw,52px)', margin: '10px 0' }}>Start free, or put Business OS to work today.</h2><p style={{ color: '#55554F', lineHeight: 1.6 }}>Paid subscriptions are processed by Stripe. If you subscribe before creating your workspace, use the same email at checkout and during Business OS signup so we can keep the account path clean.</p></div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: '14px' }}>
+      <section style={{ background: '#0D1728', color: '#fff', padding: '76px 20px' }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto' }}>
+          <div style={{ maxWidth: 820 }}><div style={eyebrowDark}>CONNECTION LAYER</div><h2 style={{ ...sectionTitle, color: '#fff' }}>Connect the systems the business already uses. Don’t pretend every logo is live before it is.</h2><p style={{ ...body, color: '#B9C4D4' }}>Aridon’s moat is the executive operating model. Integrations deepen it. This site separates what is in the current product from the connector roadmap instead of advertising vaporware.</p></div>
+          <div className="two-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 14, marginTop: 24 }}>
+            <article style={darkFeature}><div style={eyebrowDark}>LIVE FOUNDATION</div><div style={tagGrid}>{liveFoundation.map((item) => <span key={item} style={darkTag}>✓ {item}</span>)}</div></article>
+            <article style={darkFeature}><div style={{ ...eyebrowDark, color: '#F4D06F' }}>CONNECTOR ROADMAP</div><div style={tagGrid}>{connectorRoadmap.map((item) => <span key={item} style={roadmapTag}>→ {item}</span>)}</div></article>
+          </div>
+        </div>
+      </section>
+
+      <section id="plans" style={{ background: '#E9E5DB', padding: '76px 20px' }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto' }}>
+          <div style={{ maxWidth: 800, marginBottom: 28 }}><div style={eyebrow}>MONTHLY PLANS</div><h2 style={sectionTitle}>Start free. Keep the workspace that proves useful.</h2><p style={body}>Paid subscriptions are processed by Stripe. No plan should be sold on promises the product cannot yet keep.</p></div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 12 }}>
             {plans.map((plan, index) => (
-              <article key={plan.name} style={{ background: index === 1 ? '#E7F8F0' : '#fff', border: `1px solid ${index === 1 ? '#7BC8AA' : '#CFC9BD'}`, borderRadius: '18px', padding: '22px' }}>
-                {index === 1 && <div style={{ fontWeight: 950, fontSize: '11px', color: '#1D6C50', marginBottom: '8px' }}>RECOMMENDED</div>}
-                <div style={{ fontWeight: 950, fontSize: '24px' }}>{plan.name}</div>
-                <div style={{ fontWeight: 950, fontSize: '28px', margin: '7px 0' }}>{directCheckout[plan.id].price}</div>
-                <p style={{ color: '#56564F', lineHeight: 1.55, minHeight: '70px' }}>{plan.line}</p>
-                <ul style={{ lineHeight: 1.8, paddingLeft: '20px' }}>{plan.items.map(item => <li key={item}>{item}</li>)}</ul>
-                <div style={{ display: 'grid', gap: '8px', marginTop: '12px' }}>
-                  <a href={directCheckout[plan.id].url} style={{ ...primaryButton, textAlign: 'center' }}>Subscribe to {plan.name}</a>
-                  <Link href="/business-os/beta" style={{ ...secondaryButton, textAlign: 'center' }}>Try Free First</Link>
-                </div>
+              <article key={plan.name} style={{ background: index === 1 ? '#E7F8F0' : '#fff', border: `1px solid ${index === 1 ? '#7BC8AA' : '#CFC9BD'}`, borderRadius: 18, padding: 22 }}>
+                {index === 1 && <div style={{ fontWeight: 950, fontSize: 11, color: '#1D6C50', marginBottom: 8 }}>RECOMMENDED</div>}
+                <div style={{ fontWeight: 950, fontSize: 24 }}>{plan.name}</div>
+                <div style={{ fontWeight: 950, fontSize: 28, margin: '7px 0' }}>{directCheckout[plan.id].price}</div>
+                <p style={{ ...body, minHeight: 68 }}>{plan.line}</p>
+                <ul style={{ lineHeight: 1.8, paddingLeft: 20 }}>{plan.items.map((item) => <li key={item}>{item}</li>)}</ul>
+                <div style={{ display: 'grid', gap: 8, marginTop: 12 }}><a href={directCheckout[plan.id].url} style={{ ...primaryButton, textAlign: 'center' }}>Subscribe to {plan.name}</a><Link href="/business-os/beta" style={{ ...secondaryButton, textAlign: 'center' }}>Try Free First</Link></div>
               </article>
             ))}
           </div>
-          <div style={{ marginTop: '18px', color: '#625E55', lineHeight: 1.6, fontSize: '13px' }}>Stripe shows the final recurring price and payment details before you subscribe. You can review everything before completing checkout. See the <Link href="/business-os/terms" style={{ color: '#171717', fontWeight: 850 }}>Business OS Terms</Link> and <Link href="/business-os/privacy" style={{ color: '#171717', fontWeight: 850 }}>Privacy Notice</Link>.</div>
+          <div style={{ marginTop: 18, color: '#625E55', lineHeight: 1.6, fontSize: 13 }}>Stripe shows final recurring price and payment details before subscription. See the <Link href="/business-os/terms" style={{ color: '#171717', fontWeight: 850 }}>Terms</Link> and <Link href="/business-os/privacy" style={{ color: '#171717', fontWeight: 850 }}>Privacy Notice</Link>.</div>
         </div>
       </section>
 
-      <section style={{ background: '#DDE9FF', padding: '64px 20px' }}><div style={{ maxWidth: '900px', margin: '0 auto', textAlign: 'center' }}><h2 style={{ fontSize: 'clamp(36px,6vw,60px)', margin: '0 0 18px', letterSpacing: '-2px' }}>Ready to build yours?</h2><p style={{ fontSize: '19px', color: '#3E4756', lineHeight: 1.6 }}>Start with a free workspace, or choose Growth and begin a paid subscription today.</p><div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '14px' }}><Link href="/business-os/beta" style={primaryButton}>Start My Free Beta</Link><a href={directCheckout.growth.url} style={secondaryButton}>Subscribe to Growth · $99/month</a></div></div></section>
+      <section style={{ background: '#9EF0CF', padding: '68px 20px' }}><div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}><div style={{ fontWeight: 950, fontSize: 12 }}>YOUR EXECUTIVE TEAM IS READY FOR A REAL PROBLEM</div><h2 style={{ fontSize: 'clamp(38px,6vw,64px)', lineHeight: .98, letterSpacing: -2, margin: '11px 0 16px' }}>Stop managing AI tools. Start running the business with an AI leadership system.</h2><div style={{ display: 'flex', justifyContent: 'center', gap: 9, flexWrap: 'wrap', marginTop: 18 }}><Link href="/business-os/beta" style={primaryButton}>Build My Free Business OS</Link><a href="#challenge" style={secondaryButton}>Challenge the Team First</a></div></div></section>
 
-      <footer style={{ padding: '28px 20px', textAlign: 'center', color: '#6D6D68', fontSize: '12px' }}>Private Business OS · AI tools inside your company’s private workspace · <Link href="/business-os/revenue" style={{ color: 'inherit' }}>Revenue Calculator</Link> · <Link href="/business-os/terms" style={{ color: 'inherit' }}>Terms</Link> · <Link href="/business-os/privacy" style={{ color: 'inherit' }}>Privacy</Link></footer>
-      <style>{`@media (max-width:820px){.hero-grid{grid-template-columns:1fr !important}.hero-grid h1{letter-spacing:-2px !important}}`}</style>
+      <footer style={{ padding: '28px 20px', textAlign: 'center', color: '#6D6D68', fontSize: 12 }}>Aridon Executive Operating System · <Link href="/business-os/revenue" style={{ color: 'inherit' }}>Revenue Calculator</Link> · <Link href="/business-os/terms" style={{ color: 'inherit' }}>Terms</Link> · <Link href="/business-os/privacy" style={{ color: 'inherit' }}>Privacy</Link></footer>
+      <style>{`@media(max-width:820px){.hero-grid,.two-col{grid-template-columns:1fr !important}.hero-grid h1{letter-spacing:-2px !important}}`}</style>
     </main>
   );
 }
 
 function Step({ number, title, text }: { number: string; title: string; text: string }) {
-  return <article style={{ background: '#202020', border: '1px solid #303030', borderRadius: '16px', padding: '20px' }}><div style={{ width: '34px', height: '34px', display: 'grid', placeItems: 'center', background: '#A4F3D3', color: '#111', borderRadius: '10px', fontWeight: 950 }}>{number}</div><h3>{title}</h3><p style={{ color: '#C4C4C0', lineHeight: 1.6, marginBottom: 0 }}>{text}</p></article>;
+  return <article style={{ background: '#fff', border: '1px solid #D0CBC0', borderRadius: 16, padding: 19 }}><div style={{ width: 34, height: 34, display: 'grid', placeItems: 'center', background: '#171717', color: '#fff', borderRadius: 10, fontWeight: 950 }}>{number}</div><h3 style={{ fontSize: 20 }}>{title}</h3><p style={{ ...body, marginBottom: 0 }}>{text}</p></article>;
 }
 
-const darkPill = { background: '#171717', color: '#fff', padding: '11px 16px', borderRadius: '999px', textDecoration: 'none', fontWeight: 850 };
-const outlinePill = { border: '1px solid #AAA499', color: '#171717', padding: '10px 15px', borderRadius: '999px', textDecoration: 'none', fontWeight: 850 };
-const primaryButton = { background: '#171717', color: '#fff', padding: '14px 19px', borderRadius: '11px', textDecoration: 'none', fontWeight: 900 };
-const secondaryButton = { border: '1px solid #AAA499', color: '#171717', padding: '13px 18px', borderRadius: '11px', textDecoration: 'none', fontWeight: 850 };
+const eyebrow = { color: '#24604E', fontWeight: 950, fontSize: 11, letterSpacing: 1 };
+const eyebrowDark = { color: '#9EF0CF', fontWeight: 950, fontSize: 11, letterSpacing: 1 };
+const sectionTitle = { fontSize: 'clamp(36px,5vw,56px)', lineHeight: 1, letterSpacing: -1.5, margin: '9px 0 14px' };
+const body = { color: '#56564F', lineHeight: 1.65, fontSize: 16 };
+const mintPill = { background: '#9EF0CF', color: '#07130F', padding: '10px 14px', borderRadius: 999, textDecoration: 'none', fontWeight: 950 };
+const darkOutline = { border: '1px solid #3C4A63', color: '#E6EBF3', padding: '9px 12px', borderRadius: 999, textDecoration: 'none', fontWeight: 850, fontSize: 13 };
+const heroPrimary = { background: '#9EF0CF', color: '#07130F', padding: '14px 18px', borderRadius: 11, textDecoration: 'none', fontWeight: 950 };
+const heroSecondary = { border: '1px solid #526078', color: '#F1F4F8', padding: '13px 17px', borderRadius: 11, textDecoration: 'none', fontWeight: 900 };
+const featureCard = { background: 'rgba(255,255,255,.72)', border: '1px solid #B7C6DE', borderRadius: 19, padding: 22 };
+const darkFeature = { background: '#121F33', border: '1px solid #2E405F', borderRadius: 18, padding: 20 };
+const tagGrid = { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 15 };
+const darkTag = { display: 'inline-block', background: '#172A35', border: '1px solid #315F57', color: '#CFF4E7', borderRadius: 999, padding: '8px 10px', fontSize: 12, fontWeight: 800 };
+const roadmapTag = { display: 'inline-block', background: '#2A2518', border: '1px solid #6D5B2C', color: '#F6E5A8', borderRadius: 999, padding: '8px 10px', fontSize: 12, fontWeight: 800 };
+const primaryButton = { background: '#171717', color: '#fff', padding: '14px 19px', borderRadius: 11, textDecoration: 'none', fontWeight: 900 };
+const secondaryButton = { border: '1px solid #AAA499', color: '#171717', padding: '13px 18px', borderRadius: 11, textDecoration: 'none', fontWeight: 850 };
