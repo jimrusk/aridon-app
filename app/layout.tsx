@@ -5,8 +5,8 @@ import InternalLaunchers from './InternalLaunchers';
 import CustomerSessionControls from './components/CustomerSessionControls';
 
 export const metadata: Metadata = {
-  title: 'Aridon v0.5',
-  description: 'AI Executive Operating System and Execution Replacement Layer',
+  title: 'Aridon Executive Operating System',
+  description: 'An AI executive team, Company Brain, Executive Boardroom, controlled execution and CEO Brief for owner-led businesses.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
