@@ -12,7 +12,7 @@ export const executives = [
   },
   {
     id: 'nova', name: 'Nova', role: 'Chief Financial Officer', abbr: 'CFO',
-    avatar: '/executives/eva.jpg', icon: 'N', color: '#66C2FF',
+    avatar: '/executives/nova.svg', icon: 'N', color: '#66C2FF',
     tagline: 'Protects cash flow, budgets, forecasts, financial discipline, and capital decisions.',
     expertise: ['Cash Flow Management', 'Budget Planning', 'Financial Forecasting', 'Capital Planning', 'Financial Controls'],
     tone: 'grounded, analytical, practical',
@@ -75,4 +75,4 @@ export const executives = [
   }
 ];
 
-export const companySeed = `Aridon is an AI Executive Operating System for businesses. It gives companies an eight-member digital executive team covering operations, finance, strategy, technology, marketing and communications, legal and risk, revenue, and executive coordination. Iron Grid Electric and Water is an early proving-ground customer focused on power, water, resilience, AI infrastructure, data centers, atmospheric water generation, microgrids, generators, water systems, and mission-critical infrastructure.`;
+export const companySeed = `Aridon is an AI Executive Operating System for businesses. It gives companies an eight-member digital executive team covering operations, finance, strategy, technology, marketing and communications, legal and risk, revenue, and executive coordination. The product combines a shared Company Brain, Executive Boardroom, CEO Brief, CRM, projects, tasks, controlled execution, voice interaction, and human approval gates so business owners can move from company context to decision to finished action without managing a pile of separate AI tools.`;
