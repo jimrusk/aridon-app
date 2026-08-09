@@ -19,6 +19,7 @@ export default function InternalLaunchers() {
     pathname.startsWith('/business-os') ||
     pathname.startsWith('/workspace') ||
     pathname.startsWith('/customer') ||
+    pathname.startsWith('/demos') ||
     pathname.startsWith('/eva-chat')
   ) return null;
 
