@@ -6,12 +6,19 @@ import { usePathname } from 'next/navigation';
 export default function CustomerSessionControls() {
   const pathname = usePathname();
 
+  const hasOwnNavigation =
+    pathname.startsWith('/business-os') ||
+    pathname.startsWith('/customer') ||
+    pathname.startsWith('/workspace');
+
+  if (hasOwnNavigation) return null;
+
   const links = [
     { href: '/', label: 'Dashboard' },
+    { href: '/boardroom', label: 'Boardroom' },
     { href: '/avatars', label: 'Voice Room' },
-    { href: '/sms', label: 'SMS' },
-    { href: '/eva-chat', label: 'Eva Chat' },
-    { href: '/eva-core', label: 'Eva Core' },
+    { href: '/ceo-brief', label: 'CEO Brief' },
+    { href: '/controls', label: 'Controls' },
     { href: '/business-os', label: 'Business OS' },
   ];
 
