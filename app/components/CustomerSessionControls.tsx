@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 export default function CustomerSessionControls() {
   const pathname = usePathname();
 
-  if (pathname.startsWith('/business-os') || pathname.startsWith('/customer')) return null;
+  if (pathname.startsWith('/business-os') || pathname.startsWith('/customer') || pathname.startsWith('/demos')) return null;
 
   if (pathname.startsWith('/workspace/')) {
     const slug = pathname.split('/')[2] || '';
