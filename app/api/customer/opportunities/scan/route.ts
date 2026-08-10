@@ -15,6 +15,10 @@ type ResponsesPayload = {
   error?: { message?: string };
 };
 
+type FailureDb = {
+  from: (table: string) => any;
+};
+
 function text(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
@@ -144,12 +148,12 @@ async function gate(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   let runId = '';
-  let dbForFailure: Awaited<ReturnType<typeof gate>> extends { auth: infer A } ? A : never;
+  let failureDb: FailureDb | null = null;
   try {
     const access = await gate(request);
     if ('response' in access) return access.response;
     const { auth, membership } = access;
-    dbForFailure = auth as typeof dbForFailure;
+    failureDb = auth.db as unknown as FailureDb;
     const tenantId = membership.tenant.id;
 
     const [{ data: tenant, error: tenantError }, { data: profile, error: profileError }] = await Promise.all([
@@ -162,7 +166,8 @@ export async function POST(request: NextRequest) {
 
     const plan = normalizeOpportunityPlan(tenant?.opportunity_plan);
     const accessPlan = opportunityAccess(plan);
-    const requestedCount = Math.max(1, Math.min(accessPlan.scanLimit, Number((await request.json().catch(() => ({})))?.count) || accessPlan.scanLimit));
+    const body = await request.json().catch(() => ({}));
+    const requestedCount = Math.max(1, Math.min(accessPlan.scanLimit, Number(body?.count) || accessPlan.scanLimit));
 
     const { data: run, error: runError } = await auth.db
       .from('customer_opportunity_runs')
@@ -251,9 +256,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ opportunities: saved, sourceUrls: result.sources, access: accessPlan }, { headers: NO_STORE });
   } catch (error) {
     console.error('Opportunity Intelligence scan error', error);
-    if (runId && dbForFailure && typeof dbForFailure === 'object' && 'db' in dbForFailure) {
+    if (runId && failureDb) {
       try {
-        await (dbForFailure as { db: { from: (table: string) => any } }).db
+        await failureDb
           .from('customer_opportunity_runs')
           .update({ status: 'failed', error_message: error instanceof Error ? error.message.slice(0, 3000) : 'Unknown scan error', completed_at: new Date().toISOString() })
           .eq('id', runId);
