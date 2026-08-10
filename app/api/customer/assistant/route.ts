@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticatedCustomer, customerTenantForUser, subscriptionAllowsAccess } from '../../../../lib/customerAuth';
+import { executives } from '../../../../lib/executives';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -80,6 +81,9 @@ export async function POST(request: NextRequest) {
     const slug = text(body?.slug, 80);
     const messages = cleanMessages(body?.messages);
     const researchWeb = Boolean(body?.researchWeb);
+    const executiveName = text(body?.executive, 80) || 'Eva';
+    const executive = executives.find((item) => item.name.toLowerCase() === executiveName.toLowerCase()) || executives.find((item) => item.name === 'Eva') || executives[0];
+
     if (!slug || !messages) {
       return NextResponse.json({ error: 'Workspace and message history are required.' }, { status: 400, headers: NO_STORE });
     }
@@ -119,7 +123,7 @@ export async function POST(request: NextRequest) {
       .map((message) => `${message.role.toUpperCase()}: ${message.content}`)
       .join('\n\n');
 
-    const systemPrompt = `You are Eva, the always-available AI business partner inside a customer's Private Business OS. You help the customer think, decide, research, write, organize, and execute business work.\n\nRULES:\n- You serve the customer's company, not the platform operator. Never reveal or imply access to another customer's data or the operator's private records.\n- Use the tenant context below when relevant. Treat company-entered data as user-provided information, not independently verified fact.\n- Be practical, warm, concise, and action-oriented. Challenge weak assumptions when the stakes matter.\n- Never pretend an action was completed unless the system actually performed it. If a capability is not connected, explain the exact next step.\n- For legal, tax, accounting, medical, safety, or regulated decisions, provide general information and recommend qualified review when appropriate.\n- If web research is enabled, separate current sourced facts from inference.\n- Do not expose private chain-of-thought. Give concise reasoning summaries instead.\n- When useful, finish with the next 1 to 3 actions.\n\nTENANT CONTEXT:\n${tenantContext}\n\nCONVERSATION:\n${conversation}`;
+    const systemPrompt = `You are ${executive.name}, the ${executive.role} inside a customer's Private Business OS. You are one member of an eight-executive digital leadership team.\n\nYOUR EXECUTIVE LANE:\n- Role: ${executive.role}\n- Primary focus: ${executive.focus}\n- Tone: ${executive.tone}\n- Communication style: ${executive.voice}\n- Expertise: ${executive.expertise.join(', ')}\n\nRULES:\n- You serve the customer's company, not the platform operator. Never reveal or imply access to another customer's data or the operator's private records.\n- Use the tenant context below when relevant. Treat company-entered data as user-provided information, not independently verified fact.\n- Stay in your executive lane when it helps, but answer normal business questions usefully. If another executive is better suited, say who should join and why instead of refusing.\n- Maintain continuity with the conversation history. The customer should feel they are speaking to the same executive throughout the session.\n- Be practical, warm, concise, and action-oriented. Challenge weak assumptions when the stakes matter.\n- Never pretend an action was completed unless the system actually performed it. If a capability is not connected, explain the exact next step.\n- For legal, tax, accounting, medical, safety, or regulated decisions, provide general information and recommend qualified review when appropriate.\n- If web research is enabled, separate current sourced facts from inference.\n- Do not expose private chain-of-thought. Give concise reasoning summaries instead.\n- When useful, finish with the next 1 to 3 actions.\n\nTENANT CONTEXT:\n${tenantContext}\n\nCONVERSATION:\n${conversation}`;
 
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) return NextResponse.json({ error: 'The AI service is not configured on this deployment.' }, { status: 503, headers: NO_STORE });
@@ -141,7 +145,7 @@ export async function POST(request: NextRequest) {
     if (!response.ok) throw new Error(data.error?.message || `AI service returned ${response.status}.`);
 
     const reply = extractText(data);
-    if (!reply) throw new Error('Eva returned no readable response.');
+    if (!reply) throw new Error(`${executive.name} returned no readable response.`);
     const latestUser = [...messages].reverse().find((message) => message.role === 'user');
 
     const { error: logError } = await db.from('customer_assistant_messages').insert([
@@ -156,17 +160,17 @@ export async function POST(request: NextRequest) {
         tenant_id: membership.tenant.id,
         user_id: auth.user.id,
         role: 'assistant',
-        content: reply,
+        content: `[${executive.name}] ${reply}`,
         web_research: researchWeb,
       },
     ]);
     if (logError) console.error('Customer assistant log error', logError);
 
-    return NextResponse.json({ reply, sources: extractSources(data), researchWeb }, { headers: NO_STORE });
+    return NextResponse.json({ reply, executive: executive.name, sources: extractSources(data), researchWeb }, { headers: NO_STORE });
   } catch (error) {
     console.error('Customer assistant error', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Eva is temporarily unavailable. Please try again.' },
+      { error: error instanceof Error ? error.message : 'The executive team is temporarily unavailable. Please try again.' },
       { status: 500, headers: NO_STORE },
     );
   }
