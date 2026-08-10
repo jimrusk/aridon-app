@@ -34,7 +34,7 @@ export default function OpportunityIntelligenceLanding() {
             </div>
           </nav>
 
-          <div className="hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.15fr) minmax(330px,.85fr)', gap: 36, alignItems: 'center', paddingTop: 66 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,330px),1fr))', gap: 36, alignItems: 'center', paddingTop: 66 }}>
             <div>
               <div style={eyebrowDark}>FROM SEARCH TO PURSUIT</div>
               <h1 style={{ fontSize: 'clamp(48px,7.7vw,84px)', lineHeight: .93, letterSpacing: -3, margin: '16px 0 24px' }}>Find the right opportunity. Prove the fit. Build the pursuit.</h1>
@@ -48,7 +48,7 @@ export default function OpportunityIntelligenceLanding() {
 
             <div style={{ background: '#0D1728', border: '1px solid #2A3A57', borderRadius: 24, padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.24)' }}>
               <div style={eyebrowDark}>THE PURSUIT CARD</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 12 }}><strong style={{ fontSize: 25 }}>High-fit opportunity</strong><span style={{ background: '#9EF0CF', color: '#07130F', borderRadius: 999, padding: '6px 10px', fontWeight: 950 }}>91 / 100</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 12, flexWrap: 'wrap' }}><strong style={{ fontSize: 25 }}>High-fit opportunity</strong><span style={{ background: '#9EF0CF', color: '#07130F', borderRadius: 999, padding: '6px 10px', fontWeight: 950 }}>91 / 100</span></div>
               {['Eligibility and fit', 'Deadline and value', 'Verified source trail', 'Requirements and risks', 'Partner strategy', 'Decision-maker path', 'Recommended next action', 'Outreach draft for approval'].map((item) => (
                 <div key={item} style={{ padding: '10px 0', borderTop: '1px solid #22314A', color: '#D8E1ED' }}>✓ {item}</div>
               ))}
@@ -70,7 +70,7 @@ export default function OpportunityIntelligenceLanding() {
       </section>
 
       <section style={{ background: '#DDE9FF', padding: '72px 20px' }}>
-        <div style={{ maxWidth: 1120, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 16 }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 16 }}>
           <article style={lightCard}><div style={eyebrow}>TRUST LAYER</div><h2 style={{ fontSize: 34, margin: '9px 0 12px' }}>Evidence gets a status.</h2><p style={body}>Formal opportunities are expected to point back to public sources. Aridon compares the result with the research citations and marks it source-backed, partially verified or unverified instead of letting confident prose masquerade as proof.</p></article>
           <article style={lightCard}><div style={eyebrow}>HUMAN AUTHORITY</div><h2 style={{ fontSize: 34, margin: '9px 0 12px' }}>Research can run fast. Authority stays human.</h2><p style={body}>The system can discover, analyze, organize and draft. Sending outreach, spending money, signing documents and making consequential commitments remain approval decisions.</p></article>
         </div>
@@ -93,7 +93,7 @@ export default function OpportunityIntelligenceLanding() {
       </section>
 
       <section id="checkout" style={{ background: '#07101D', color: '#F8FAFC', padding: '76px 20px' }}>
-        <div style={{ maxWidth: 1080, margin: '0 auto', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(330px,.75fr)', gap: 26, alignItems: 'start' }}>
+        <div style={{ maxWidth: 1080, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,330px),1fr))', gap: 26, alignItems: 'start' }}>
           <div><div style={eyebrowDark}>READY TO PURSUE</div><h2 style={{ ...sectionTitle, color: '#fff' }}>Turn opportunity hunting into an operating system.</h2><p style={{ ...body, color: '#BFC9D8' }}>A new subscription creates a private company workspace. After checkout, the owner creates a login, defines the opportunity profile and can run the first live source-backed scan.</p><p style={{ ...body, color: '#BFC9D8' }}>Already using Aridon? Sign in and add Opportunity Intelligence from inside the customer workspace instead.</p><Link href="/customer/login" style={heroSecondary}>Existing Customer Sign In</Link></div>
           <OpportunityCheckoutForm />
         </div>
