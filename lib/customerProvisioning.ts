@@ -43,6 +43,10 @@ function subscriptionStatusToTenantStatus(status?: string) {
   return 'onboarding';
 }
 
+function subscriptionAllowsOpportunity(status?: string) {
+  return status === 'active' || status === 'trialing' || status === 'past_due';
+}
+
 export async function ensureTenantFromCheckout(
   session: StripeCheckoutSession,
   subscription?: StripeSubscription | null,
@@ -59,6 +63,8 @@ export async function ensureTenantFromCheckout(
     ? clean(metadata.plan, 30).toLowerCase()
     : 'launch';
   const opportunityPlan = normalizeOpportunityPlan(metadata.opportunity_plan);
+  const productFamily = clean(metadata.product_family, 80).toLowerCase();
+  const isOpportunityProduct = productFamily === 'opportunity_intelligence' && Boolean(opportunityPlan);
   const email = clean(session.customer_details?.email || session.customer_email || metadata.email, 254);
   const subscriptionStatus = subscription?.status || 'active';
   const periodEnd = subscription?.current_period_end
@@ -66,30 +72,38 @@ export async function ensureTenantFromCheckout(
     : null;
 
   if (existingTenantId) {
-    const { data: betaTenant, error: betaTenantError } = await db
+    const { data: existingTenant, error: existingTenantError } = await db
       .from('customer_tenants')
       .select('id,slug,business_name,contact_email')
       .eq('id', existingTenantId)
       .maybeSingle();
-    if (betaTenantError) throw betaTenantError;
-    if (!betaTenant) throw new Error('The existing beta workspace could not be found.');
+    if (existingTenantError) throw existingTenantError;
+    if (!existingTenant) throw new Error('The existing customer workspace could not be found.');
 
-    const updatePayload: Record<string, unknown> = {
-      stripe_customer_id: customerId || null,
-      stripe_subscription_id: subscriptionId || null,
-      billing_email: email || betaTenant.contact_email,
-      plan,
-      subscription_status: subscriptionStatus,
-      status: subscriptionStatusToTenantStatus(subscriptionStatus),
-      current_period_end: periodEnd,
-      updated_at: new Date().toISOString(),
-    };
-    if (opportunityPlan) updatePayload.opportunity_plan = opportunityPlan;
+    const updatePayload: Record<string, unknown> = isOpportunityProduct
+      ? {
+          opportunity_stripe_customer_id: customerId || null,
+          opportunity_stripe_subscription_id: subscriptionId || null,
+          opportunity_subscription_status: subscriptionStatus,
+          opportunity_current_period_end: periodEnd,
+          opportunity_plan: subscriptionAllowsOpportunity(subscriptionStatus) ? opportunityPlan : null,
+          updated_at: new Date().toISOString(),
+        }
+      : {
+          stripe_customer_id: customerId || null,
+          stripe_subscription_id: subscriptionId || null,
+          billing_email: email || existingTenant.contact_email,
+          plan,
+          subscription_status: subscriptionStatus,
+          status: subscriptionStatusToTenantStatus(subscriptionStatus),
+          current_period_end: periodEnd,
+          updated_at: new Date().toISOString(),
+        };
 
     const { data, error } = await db
       .from('customer_tenants')
       .update(updatePayload)
-      .eq('id', betaTenant.id)
+      .eq('id', existingTenant.id)
       .select('*')
       .single();
     if (error) throw error;
@@ -100,20 +114,28 @@ export async function ensureTenantFromCheckout(
     const { data: existing, error: existingError } = await db
       .from('customer_tenants')
       .select('id,slug,business_name,contact_email')
-      .eq('stripe_subscription_id', subscriptionId)
+      .or(`stripe_subscription_id.eq.${subscriptionId},opportunity_stripe_subscription_id.eq.${subscriptionId}`)
       .maybeSingle();
     if (existingError) throw existingError;
     if (existing) {
-      const updatePayload: Record<string, unknown> = {
-        stripe_customer_id: customerId || null,
-        billing_email: email || existing.contact_email,
-        plan,
-        subscription_status: subscriptionStatus,
-        status: subscriptionStatusToTenantStatus(subscriptionStatus),
-        current_period_end: periodEnd,
-        updated_at: new Date().toISOString(),
-      };
-      if (opportunityPlan) updatePayload.opportunity_plan = opportunityPlan;
+      const updatePayload: Record<string, unknown> = isOpportunityProduct
+        ? {
+            opportunity_stripe_customer_id: customerId || null,
+            opportunity_stripe_subscription_id: subscriptionId || null,
+            opportunity_subscription_status: subscriptionStatus,
+            opportunity_current_period_end: periodEnd,
+            opportunity_plan: subscriptionAllowsOpportunity(subscriptionStatus) ? opportunityPlan : null,
+            updated_at: new Date().toISOString(),
+          }
+        : {
+            stripe_customer_id: customerId || null,
+            billing_email: email || existing.contact_email,
+            plan,
+            subscription_status: subscriptionStatus,
+            status: subscriptionStatusToTenantStatus(subscriptionStatus),
+            current_period_end: periodEnd,
+            updated_at: new Date().toISOString(),
+          };
 
       const { data, error } = await db
         .from('customer_tenants')
@@ -127,7 +149,7 @@ export async function ensureTenantFromCheckout(
   }
 
   const slug = await uniqueSlug(slugify(businessName));
-  const payload = {
+  const payload: Record<string, unknown> = {
     slug,
     business_name: businessName,
     owner_name: ownerName || null,
@@ -143,6 +165,13 @@ export async function ensureTenantFromCheckout(
     current_period_end: periodEnd,
   };
 
+  if (isOpportunityProduct) {
+    payload.opportunity_stripe_customer_id = customerId || null;
+    payload.opportunity_stripe_subscription_id = subscriptionId || null;
+    payload.opportunity_subscription_status = subscriptionStatus;
+    payload.opportunity_current_period_end = periodEnd;
+  }
+
   const { data, error } = await db.from('customer_tenants').insert(payload).select('*').single();
   if (error) throw error;
   return data;
@@ -154,7 +183,7 @@ export async function syncSubscription(subscription: StripeSubscription) {
   const periodEnd = subscription.current_period_end
     ? new Date(subscription.current_period_end * 1000).toISOString()
     : null;
-  const payload = {
+  const basePayload = {
     stripe_customer_id: customerId || null,
     subscription_status: subscription.status || 'unknown',
     status: subscriptionStatusToTenantStatus(subscription.status),
@@ -162,13 +191,35 @@ export async function syncSubscription(subscription: StripeSubscription) {
     updated_at: new Date().toISOString(),
   };
 
-  const { data, error } = await db
+  const { data: baseRows, error: baseError } = await db
     .from('customer_tenants')
-    .update(payload)
+    .update(basePayload)
     .eq('stripe_subscription_id', subscription.id)
     .select('id,slug');
-  if (error) throw error;
-  return data || [];
+  if (baseError) throw baseError;
+
+  const opportunityPlan = normalizeOpportunityPlan(subscription.metadata?.opportunity_plan);
+  const opportunityPayload: Record<string, unknown> = {
+    opportunity_stripe_customer_id: customerId || null,
+    opportunity_subscription_status: subscription.status || 'unknown',
+    opportunity_current_period_end: periodEnd,
+    updated_at: new Date().toISOString(),
+  };
+  if (!subscriptionAllowsOpportunity(subscription.status)) {
+    opportunityPayload.opportunity_plan = null;
+  } else if (opportunityPlan) {
+    opportunityPayload.opportunity_plan = opportunityPlan;
+  }
+
+  const { data: opportunityRows, error: opportunityError } = await db
+    .from('customer_tenants')
+    .update(opportunityPayload)
+    .eq('opportunity_stripe_subscription_id', subscription.id)
+    .select('id,slug');
+  if (opportunityError) throw opportunityError;
+
+  const combined = [...(baseRows || []), ...(opportunityRows || [])];
+  return combined.filter((row, index) => combined.findIndex((candidate) => candidate.id === row.id) === index);
 }
 
 async function findAuthUserByEmail(email: string) {
