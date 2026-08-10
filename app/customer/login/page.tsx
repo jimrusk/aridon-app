@@ -25,7 +25,7 @@ export default function CustomerLoginPage() {
       if (!token) return;
       const response = await fetch('/api/customer/me', { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
       const result = await response.json().catch(() => ({}));
-      if (response.ok && result.tenant?.slug) router.replace(safeNext() || `/workspace/${result.tenant.slug}`);
+      if (response.ok && result.tenant?.slug) router.replace(safeNext() || '/customer/start');
     });
   }, [router]);
 
@@ -37,7 +37,7 @@ export default function CustomerLoginPage() {
     const response = await fetch('/api/customer/me', { headers: { Authorization: `Bearer ${data.session.access_token}` }, cache: 'no-store' });
     const result = await response.json().catch(() => ({}));
     if (!response.ok || !result.tenant?.slug) { setMessage(result.error || 'This login does not have a company workspace yet.'); setLoading(false); return; }
-    router.replace(safeNext() || `/workspace/${result.tenant.slug}`);
+    router.replace(safeNext() || '/customer/start');
   }
 
   async function resetPassword() {
@@ -51,14 +51,14 @@ export default function CustomerLoginPage() {
     <main style={{ minHeight: '100vh', background: '#0B1020', color: '#F8FAFC', display: 'grid', placeItems: 'center', padding: '24px', fontFamily: 'Arial, sans-serif' }}>
       <div style={{ width: '100%', maxWidth: '470px' }}>
         <Link href="/business-os" style={{ color: '#9EF0CF', fontSize: '12px', fontWeight: 950, textDecoration: 'none' }}>← PRIVATE BUSINESS OS</Link>
-        <h1 style={{ fontSize: '42px', lineHeight: 1, margin: '14px 0 10px' }}>Sign in to your business.</h1>
-        <p style={{ color: '#AAB7CF', lineHeight: 1.6, marginBottom: '22px' }}>Use the email and password you created when your company workspace was activated.</p>
+        <h1 style={{ fontSize: '42px', lineHeight: 1, margin: '14px 0 10px' }}>Sign in to your Main Room.</h1>
+        <p style={{ color: '#AAB7CF', lineHeight: 1.6, marginBottom: '22px' }}>Your executive team will be waiting in one hands-free room as soon as you sign in.</p>
 
         <form onSubmit={signIn} style={{ background: '#111827', border: '1px solid #2A3857', borderRadius: '18px', padding: '20px', display: 'grid', gap: '14px' }}>
           <label style={labelStyle}>Email<input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" style={inputStyle} /></label>
           <label style={labelStyle}>Password<input type="password" required value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" style={inputStyle} /></label>
           {message && <div style={{ background: '#1C2538', border: '1px solid #354461', borderRadius: '10px', padding: '11px', color: '#D4DEEF', fontSize: '13px', lineHeight: 1.5 }}>{message}</div>}
-          <button type="submit" disabled={loading} style={{ border: 0, background: '#9EF0CF', color: '#08130F', padding: '13px', borderRadius: '11px', fontWeight: 950, cursor: loading ? 'wait' : 'pointer' }}>{loading ? 'Signing in…' : 'Sign in'}</button>
+          <button type="submit" disabled={loading} style={{ border: 0, background: '#9EF0CF', color: '#08130F', padding: '13px', borderRadius: '11px', fontWeight: 950, cursor: loading ? 'wait' : 'pointer' }}>{loading ? 'Signing in…' : 'Enter Main Room'}</button>
           <button type="button" onClick={resetPassword} style={{ border: '1px solid #34415D', background: 'transparent', color: '#D5DEEE', padding: '11px', borderRadius: '11px', fontWeight: 800, cursor: 'pointer' }}>Reset password</button>
         </form>
 
