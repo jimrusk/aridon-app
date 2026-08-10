@@ -11,8 +11,9 @@ export const opportunityPlans = {
     priceId: 'price_1U2jnOD4wDvqb7JrgNog5a1C',
     paymentLink: 'https://buy.stripe.com/eVqeVceU73iP4Rwfce4AU03',
     scanLimit: 6,
+    dailyScanLimit: 1,
     pursuitLimit: 1,
-    line: 'Always-on opportunity discovery for one company.',
+    line: 'Live opportunity discovery for one company.',
     features: [
       'Live opportunity research',
       'Source-backed fit scoring',
@@ -29,6 +30,7 @@ export const opportunityPlans = {
     priceId: 'price_1U2jnXD4wDvqb7JrStDOKP9a',
     paymentLink: 'https://buy.stripe.com/9B69AS8vJ06D6ZE1lo4AU04',
     scanLimit: 10,
+    dailyScanLimit: 3,
     pursuitLimit: 5,
     line: 'For companies actively chasing revenue, contracts and funding.',
     features: [
@@ -47,6 +49,7 @@ export const opportunityPlans = {
     priceId: 'price_1U2jncD4wDvqb7JrjAWgJXre',
     paymentLink: 'https://buy.stripe.com/dRm5kC5jx06D2Joggi4AU05',
     scanLimit: 15,
+    dailyScanLimit: 10,
     pursuitLimit: 20,
     line: 'Executive-grade opportunity intelligence across multiple markets.',
     features: [
@@ -63,6 +66,7 @@ export const demoOpportunityAccess = {
   name: 'Demo',
   price: 'Included',
   scanLimit: 3,
+  dailyScanLimit: 1,
   pursuitLimit: 1,
 } as const;
 
