@@ -8,6 +8,7 @@ const NO_STORE = { 'Cache-Control': 'no-store' };
 const RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const BRAND_TITLE = 'Aridon Brand Brain';
 const CHANNELS = new Set(['website', 'email', 'linkedin', 'facebook', 'instagram', 'x', 'press release', 'sales outreach', 'video script', 'blog', 'ad', 'other']);
+const PROJECT_STATUSES = new Set(['draft', 'approved', 'rejected', 'archived']);
 
 type ResponsesPayload = {
   output_text?: string;
@@ -63,6 +64,29 @@ function parseBrand(content: string | null | undefined) {
   if (!content) return {};
   try { return JSON.parse(content) as Record<string, unknown>; }
   catch { return { notes: content }; }
+}
+
+function cleanCampaignOutput(value: unknown): CampaignOutput {
+  const source = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  const deliverables = Array.isArray(source.deliverables) ? source.deliverables : [];
+  return {
+    campaign_summary: text(source.campaign_summary, 8000),
+    positioning_strategy: text(source.positioning_strategy, 8000),
+    brand_alignment: text(source.brand_alignment, 8000),
+    risk_flags: textArray(source.risk_flags, 30, 2000),
+    source_notes: textArray(source.source_notes, 30, 2500),
+    deliverables: deliverables.slice(0, 20).map((item) => {
+      const row = item && typeof item === 'object' ? item as Record<string, unknown> : {};
+      return {
+        channel: text(row.channel, 120),
+        title: text(row.title, 500),
+        content: text(row.content, 20000),
+        cta: text(row.cta, 3000),
+        review_notes: text(row.review_notes, 5000),
+      };
+    }).filter((item) => item.channel && item.content),
+    next_actions: textArray(source.next_actions, 30, 2500),
+  };
 }
 
 const CAMPAIGN_SCHEMA = {
@@ -208,9 +232,11 @@ export async function POST(request: NextRequest) {
     const outputText = extractOutputText(data);
     if (!outputText) throw new Error('Creator Studio returned no campaign output.');
 
-    let output: CampaignOutput;
-    try { output = JSON.parse(outputText) as CampaignOutput; }
+    let parsed: unknown;
+    try { parsed = JSON.parse(outputText); }
     catch { throw new Error('Creator Studio returned an unreadable campaign format.'); }
+    const output = cleanCampaignOutput(parsed);
+    if (!output.deliverables.length) throw new Error('Creator Studio returned no usable channel drafts.');
 
     const { data: project, error: projectError } = await db.from('customer_creator_projects').insert({
       tenant_id: tenant.id,
@@ -247,15 +273,23 @@ export async function PATCH(request: NextRequest) {
     const slug = text(body?.slug, 80);
     const projectId = text(body?.projectId, 80);
     const status = text(body?.status, 30);
-    if (!slug || !projectId || !['draft', 'approved', 'archived'].includes(status)) {
+    if (!slug || !projectId || !PROJECT_STATUSES.has(status)) {
       return NextResponse.json({ error: 'Workspace, project, and valid status are required.' }, { status: 400, headers: NO_STORE });
     }
     const resolved = await resolveMembership(request, slug);
     if ('error' in resolved) return NextResponse.json({ error: resolved.error }, { status: resolved.status, headers: NO_STORE });
-    const { data, error } = await resolved.auth.db.from('customer_creator_projects').update({ status, updated_at: new Date().toISOString() }).eq('id', projectId).eq('tenant_id', resolved.membership.tenant.id).select('id,status,updated_at').maybeSingle();
+
+    const update: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
+    if (body?.output && typeof body.output === 'object') {
+      const cleaned = cleanCampaignOutput(body.output);
+      if (!cleaned.deliverables.length) return NextResponse.json({ error: 'Edited campaign must contain at least one usable deliverable.' }, { status: 400, headers: NO_STORE });
+      update.output = cleaned;
+    }
+
+    const { data, error } = await resolved.auth.db.from('customer_creator_projects').update(update).eq('id', projectId).eq('tenant_id', resolved.membership.tenant.id).select('id,status,output,updated_at').maybeSingle();
     if (error) throw error;
     if (!data) return NextResponse.json({ error: 'Creator project not found.' }, { status: 404, headers: NO_STORE });
-    await resolved.auth.db.from('customer_usage_events').insert({ tenant_id: resolved.membership.tenant.id, user_id: resolved.auth.user.id, event_name: 'creator_campaign_status_changed', event_data: { project_id: projectId, status } });
+    await resolved.auth.db.from('customer_usage_events').insert({ tenant_id: resolved.membership.tenant.id, user_id: resolved.auth.user.id, event_name: 'creator_campaign_status_changed', event_data: { project_id: projectId, status, edited: Boolean(body?.output) } });
     return NextResponse.json({ project: data }, { headers: NO_STORE });
   } catch (error) {
     console.error('Creator Studio PATCH error', error);
