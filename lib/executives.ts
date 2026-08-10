@@ -12,7 +12,7 @@ export const executives = [
   },
   {
     id: 'nova', name: 'Nova', role: 'Chief Financial Officer', abbr: 'CFO',
-    avatar: '/executives/nova.svg', icon: 'N', color: '#66C2FF',
+    avatar: '/executives/eva.jpg', icon: 'N', color: '#66C2FF',
     tagline: 'Protects cash flow, budgets, forecasts, financial discipline, and capital decisions.',
     expertise: ['Cash Flow Management', 'Budget Planning', 'Financial Forecasting', 'Capital Planning', 'Financial Controls'],
     tone: 'grounded, analytical, practical',
