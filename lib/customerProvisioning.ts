@@ -4,6 +4,7 @@ import {
   type StripeCheckoutSession,
   type StripeSubscription,
 } from './stripeBilling';
+import { normalizeOpportunityPlan } from './opportunityIntelligence';
 
 function clean(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -57,6 +58,7 @@ export async function ensureTenantFromCheckout(
   const plan = ['launch', 'growth', 'command'].includes(clean(metadata.plan, 30).toLowerCase())
     ? clean(metadata.plan, 30).toLowerCase()
     : 'launch';
+  const opportunityPlan = normalizeOpportunityPlan(metadata.opportunity_plan);
   const email = clean(session.customer_details?.email || session.customer_email || metadata.email, 254);
   const subscriptionStatus = subscription?.status || 'active';
   const periodEnd = subscription?.current_period_end
@@ -72,18 +74,21 @@ export async function ensureTenantFromCheckout(
     if (betaTenantError) throw betaTenantError;
     if (!betaTenant) throw new Error('The existing beta workspace could not be found.');
 
+    const updatePayload: Record<string, unknown> = {
+      stripe_customer_id: customerId || null,
+      stripe_subscription_id: subscriptionId || null,
+      billing_email: email || betaTenant.contact_email,
+      plan,
+      subscription_status: subscriptionStatus,
+      status: subscriptionStatusToTenantStatus(subscriptionStatus),
+      current_period_end: periodEnd,
+      updated_at: new Date().toISOString(),
+    };
+    if (opportunityPlan) updatePayload.opportunity_plan = opportunityPlan;
+
     const { data, error } = await db
       .from('customer_tenants')
-      .update({
-        stripe_customer_id: customerId || null,
-        stripe_subscription_id: subscriptionId || null,
-        billing_email: email || betaTenant.contact_email,
-        plan,
-        subscription_status: subscriptionStatus,
-        status: subscriptionStatusToTenantStatus(subscriptionStatus),
-        current_period_end: periodEnd,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq('id', betaTenant.id)
       .select('*')
       .single();
@@ -99,17 +104,20 @@ export async function ensureTenantFromCheckout(
       .maybeSingle();
     if (existingError) throw existingError;
     if (existing) {
+      const updatePayload: Record<string, unknown> = {
+        stripe_customer_id: customerId || null,
+        billing_email: email || existing.contact_email,
+        plan,
+        subscription_status: subscriptionStatus,
+        status: subscriptionStatusToTenantStatus(subscriptionStatus),
+        current_period_end: periodEnd,
+        updated_at: new Date().toISOString(),
+      };
+      if (opportunityPlan) updatePayload.opportunity_plan = opportunityPlan;
+
       const { data, error } = await db
         .from('customer_tenants')
-        .update({
-          stripe_customer_id: customerId || null,
-          billing_email: email || existing.contact_email,
-          plan,
-          subscription_status: subscriptionStatus,
-          status: subscriptionStatusToTenantStatus(subscriptionStatus),
-          current_period_end: periodEnd,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq('id', existing.id)
         .select('*')
         .single();
@@ -127,6 +135,7 @@ export async function ensureTenantFromCheckout(
     billing_email: email || null,
     industry: industry || null,
     plan,
+    opportunity_plan: opportunityPlan,
     status: subscriptionStatusToTenantStatus(subscriptionStatus),
     subscription_status: subscriptionStatus,
     stripe_customer_id: customerId || null,
