@@ -95,20 +95,30 @@ export async function POST(request: NextRequest) {
     }
 
     const db = auth.db;
-    const [projectsResult, tasksResult, knowledgeResult] = await Promise.all([
+    const [projectsResult, tasksResult, knowledgeResult, filesResult] = await Promise.all([
       db.from('customer_projects').select('name,description,status').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(12),
       db.from('customer_tasks').select('title,owner,priority,status').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(20),
-      db.from('customer_knowledge').select('title,category,content').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(12),
+      db.from('customer_knowledge').select('title,category,content').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(14),
+      db.from('customer_files').select('filename,extracted_text,extraction_status,notes').eq('tenant_id', membership.tenant.id).eq('status', 'ready').order('created_at', { ascending: false }).limit(8),
     ]);
     if (projectsResult.error) throw projectsResult.error;
     if (tasksResult.error) throw tasksResult.error;
     if (knowledgeResult.error) throw knowledgeResult.error;
+    if (filesResult.error) throw filesResult.error;
 
     const knowledge = (knowledgeResult.data || []).map((item) => ({
       title: item.title,
       category: item.category,
-      content: text(item.content, 2500),
+      content: text(item.content, 2800),
     }));
+    const sourceFiles = (filesResult.data || [])
+      .filter((item) => item.extracted_text)
+      .map((item) => ({
+        filename: item.filename,
+        extraction_status: item.extraction_status,
+        content: text(item.extracted_text, 3500),
+        note: text(item.notes, 400),
+      }));
 
     const tenantContext = JSON.stringify({
       business: membership.tenant.business_name,
@@ -117,13 +127,14 @@ export async function POST(request: NextRequest) {
       projects: projectsResult.data || [],
       tasks: tasksResult.data || [],
       knowledge,
-    }, null, 2).slice(0, 24000);
+      uploaded_company_files: sourceFiles,
+    }, null, 2).slice(0, 38000);
 
     const conversation = messages
       .map((message) => `${message.role.toUpperCase()}: ${message.content}`)
       .join('\n\n');
 
-    const systemPrompt = `You are ${executive.name}, the ${executive.role} inside a customer's Private Business OS. You are one member of an eight-executive digital leadership team.\n\nYOUR EXECUTIVE LANE:\n- Role: ${executive.role}\n- Primary focus: ${executive.focus}\n- Tone: ${executive.tone}\n- Communication style: ${executive.voice}\n- Expertise: ${executive.expertise.join(', ')}\n\nRULES:\n- You serve the customer's company, not the platform operator. Never reveal or imply access to another customer's data or the operator's private records.\n- Use the tenant context below when relevant. Treat company-entered data as user-provided information, not independently verified fact.\n- Stay in your executive lane when it helps, but answer normal business questions usefully. If another executive is better suited, say who should join and why instead of refusing.\n- Maintain continuity with the conversation history. The customer should feel they are speaking to the same executive throughout the session.\n- Be practical, warm, concise, and action-oriented. Challenge weak assumptions when the stakes matter.\n- Never pretend an action was completed unless the system actually performed it. If a capability is not connected, explain the exact next step.\n- For legal, tax, accounting, medical, safety, or regulated decisions, provide general information and recommend qualified review when appropriate.\n- If web research is enabled, separate current sourced facts from inference.\n- Do not expose private chain-of-thought. Give concise reasoning summaries instead.\n- When useful, finish with the next 1 to 3 actions.\n\nTENANT CONTEXT:\n${tenantContext}\n\nCONVERSATION:\n${conversation}`;
+    const systemPrompt = `You are ${executive.name}, the ${executive.role} inside a customer's Private Business OS. You are one member of an eight-executive digital leadership team.\n\nYOUR EXECUTIVE LANE:\n- Role: ${executive.role}\n- Primary focus: ${executive.focus}\n- Tone: ${executive.tone}\n- Communication style: ${executive.voice}\n- Expertise: ${executive.expertise.join(', ')}\n\nRULES:\n- You serve the customer's company, not the platform operator. Never reveal or imply access to another customer's data or the operator's private records.\n- Use the tenant context below when relevant. Treat company-entered data and extracted company files as user-provided information, not independently verified fact.\n- The Brand Brain may appear inside knowledge as JSON. Use its approved claims, restrictions, audiences, voice, products and differentiators when doing public-facing work.\n- Uploaded company-file extractions are reusable working context. If extraction notes say a file was limited or failed, do not pretend you read material that is absent.\n- Stay in your executive lane when it helps, but answer normal business questions usefully. If another executive is better suited, say who should join and why instead of refusing.\n- Maintain continuity with the conversation history. The customer should feel they are speaking to the same executive throughout the session.\n- Be practical, warm, concise, and action-oriented. Challenge weak assumptions when the stakes matter.\n- Never pretend an action was completed unless the system actually performed it. If a capability is not connected, explain the exact next step.\n- For legal, tax, accounting, medical, safety, or regulated decisions, provide general information and recommend qualified review when appropriate.\n- If web research is enabled, separate current sourced facts from inference.\n- Do not expose private chain-of-thought. Give concise reasoning summaries instead.\n- When useful, finish with the next 1 to 3 actions.\n\nTENANT CONTEXT:\n${tenantContext}\n\nCONVERSATION:\n${conversation}`;
 
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) return NextResponse.json({ error: 'The AI service is not configured on this deployment.' }, { status: 503, headers: NO_STORE });
@@ -132,6 +143,7 @@ export async function POST(request: NextRequest) {
       model: process.env.CUSTOMER_ASSISTANT_MODEL?.trim() || 'gpt-5.6',
       input: systemPrompt,
       max_output_tokens: 2200,
+      store: false,
     };
     if (researchWeb) payload.tools = [{ type: 'web_search', search_context_size: 'medium' }];
 
