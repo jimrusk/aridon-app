@@ -47,17 +47,19 @@ export default function CustomerStartPage() {
           <Link href={home} style={navLink}>Home</Link>
           <Link href="/customer/assistant" style={navLink}>Ask Eva</Link>
           <Link href="/customer/sales" style={navLink}>Find Customers</Link>
+          <Link href="/customer/opportunities" style={navLink}>Opportunities</Link>
           <Link href="/customer/account" style={navLink}>Account</Link>
         </nav>
 
         <div style={{ color: '#9EF0CF', fontSize: '12px', fontWeight: 950, letterSpacing: '1px', marginTop: '34px' }}>START HERE</div>
-        <h1 style={{ fontSize: 'clamp(40px,7vw,68px)', lineHeight: 1, margin: '10px 0 14px', letterSpacing: '-2px' }}>Three things are enough to get started.</h1>
-        <p style={{ color: '#B5C1D4', fontSize: '18px', lineHeight: 1.65, maxWidth: '760px' }}>You do not need to learn an AI system. Tell it what your business needs, review what it gives you, and keep control of anything that could contact a customer or spend money.</p>
+        <h1 style={{ fontSize: 'clamp(40px,7vw,68px)', lineHeight: 1, margin: '10px 0 14px', letterSpacing: '-2px' }}>Four fast paths into the business.</h1>
+        <p style={{ color: '#B5C1D4', fontSize: '18px', lineHeight: 1.65, maxWidth: '760px' }}>You do not need to learn an AI system. Tell it what the business needs, review what it gives you, and keep control of anything that could contact a customer or spend money.</p>
 
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(250px,1fr))', gap: '14px', marginTop: '26px' }}>
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: '14px', marginTop: '26px' }}>
           <ActionCard number="1" title="Ask Eva" text="Start here when you are not sure what to do. Eva can help with priorities, writing, research, decisions and planning." href="/customer/assistant" button="Ask Eva a question" />
           <ActionCard number="2" title="Find customers" text="Teach Scout what you sell, then let it research companies that may be a good fit. Nothing is sent automatically." href="/customer/sales" button="Open Sales" />
-          <ActionCard number="3" title="Use your home screen" text="Your home screen shows your work, open tasks and the fastest paths back to Eva and sales." href={home} button="Go to Home" />
+          <ActionCard number="3" title="Find opportunities" text="Research grants, contracts, RFPs, partners, investors and other growth paths, then score and organize the pursuit." href="/customer/opportunities" button="Open Opportunities" />
+          <ActionCard number="4" title="Use your home screen" text="Your home screen shows your work, open tasks and the fastest paths back to Eva and the operating tools." href={home} button="Go to Home" />
         </section>
 
         <section style={{ marginTop: '20px', background: '#111827', border: '1px solid #2A3857', borderRadius: '18px', padding: '20px' }}>
@@ -66,6 +68,7 @@ export default function CustomerStartPage() {
             <Definition term="Home" text="Your company dashboard. This is the first screen to return to." />
             <Definition term="Eva" text="Your AI business partner. Ask for help in normal language, just like talking to a capable assistant." />
             <Definition term="Scout" text="Your sales helper. It learns who you sell to, researches possible customers and drafts outreach for your review." />
+            <Definition term="Opportunities" text="Your pursuit command center. It researches current opportunities, checks the source trail, scores fit and keeps the next action visible." />
             <Definition term="Workspace" text="Your company’s private area. Your business information is kept separate from other customer companies." />
           </div>
         </section>
