@@ -9,7 +9,6 @@ import { executives } from '../../../lib/executives';
 type Account = { tenant: { slug: string; business_name: string; industry?: string | null } };
 type Executive = (typeof executives)[number];
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
-type VoiceEngine = 'studio' | 'unavailable';
 type BrowserSpeechRecognition = {
   continuous: boolean;
   interimResults: boolean;
@@ -22,9 +21,9 @@ type BrowserSpeechRecognition = {
   onend: (() => void) | null;
 };
 
-function introFor(executive: Executive, businessName: string) {
-  if (executive.name === 'Eva') return `Welcome to the ${businessName} Main Room. Eva here. Your executive team is online and Hands-Free is the default. Speak naturally, switch executives whenever you want, and we will keep the conversation in this room.`;
-  return `I am ${executive.name}, your ${executive.role}. I am with you in the ${businessName} Main Room. My focus is ${executive.focus}. What do you want to work through?`;
+function introFor(executive: Executive, company: string) {
+  if (executive.name === 'Eva') return `Welcome to the ${company} Main Room. Eva here. Your executive team is online. Hands-Free is the default, so speak naturally and switch executives whenever you want.`;
+  return `I am ${executive.name}, your ${executive.role}. I am here in the ${company} Main Room. My focus is ${executive.focus}. What do you want to work through?`;
 }
 
 export default function CustomerStartPage() {
@@ -32,18 +31,17 @@ export default function CustomerStartPage() {
   const [account, setAccount] = useState<Account | null>(null);
   const [token, setToken] = useState('');
   const [selectedName, setSelectedName] = useState('Eva');
-  const [speakingName, setSpeakingName] = useState('');
-  const [speechBeat, setSpeechBeat] = useState(0);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [reply, setReply] = useState('');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [busy, setBusy] = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
-  const [handsFree, setHandsFree] = useState(true);
   const [listening, setListening] = useState(false);
-  const [recognitionSupported, setRecognitionSupported] = useState(true);
+  const [speakingName, setSpeakingName] = useState('');
+  const [speechBeat, setSpeechBeat] = useState(0);
+  const [handsFree, setHandsFree] = useState(true);
   const [micNeedsTap, setMicNeedsTap] = useState(false);
-  const [voiceEngine, setVoiceEngine] = useState<VoiceEngine>('studio');
+  const [recognitionSupported, setRecognitionSupported] = useState(true);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [researchWeb, setResearchWeb] = useState(false);
 
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
@@ -51,15 +49,13 @@ export default function CustomerStartPage() {
   const audioUrlRef = useRef<string | null>(null);
   const handsFreeRef = useRef(true);
   const busyRef = useRef(false);
-  const playbackIdRef = useRef(0);
-  const autoStartAttemptedRef = useRef(false);
-  const lastSpeechRef = useRef<{ key: string; at: number } | null>(null);
+  const autoStartedRef = useRef(false);
+  const playbackRef = useRef(0);
 
-  const selected = useMemo(() => executives.find((executive) => executive.name === selectedName) ?? executives[0], [selectedName]);
+  const selected = useMemo(() => executives.find((item) => item.name === selectedName) || executives[0], [selectedName]);
 
   useEffect(() => {
-    const canListen = typeof window !== 'undefined' && Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
-    setRecognitionSupported(canListen);
+    setRecognitionSupported(Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition));
     const db = getBrowserClient();
     db.auth.getSession().then(async ({ data }) => {
       const accessToken = data.session?.access_token;
@@ -75,22 +71,20 @@ export default function CustomerStartPage() {
       }
       setToken(accessToken);
       setAccount(result as Account);
-      setReply(introFor(executives.find((item) => item.name === 'Eva') || executives[0], result.tenant.business_name));
+      const eva = executives.find((item) => item.name === 'Eva') || executives[0];
+      setReply(introFor(eva, result.tenant.business_name));
     });
-
     return () => {
       handsFreeRef.current = false;
-      playbackIdRef.current += 1;
-      try { recognitionRef.current?.abort?.(); } catch {}
-      try { recognitionRef.current?.stop(); } catch {}
-      releaseAudio();
+      stopListening();
+      stopSpeaking();
     };
   }, [router]);
 
   useEffect(() => {
-    if (!account || !token || autoStartAttemptedRef.current) return;
-    autoStartAttemptedRef.current = true;
-    const timer = window.setTimeout(() => { void activateHandsFree(true); }, 500);
+    if (!account || !token || autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    const timer = window.setTimeout(() => { void activateHandsFree(true); }, 400);
     return () => window.clearTimeout(timer);
   }, [account, token]);
 
@@ -110,14 +104,12 @@ export default function CustomerStartPage() {
       audioRef.current.removeAttribute('src');
       audioRef.current = null;
     }
-    if (audioUrlRef.current) {
-      URL.revokeObjectURL(audioUrlRef.current);
-      audioUrlRef.current = null;
-    }
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    audioUrlRef.current = null;
   }
 
   function stopSpeaking() {
-    playbackIdRef.current += 1;
+    playbackRef.current += 1;
     releaseAudio();
     setSpeakingName('');
   }
@@ -125,105 +117,81 @@ export default function CustomerStartPage() {
   function resumeHandsFree(delay = 350) {
     if (!handsFreeRef.current || busyRef.current || micNeedsTap) return;
     window.setTimeout(() => {
-      if (handsFreeRef.current && !busyRef.current && !audioRef.current) startListening(true);
+      if (handsFreeRef.current && !busyRef.current && !audioRef.current) startListening();
     }, delay);
   }
 
   async function speak(executive: Executive, text: string) {
-    const cleaned = text.trim();
-    if (!voiceEnabled || !cleaned) {
+    if (!voiceEnabled || !text.trim()) {
       resumeHandsFree();
       return;
     }
-    const speechKey = `${executive.name}:${cleaned}`;
-    const now = Date.now();
-    if (lastSpeechRef.current?.key === speechKey && now - lastSpeechRef.current.at < 2500) return;
-    lastSpeechRef.current = { key: speechKey, at: now };
-
     stopListening();
     stopSpeaking();
-    const playbackId = playbackIdRef.current;
+    const playback = playbackRef.current;
     setSpeakingName(executive.name);
-    setVoiceEngine('studio');
-
     try {
       const response = await fetch('/api/voice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ executive: executive.name, text: cleaned }),
+        body: JSON.stringify({ executive: executive.name, text }),
       });
-      if (playbackId !== playbackIdRef.current) return;
-      if (!response.ok) throw new Error('Studio voice request failed.');
+      if (!response.ok) throw new Error('Voice unavailable.');
       const blob = await response.blob();
-      if (!blob.size) throw new Error('Studio voice returned empty audio.');
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
-      audio.preload = 'auto';
       audioUrlRef.current = url;
       audioRef.current = audio;
-      audio.onplaying = () => { if (playbackId === playbackIdRef.current) setSpeakingName(executive.name); };
-      audio.ontimeupdate = () => { if (playbackId === playbackIdRef.current) setSpeechBeat((beat) => beat + 1); };
+      audio.ontimeupdate = () => { if (playback === playbackRef.current) setSpeechBeat((beat) => beat + 1); };
       audio.onended = () => {
-        if (playbackId !== playbackIdRef.current) return;
+        if (playback !== playbackRef.current) return;
         releaseAudio();
         setSpeakingName('');
-        resumeHandsFree(300);
+        resumeHandsFree(250);
       };
       audio.onerror = () => {
-        if (playbackId !== playbackIdRef.current) return;
         releaseAudio();
         setSpeakingName('');
-        setVoiceEngine('unavailable');
-        resumeHandsFree(450);
+        setMicNeedsTap(true);
       };
       await audio.play();
-    } catch (error) {
-      console.warn('Customer main-room voice unavailable', error);
-      if (playbackId !== playbackIdRef.current) return;
+    } catch {
       releaseAudio();
       setSpeakingName('');
-      setVoiceEngine('unavailable');
       setMicNeedsTap(true);
     }
   }
 
-  function startListening(autoSend = true) {
-    if (busyRef.current || speakingName || audioRef.current || !handsFreeRef.current) return;
+  function startListening() {
+    if (!handsFreeRef.current || busyRef.current || audioRef.current) return;
     const SpeechRecognitionConstructor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognitionConstructor) {
       setRecognitionSupported(false);
-      setReply('This browser does not expose speech recognition. You can still type and hear the executives speak.');
       return;
     }
-
     stopListening();
     const recognition = new SpeechRecognitionConstructor() as BrowserSpeechRecognition;
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.lang = 'en-US';
     recognition.onresult = (event: any) => {
-      const transcript = event.results?.[0]?.[0]?.transcript?.trim() ?? '';
+      const transcript = event.results?.[0]?.[0]?.transcript?.trim() || '';
       setListening(false);
-      if (!transcript) {
-        resumeHandsFree();
-        return;
-      }
-      setInput(transcript);
-      if (autoSend || handsFreeRef.current) void askExecutive(transcript);
+      if (transcript) void askExecutive(transcript);
+      else resumeHandsFree();
     };
     recognition.onerror = (event: any) => {
       setListening(false);
       if (event?.error === 'not-allowed' || event?.error === 'service-not-allowed') {
         setMicNeedsTap(true);
-        setReply('Hands-Free is ready, but this browser requires microphone permission. Tap Enable Microphone once and the room will take it from there.');
-        return;
+        setReply('Hands-Free is ready, but this browser needs microphone permission. Tap Enable Microphone once.');
+      } else if (event?.error !== 'aborted') {
+        resumeHandsFree(600);
       }
-      if (handsFreeRef.current && event?.error !== 'aborted') resumeHandsFree(650);
     };
     recognition.onend = () => {
       setListening(false);
       recognitionRef.current = null;
-      if (handsFreeRef.current && !busyRef.current && !audioRef.current && !micNeedsTap) resumeHandsFree(300);
     };
     recognitionRef.current = recognition;
     try {
@@ -238,22 +206,18 @@ export default function CustomerStartPage() {
   async function activateHandsFree(automatic = false) {
     handsFreeRef.current = true;
     setHandsFree(true);
-    if (!recognitionSupported) {
-      setReply('Hands-Free input is not supported in this browser. Spoken answers still work, and you can type your questions.');
-      return;
-    }
+    if (!recognitionSupported) return;
     try {
       if (navigator.mediaDevices?.getUserMedia) {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach((track) => track.stop());
       }
       setMicNeedsTap(false);
-      stopSpeaking();
-      setReply(automatic ? `Hands-Free Main Room is on. I am listening.` : `Hands-Free is on. I am listening for your question to ${selected.name}.`);
-      window.setTimeout(() => startListening(true), 120);
+      setReply(automatic ? 'Hands-Free Main Room is on. I am listening.' : `Hands-Free is on. I am listening for your question to ${selected.name}.`);
+      window.setTimeout(startListening, 100);
     } catch {
       setMicNeedsTap(true);
-      setReply('Hands-Free is the default, but your browser needs one microphone-permission tap before it can listen automatically.');
+      setReply('Hands-Free is the default. Your browser needs one microphone-permission tap before automatic listening can begin.');
     }
   }
 
@@ -262,18 +226,18 @@ export default function CustomerStartPage() {
     setHandsFree(false);
     setMicNeedsTap(false);
     stopListening();
-    setReply('Hands-Free is off. You can still type or tap the microphone.');
   }
 
-  async function askExecutive(questionOverride?: string) {
-    const question = (questionOverride ?? input).trim();
+  async function askExecutive(override?: string) {
+    const question = (override ?? input).trim();
     if (!question || busyRef.current || !account || !token) return;
     stopListening();
     busyRef.current = true;
     setBusy(true);
-    setReply('');
-    const nextMessages: ChatMessage[] = [...messages, { role: 'user', content: question }].slice(-18);
+    const userMessage: ChatMessage = { role: 'user', content: question };
+    const nextMessages: ChatMessage[] = [...messages, userMessage].slice(-18);
     setMessages(nextMessages);
+    setReply('');
     try {
       const response = await fetch('/api/customer/assistant', {
         method: 'POST',
@@ -291,13 +255,12 @@ export default function CustomerStartPage() {
       void speak(selected, data.reply);
       return;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'The executive team is temporarily unavailable.';
-      setReply(message);
+      setReply(error instanceof Error ? error.message : 'The executive team is temporarily unavailable.');
     } finally {
       busyRef.current = false;
       setBusy(false);
     }
-    resumeHandsFree(650);
+    resumeHandsFree(600);
   }
 
   function selectExecutive(executive: Executive) {
@@ -312,7 +275,7 @@ export default function CustomerStartPage() {
   if (!account) return <main style={loadingStyle}>Opening your Main Room…</main>;
 
   const home = `/workspace/${account.tenant.slug}`;
-  const isSelectedSpeaking = speakingName === selected.name;
+  const speaking = speakingName === selected.name;
 
   return (
     <main className="avatar-room">
@@ -321,47 +284,39 @@ export default function CustomerStartPage() {
           <div>
             <div className="avatar-room-brand">ARIDON · {account.tenant.business_name.toUpperCase()}</div>
             <h1>Executive Main Room</h1>
-            <p>Your executive team stays together here. Speak naturally, tap a different executive when needed, and keep the conversation moving without changing rooms.</p>
+            <p>All eight executives stay together here. Speak naturally, change executives with one tap, and keep the conversation in the same room.</p>
           </div>
           <div className="avatar-room-header-actions">
-            {handsFree ? (
-              <button className="handsfree-toggle on" onClick={micNeedsTap ? () => void activateHandsFree(false) : turnHandsFreeOff}>
-                {micNeedsTap ? '🎙 Enable Microphone' : listening ? '🎙 Listening Automatically' : '🎙 Hands-Free On'}
-              </button>
-            ) : (
-              <button className="handsfree-toggle" onClick={() => void activateHandsFree(false)}>🎙 Turn Hands-Free On</button>
-            )}
-            <button className={`voice-toggle ${voiceEnabled ? 'on' : ''}`} onClick={() => { if (voiceEnabled) stopSpeaking(); setVoiceEnabled((enabled) => !enabled); }}>
-              {voiceEnabled ? '🔊 Voices On' : '🔇 Voice Off'}
-            </button>
+            {handsFree ? <button className="handsfree-toggle on" onClick={micNeedsTap ? () => void activateHandsFree(false) : turnHandsFreeOff}>{micNeedsTap ? '🎙 Enable Microphone' : listening ? '🎙 Listening Automatically' : '🎙 Hands-Free On'}</button> : <button className="handsfree-toggle" onClick={() => void activateHandsFree(false)}>🎙 Turn Hands-Free On</button>}
+            <button className={`voice-toggle ${voiceEnabled ? 'on' : ''}`} onClick={() => { if (voiceEnabled) stopSpeaking(); setVoiceEnabled((value) => !value); }}>{voiceEnabled ? '🔊 Voices On' : '🔇 Voice Off'}</button>
             <label className="voice-toggle" style={{ cursor: 'pointer' }}><input type="checkbox" checked={researchWeb} onChange={(event) => setResearchWeb(event.target.checked)} /> Live web</label>
           </div>
         </header>
 
-        <section style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
           <Link href={home} target="_blank" style={toolLink}>Company Dashboard ↗</Link>
           <Link href="/customer/sales" target="_blank" style={toolLink}>Sales ↗</Link>
           <Link href="/customer/opportunities" target="_blank" style={toolLink}>Opportunities ↗</Link>
           <Link href="/customer/account" target="_blank" style={toolLink}>Account ↗</Link>
-        </section>
+        </div>
 
         <section className="avatar-stage">
-          <div className={`avatar-feature ${isSelectedSpeaking ? 'is-speaking' : ''}`}>
+          <div className={`avatar-feature ${speaking ? 'is-speaking' : ''}`}>
             <div className="avatar-feature-image-wrap" style={{ '--avatar-color': selected.color } as React.CSSProperties}>
-              <img src={selected.avatar} alt={`${selected.name}, ${selected.role}`} className="avatar-feature-image" style={{ transform: isSelectedSpeaking ? `scale(${1.006 + (speechBeat % 3) * 0.003}) translateY(${speechBeat % 2 ? '-1px' : '1px'})` : 'scale(1)' }} />
+              <img src={selected.avatar} alt={`${selected.name}, ${selected.role}`} className="avatar-feature-image" style={{ transform: speaking ? `scale(${1.006 + (speechBeat % 3) * 0.003}) translateY(${speechBeat % 2 ? '-1px' : '1px'})` : 'scale(1)' }} />
               <div className="avatar-speaking-ring" />
               <div className="avatar-wave" aria-hidden="true"><span /><span /><span /><span /><span /></div>
-              {isSelectedSpeaking && <div className="avatar-speaking-label">Speaking</div>}
+              {speaking && <div className="avatar-speaking-label">Speaking</div>}
             </div>
             <div className="avatar-feature-copy">
-              <div className="avatar-online">● Online · {voiceEngine === 'studio' ? 'Studio voice' : 'Voice needs a tap'}</div>
+              <div className="avatar-online">● Online</div>
               <h2>{selected.name}</h2>
               <div className="avatar-role" style={{ color: selected.color }}>{selected.role}</div>
               <p>{selected.tagline}</p>
               <div className="avatar-expertise">{selected.expertise.map((item) => <span key={item}>{item}</span>)}</div>
               <div className="avatar-feature-actions">
                 <button className="avatar-primary" onClick={() => selectExecutive(selected)}>▶ Hear {selected.name}</button>
-                <button className={`avatar-mic ${listening ? 'listening' : ''}`} onClick={() => { handsFreeRef.current = true; setHandsFree(true); setMicNeedsTap(false); startListening(true); }}>{listening ? 'Listening…' : '🎙 Talk Now'}</button>
+                <button className={`avatar-mic ${listening ? 'listening' : ''}`} onClick={() => { handsFreeRef.current = true; setHandsFree(true); setMicNeedsTap(false); startListening(); }}>{listening ? 'Listening…' : '🎙 Talk Now'}</button>
                 <button className="avatar-secondary" onClick={() => { stopSpeaking(); stopListening(); }}>■ Stop</button>
               </div>
             </div>
@@ -369,23 +324,23 @@ export default function CustomerStartPage() {
 
           <div className="avatar-conversation">
             <div className="avatar-conversation-head">
-              <div><h3>Talk with {selected.name}</h3><p>{handsFree ? 'Hands-Free loop: listen → answer → speak → listen again.' : 'Type or tap Talk Now.'}</p></div>
-              <div className={`voice-status ${listening ? 'listening' : isSelectedSpeaking ? 'speaking' : handsFree ? 'ready' : ''}`}>{listening ? '● Listening' : isSelectedSpeaking ? '● Speaking' : handsFree ? '● Ready' : '● Manual'}</div>
+              <div><h3>Talk with {selected.name}</h3><p>{handsFree ? 'Listen → answer → speak → listen again.' : 'Type or tap Talk Now.'}</p></div>
+              <div className={`voice-status ${listening ? 'listening' : speaking ? 'speaking' : handsFree ? 'ready' : ''}`}>{listening ? '● Listening' : speaking ? '● Speaking' : handsFree ? '● Ready' : '● Manual'}</div>
             </div>
-            <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder={`Ask ${selected.name} anything about ${account.tenant.business_name}…`} onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') void askExecutive(); }} />
+            <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder={`Ask ${selected.name} anything about ${account.tenant.business_name}…`} />
             <button className="avatar-primary avatar-ask" onClick={() => void askExecutive()} disabled={busy || !input.trim()}>{busy ? `${selected.name} is thinking…` : `Ask ${selected.name}`}</button>
             <div className="avatar-reply" aria-live="polite">{reply || `Hands-Free is ready. Start talking to ${selected.name}.`}</div>
-            {micNeedsTap && <div className="avatar-browser-note">Your browser has blocked automatic microphone or audio start until you interact once. Tap “Enable Microphone” above. After that, the listen-and-answer loop is automatic.</div>}
-            {!recognitionSupported && <div className="avatar-browser-note">This browser does not expose speech recognition. Spoken answers still work, but voice input needs a supported browser.</div>}
+            {micNeedsTap && <div className="avatar-browser-note">Your browser requires one microphone or audio interaction. Tap “Enable Microphone” once. After that, Hands-Free continues automatically.</div>}
+            {!recognitionSupported && <div className="avatar-browser-note">This browser does not expose speech recognition. You can still type and hear spoken answers.</div>}
           </div>
         </section>
 
         <section className="avatar-grid" aria-label="Executive team">
           {executives.map((executive) => {
             const active = executive.name === selected.name;
-            const speaking = executive.name === speakingName;
+            const isSpeaking = executive.name === speakingName;
             return (
-              <button key={executive.id} className={`avatar-card ${active ? 'active' : ''} ${speaking ? 'is-speaking' : ''}`} style={{ '--avatar-color': executive.color } as React.CSSProperties} onClick={() => selectExecutive(executive)}>
+              <button key={executive.id} className={`avatar-card ${active ? 'active' : ''} ${isSpeaking ? 'is-speaking' : ''}`} style={{ '--avatar-color': executive.color } as React.CSSProperties} onClick={() => selectExecutive(executive)}>
                 <div className="avatar-card-image-wrap">
                   <img src={executive.avatar} alt={executive.name} className="avatar-card-image" />
                   <div className="avatar-card-wave" aria-hidden="true"><span /><span /><span /></div>
