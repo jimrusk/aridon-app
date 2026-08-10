@@ -7,6 +7,7 @@ export default function CreatorStudioLayout({ children }: { children: React.Reac
       <div style={{ position: 'fixed', left: 18, bottom: 18, zIndex: 1500, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <Link href="/customer/creator" style={pillStyle}>✦ Create</Link>
         <Link href="/customer/creator/review" style={{ ...pillStyle, background: '#B9CFFF' }}>✓ Edit · Approve · Reject</Link>
+        <Link href="/customer/visual" style={{ ...pillStyle, background: '#F4D88B' }}>◈ Build Visuals</Link>
       </div>
     </>
   );
