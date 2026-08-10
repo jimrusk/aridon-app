@@ -16,6 +16,7 @@ export default function CustomerSessionControls() {
         <div style={barInner}>
           <Link href={`/workspace/${slug}`} style={brandStyle}>ARIDON · {slug.replace(/-/g, ' ').toUpperCase()}</Link>
           <nav aria-label="Private workspace navigation" style={navStyle}>
+            <Link href="/customer/start" style={navLink}>Main Room</Link>
             <Link href={`/workspace/${slug}`} style={navLink}>Company Home</Link>
             <Link href={`/workspace/${slug}/executive-suite?tab=boardroom`} style={navLink}>Boardroom</Link>
             <Link href={`/workspace/${slug}/executive-suite?tab=execution`} style={navLink}>Execution</Link>
@@ -31,7 +32,7 @@ export default function CustomerSessionControls() {
   const links = [
     { href: '/', label: 'Dashboard' },
     { href: '/boardroom', label: 'Boardroom' },
-    { href: '/avatars', label: 'Voice Room' },
+    { href: '/avatars', label: 'Main Room' },
     { href: '/ceo-brief', label: 'CEO Brief' },
     { href: '/controls', label: 'Controls' },
     { href: '/business-os', label: 'Business OS' },
