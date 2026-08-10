@@ -21,7 +21,7 @@ const EXECUTIVE_VOICES: Record<string, VoiceProfile> = {
   Scout: { voice: 'echo', speed: 1.02 },
   Atlas: { voice: 'onyx', speed: 0.94 },
   Oracle: { voice: 'nova', speed: 1.08 },
-  Ethos: { voice: 'fable', speed: 0.91 },
+  Ethos: { voice: 'onyx', speed: 0.84 },
   Ledger: { voice: 'echo', speed: 0.93 },
   Eva: { voice: 'shimmer', speed: 1.01 },
 };
