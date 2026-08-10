@@ -81,8 +81,9 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap', marginBottom: '24px' }}>
           <div><div style={{ fontSize: '26px', fontWeight: 950 }}>{tenant.business_name}</div><div style={{ color: '#C5CEDD', marginTop: '4px', fontSize: '13px' }}>Your company home</div></div>
           <nav style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <Link href="/customer/start" style={navLink}>Start Here</Link>
+            <Link href="/customer/start" style={navLink}>Main Room</Link>
             <Link href="/customer/assistant" style={{ ...navLink, background: accent, color: '#07130F', borderColor: accent }}>Ask Eva</Link>
+            <Link href="/customer/creator" style={navLink}>Creator Studio</Link>
             <Link href="/customer/sales" style={navLink}>Find Customers</Link>
             {isBeta && <Link href="/customer/upgrade" style={{ ...navLink, background: '#F4D88B', color: '#241C08', borderColor: '#F4D88B' }}>Keep My Business OS</Link>}
             <Link href={feedbackHref} style={{ ...navLink, borderColor: accent, color: accent }}>Send Feedback</Link>
@@ -94,12 +95,12 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
         <section style={{ background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)', borderRadius: '22px', padding: '24px' }}>
           <div style={{ color: accent, fontSize: '12px', fontWeight: 950 }}>TODAY</div>
           <h1 style={{ fontSize: 'clamp(38px,7vw,62px)', lineHeight: 1, margin: '9px 0 12px' }}>{tenant.tagline || `What does ${tenant.business_name} need next?`}</h1>
-          <p style={{ color: '#C8D0DE', maxWidth: '760px', lineHeight: 1.65, fontSize: '17px' }}>Use Eva when you need help thinking or writing. Use Scout when you want to find possible customers. Your work and company information stay here in your private company space.</p>
+          <p style={{ color: '#C8D0DE', maxWidth: '800px', lineHeight: 1.65, fontSize: '17px' }}>Use the Main Room for the executive team, Creator Studio to turn one idea into finished marketing drafts, Scout to find customers, and Opportunity Intelligence to find growth paths. Your work and company information stay inside your private company space.</p>
         </section>
 
         {isBeta && (
           <section style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: '14px', alignItems: 'center', background: '#162237', border: '1px solid #334766', borderRadius: '16px', padding: '18px' }} className="beta-banner">
-            <div><div style={{ color: '#F4D88B', fontSize: '11px', fontWeight: 950 }}>FREE BETA</div><h2 style={{ margin: '6px 0 5px' }}>If this is earning its place in your business, you can keep the same workspace.</h2><div style={{ color: '#AEBAD0', fontSize: '13px', lineHeight: 1.55 }}>Upgrading does not reset your projects, tasks, Eva history, company knowledge or sales work.</div></div>
+            <div><div style={{ color: '#F4D88B', fontSize: '11px', fontWeight: 950 }}>FREE BETA</div><h2 style={{ margin: '6px 0 5px' }}>If this is earning its place in your business, you can keep the same workspace.</h2><div style={{ color: '#AEBAD0', fontSize: '13px', lineHeight: 1.55 }}>Upgrading does not reset your projects, tasks, executive history, Brand Brain, company files, company knowledge or sales work.</div></div>
             <div style={{ display: 'grid', gap: '8px' }}><Link href="/customer/upgrade" style={{ background: '#F4D88B', color: '#241C08', borderRadius: '10px', padding: '11px 14px', textDecoration: 'none', fontWeight: 950, textAlign: 'center' }}>See Paid Plans</Link><Link href={feedbackHref} style={{ border: '1px solid #516987', color: '#DDE6F3', borderRadius: '10px', padding: '10px 13px', textDecoration: 'none', fontWeight: 850, textAlign: 'center' }}>Send Beta Feedback</Link></div>
           </section>
         )}
@@ -109,15 +110,17 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
             <div style={{ fontSize: '12px', fontWeight: 950 }}>FIRST VISIT?</div>
             <h2 style={{ margin: '7px 0 8px' }}>Start with one of these. You cannot break anything.</h2>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <Link href="/customer/assistant" style={darkAction}>Ask Eva what to focus on</Link>
+              <Link href="/customer/start" style={darkAction}>Talk to the executive team</Link>
+              <Link href="/customer/creator" style={darkAction}>Create a campaign</Link>
               <Link href="/customer/sales" style={darkAction}>Find possible customers</Link>
               <Link href="/customer/start" style={outlineAction}>Show me how this works</Link>
             </div>
           </section>
         )}
 
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: '12px', marginTop: '16px' }}>
-          <HomeCard accent={accent} title="Ask Eva" text="Get help with priorities, customer emails, research, writing and decisions." href="/customer/assistant" button="Talk to Eva" />
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: '12px', marginTop: '16px' }}>
+          <HomeCard accent={accent} title="Executive Main Room" text="Talk hands-free with Eva, Heather, Oracle, Scout, Ethos, Nova, Atlas or Ledger without changing rooms." href="/customer/start" button="Enter Main Room" />
+          <HomeCard accent={accent} title="Creator Studio" text="Save your Brand Brain, upload company source files, and turn one idea into a reviewed multi-channel campaign." href="/customer/creator" button="Create Marketing" />
           <HomeCard accent={accent} title="Find Customers" text="Teach Scout what you sell and research companies that may be a good fit." href="/customer/sales" button="Open Sales" />
           <HomeCard accent={accent} title="My Work" text={`${data.projects.length} project${data.projects.length === 1 ? '' : 's'} and ${activeTasks.length} open task${activeTasks.length === 1 ? '' : 's'} are currently here.`} href="#my-work" button="See My Work" />
         </section>
