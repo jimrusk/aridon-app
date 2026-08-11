@@ -3,13 +3,14 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import ProspectBoardroom from '../../demos/[slug]/ProspectBoardroom';
 import { dailyProspectDemos } from '../../../lib/prospectDemosDaily';
+import { prospectDemosAug11 } from '../../../lib/prospectDemosAug11';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Private Aridon Executive OS Preview', robots: { index: false, follow: false, googleBot: { index: false, follow: false } } };
 type Props = { params: { slug: string } };
 
 export default function DailyProspectDemoPage({ params }: Props) {
-  const demo = dailyProspectDemos.find((item) => item.slug === params.slug);
+  const demo = [...dailyProspectDemos, ...prospectDemosAug11].find((item) => item.slug === params.slug);
   if (!demo || !demo.active || Date.now() >= new Date(demo.expiresAt).getTime()) notFound();
   const companyContext = `${demo.publicSummary} Publicly listed services: ${demo.services.join(', ')}. Demo opportunities identified by Aridon: ${demo.opportunities.join(' ')}`;
   return (
