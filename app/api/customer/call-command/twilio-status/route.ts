@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { createClient } from '@supabase/supabase-js';
+import { getServerClient } from '../../../../../lib/supabase';
 
 export const runtime = 'nodejs';
 
@@ -27,11 +27,7 @@ export async function POST(request: NextRequest) {
     const duration = Number(form.get('CallDuration') || 0) || null;
     if (!tenantId || !targetId || !callSid) return new NextResponse('Bad request', { status: 400 });
 
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-    if (!url || !serviceKey) return new NextResponse('Server configuration missing', { status: 500 });
-    const db = createClient(url, serviceKey, { auth: { persistSession: false } });
-
+    const db = getServerClient();
     await db.from('customer_call_events').update({ status, duration_seconds: duration, ended_at: status === 'completed' ? new Date().toISOString() : null }).eq('tenant_id', tenantId).eq('provider_call_sid', callSid);
     const mapped = status === 'completed' ? 'completed' : status === 'busy' ? 'busy' : status === 'no-answer' ? 'no_answer' : status === 'failed' ? 'failed' : status === 'answered' ? 'answered' : 'dialing';
     await db.from('customer_call_targets').update({ call_status: mapped }).eq('tenant_id', tenantId).eq('id', targetId);
