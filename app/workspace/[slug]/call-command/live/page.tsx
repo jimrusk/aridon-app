@@ -1,0 +1,24 @@
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { getBrowserClient } from '../../../../../lib/supabase';
+
+type Target={id:string;company_name:string;contact_name?:string|null;phone:string;state?:string|null;compliance_status:string;call_status:string;do_not_call:boolean};
+type Payload={configured:boolean;targets:Target[]};
+
+export default function LiveCallConsole({params}:{params:{slug:string}}){
+ const router=useRouter(); const [token,setToken]=useState(''); const [data,setData]=useState<Payload|null>(null); const [message,setMessage]=useState(''); const [busy,setBusy]=useState('');
+ async function load(access:string){const r=await fetch(`/api/customer/call-command?slug=${encodeURIComponent(params.slug)}`,{headers:{Authorization:`Bearer ${access}`},cache:'no-store'});const p=await r.json();if(!r.ok)throw new Error(p.error||'Unable to load calls.');setData(p)}
+ useEffect(()=>{const db=getBrowserClient();db.auth.getSession().then(async({data:s})=>{const a=s.session?.access_token||'';if(!a){router.replace(`/customer/login?next=${encodeURIComponent(`/workspace/${params.slug}/call-command/live`)}`);return;}setToken(a);try{await load(a)}catch(e){setMessage(e instanceof Error?e.message:'Unable to load.')}})},[params.slug,router]);
+ async function dial(targetId:string){setBusy(targetId);setMessage('');try{const r=await fetch('/api/customer/call-command/dial',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({slug:params.slug,targetId})});const p=await r.json();if(!r.ok)throw new Error(p.error||'Unable to start call.');setMessage(p.message||'Call started.');await load(token)}catch(e){setMessage(e instanceof Error?e.message:'Unable to start call.')}finally{setBusy('')}}
+ if(!data)return <main style={page}><div style={shell}><h1>Live Call Console</h1><p>{message||'Loading…'}</p></div></main>;
+ const approved=data.targets.filter(t=>t.compliance_status==='allowed_human_b2b'&&!t.do_not_call);
+ return <main style={page}><div style={shell}><header style={header}><div><div style={eyebrow}>ARIDON · LIVE SALES DIALER</div><h1 style={h1}>Live Call Console</h1><p style={lead}>Click-to-call rings the salesperson first, then bridges the Ethos-approved prospect. No approved record, no call.</p></div><Link href={`/workspace/${params.slug}/call-command`} style={outline}>Back to Call Command</Link></header>
+ <section style={banner}><strong>{data.configured?'Twilio provider configured':'Twilio credentials still required'}</strong><span>{data.configured?'The live dial bridge can operate once TWILIO_HUMAN_BRIDGE_NUMBER is also configured.':'Aridon will not simulate calls. Add the Twilio account SID, auth token, verified from number, and human bridge number.'}</span></section>
+ <section style={panel}><h2>Approved B2B targets</h2>{approved.length?approved.map(t=><div key={t.id} style={row}><div><strong>{t.company_name}</strong><div style={muted}>{t.contact_name?`${t.contact_name} · `:''}{t.phone}{t.state?` · ${t.state}`:''}</div><div style={muted}>Status: {t.call_status}</div></div><button disabled={!data.configured||busy===t.id} onClick={()=>void dial(t.id)} style={button}>{busy===t.id?'Starting…':'Call now'}</button></div>):<p style={muted}>No targets are currently approved for human-assisted B2B calling.</p>}</section>
+ {message&&<div style={notice}>{message}</div>}</div></main>
+}
+
+const page={minHeight:'100vh',background:'#07101D',color:'#F7FAFC',fontFamily:'Arial,sans-serif',padding:'28px 20px 72px'};const shell={maxWidth:1000,margin:'0 auto'};const header={display:'flex',justifyContent:'space-between',gap:20,alignItems:'start',flexWrap:'wrap' as const,marginBottom:20};const eyebrow={color:'#9EF0CF',fontSize:12,fontWeight:950,letterSpacing:1};const h1={fontSize:'clamp(42px,7vw,72px)',lineHeight:.96,letterSpacing:-3,margin:'10px 0 14px'};const lead={color:'#B9C5D6',fontSize:18,lineHeight:1.6,maxWidth:720};const banner={background:'#111C2C',border:'1px solid #26364D',borderRadius:14,padding:16,display:'grid',gap:5,marginBottom:14};const panel={background:'#F6F3EB',color:'#171717',borderRadius:18,padding:20};const row={display:'flex',justifyContent:'space-between',gap:16,alignItems:'center',flexWrap:'wrap' as const,padding:'14px 0',borderBottom:'1px solid #D8D0C3'};const muted={color:'#6A645D',fontSize:13,lineHeight:1.55};const button={background:'#0C5D49',color:'#fff',border:0,borderRadius:10,padding:'11px 15px',fontWeight:900,cursor:'pointer'};const notice={marginTop:14,background:'#EAF6F1',color:'#174D3E',borderRadius:10,padding:13};const outline={border:'1px solid #52627A',color:'#F7FAFC',padding:'11px 15px',borderRadius:11,textDecoration:'none',fontWeight:900};
