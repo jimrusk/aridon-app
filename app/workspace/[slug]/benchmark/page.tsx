@@ -24,7 +24,7 @@ type Result = {
 export default function BenchmarkPage({ params }: { params: { slug: string } }) {
   const router = useRouter();
   const [token, setToken] = useState('');
-  const [scenarioId, setScenarioId] = useState(benchmarkScenarios[0].id);
+  const [scenarioId, setScenarioId] = useState<string>(benchmarkScenarios[0].id);
   const [custom, setCustom] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
