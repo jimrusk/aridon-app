@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from 'react';
 import Link from 'next/link';
+import { getBrowserClient } from '../../../lib/supabase';
 
 const initial = {
   ownerName:'', businessName:'', email:'', phone:'', website:'', state:'NM', serviceType:'Plumbing/HVAC',
@@ -18,9 +19,23 @@ export default function RevenueRecoveryPilotPage() {
 
   async function submit(event:FormEvent){
     event.preventDefault(); setLoading(true); setMessage('');
-    const response = await fetch('/api/business-os/revenue-recovery/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form)});
-    const data = await response.json().catch(()=>({}));
-    if(!response.ok){ setMessage(data.error || 'We could not save the request.'); setLoading(false); return; }
+    if(form.companyTrap){ setSent(true); setLoading(false); return; }
+    const db = getBrowserClient();
+    const { error } = await db.from('revenue_recovery_pilot_requests').insert({
+      owner_name: form.ownerName.trim().slice(0,120),
+      business_name: form.businessName.trim().slice(0,180),
+      email: form.email.trim().toLowerCase().slice(0,220),
+      phone: form.phone.trim().slice(0,80) || null,
+      website: form.website.trim().slice(0,300) || null,
+      state: form.state,
+      service_type: form.serviceType,
+      open_estimates: form.openEstimates ? Math.max(0,Math.round(Number(form.openEstimates))) : null,
+      dormant_customers: form.dormantCustomers ? Math.max(0,Math.round(Number(form.dormantCustomers))) : null,
+      current_tools: form.currentTools.trim().slice(0,500) || null,
+      leak_to_test: form.leakToTest.trim().slice(0,1500),
+      status: 'new',
+    });
+    if(error){ setMessage('We could not save the request. Please try again or email Jim directly.'); setLoading(false); return; }
     setSent(true); setLoading(false);
   }
 
