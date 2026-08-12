@@ -1,16 +1,39 @@
-import Link from 'next/link';
+'use client';
 
-const funnel = [
-  ['Founding proof prospects contacted','1','Ideal Plumbing & Heating contacted Aug. 12, 2026'],
-  ['Qualified replies','0','A reply only counts if the business has a plausible test case and decision-maker access'],
-  ['Pilots started','0','A pilot starts only after the owner agrees to scope, baseline, data boundary, and success threshold'],
-  ['Pilots completed','0','No completed proof case yet'],
-  ['Paid conversions','0','Stripe-confirmed paid continuation only'],
-  ['Verified MRR','$0','Starting Stripe baseline'],
-  ['Measurable client outcomes','0','Booked work, collected revenue, or documented time savings confirmed by the business'],
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { getBrowserClient } from '../../../lib/supabase';
+
+type Metric = { id:string; label:string; value_text:string; note:string | null; sort_order:number; updated_at:string };
+
+const fallback: Metric[] = [
+  {id:'prospects_contacted',label:'Founding proof prospects contacted',value_text:'1',note:'Ideal Plumbing & Heating contacted Aug. 12, 2026',sort_order:10,updated_at:'2026-08-12T00:00:00Z'},
+  {id:'qualified_replies',label:'Qualified replies',value_text:'0',note:'Only counts replies with a plausible test case and decision-maker access',sort_order:20,updated_at:'2026-08-12T00:00:00Z'},
+  {id:'pilots_started',label:'Pilots started',value_text:'0',note:'Starts only after owner agrees to scope, baseline, data boundary, and success threshold',sort_order:30,updated_at:'2026-08-12T00:00:00Z'},
+  {id:'pilots_completed',label:'Pilots completed',value_text:'0',note:'No completed proof case yet',sort_order:40,updated_at:'2026-08-12T00:00:00Z'},
+  {id:'paid_conversions',label:'Paid conversions',value_text:'0',note:'Stripe-confirmed paid continuation only',sort_order:50,updated_at:'2026-08-12T00:00:00Z'},
+  {id:'mrr',label:'Verified MRR',value_text:'$0',note:'Stripe-confirmed recurring revenue',sort_order:60,updated_at:'2026-08-12T00:00:00Z'},
+  {id:'measurable_outcomes',label:'Measurable client outcomes',value_text:'0',note:'Booked work, collected revenue, or documented time savings confirmed by the business',sort_order:70,updated_at:'2026-08-12T00:00:00Z'},
 ];
 
 export default function AridonProofPage() {
+  const [metrics,setMetrics] = useState<Metric[]>(fallback);
+  const [lastUpdated,setLastUpdated] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const db = getBrowserClient();
+      const { data, error } = await db.from('aridon_public_proof_metrics').select('id,label,value_text,note,sort_order,updated_at').order('sort_order');
+      if (!alive || error || !data?.length) return;
+      const rows = data as Metric[];
+      setMetrics(rows);
+      const latest = rows.map((r)=>new Date(r.updated_at).getTime()).filter(Number.isFinite).sort((a,b)=>b-a)[0];
+      if (latest) setLastUpdated(new Date(latest).toLocaleString());
+    })();
+    return () => { alive = false; };
+  },[]);
+
   return (
     <main style={{minHeight:'100vh',background:'#F5F2EA',color:'#171717',fontFamily:'Arial,sans-serif'}}>
       <section style={{maxWidth:1100,margin:'0 auto',padding:'32px 20px 80px'}}>
@@ -23,10 +46,11 @@ export default function AridonProofPage() {
           <div style={{fontSize:12,fontWeight:950,letterSpacing:1.2}}>ARIDON ON ARIDON · PUBLIC PROOF CHALLENGE</div>
           <h1 style={{fontSize:'clamp(48px,8vw,88px)',lineHeight:.94,letterSpacing:-4,margin:'14px 0 22px'}}>No victory lap until the numbers move.</h1>
           <p style={{fontSize:21,lineHeight:1.65,color:'#55514A',maxWidth:850}}>Aridon started this challenge at $0 MRR and zero paid subscriptions. The first proof lane is deliberately narrow: New Mexico and Arizona plumbing/HVAC companies, stale estimates and missed follow-up, one auditable result at a time.</p>
+          <p style={{fontSize:12,color:'#746E65'}}>{lastUpdated ? `Live scoreboard updated ${lastUpdated}` : 'Live scoreboard reads from Aridon proof metrics; verified changes replace the baseline automatically.'}</p>
         </div>
 
         <section style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:12,marginTop:38}}>
-          {funnel.map(([label,value,note]) => <article key={label} style={{background:'#fff',border:'1px solid #D1CBC0',borderRadius:16,padding:20}}><div style={{fontSize:12,fontWeight:900,color:'#6B665E'}}>{label}</div><div style={{fontSize:34,fontWeight:950,margin:'7px 0'}}>{value}</div><div style={{fontSize:13,lineHeight:1.5,color:'#6B665E'}}>{note}</div></article>)}
+          {metrics.map((metric) => <article key={metric.id} style={{background:'#fff',border:'1px solid #D1CBC0',borderRadius:16,padding:20}}><div style={{fontSize:12,fontWeight:900,color:'#6B665E'}}>{metric.label}</div><div style={{fontSize:34,fontWeight:950,margin:'7px 0'}}>{metric.value_text}</div><div style={{fontSize:13,lineHeight:1.5,color:'#6B665E'}}>{metric.note}</div></article>)}
         </section>
 
         <section style={{marginTop:46,display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:14}}>
