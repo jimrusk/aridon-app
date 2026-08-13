@@ -19,8 +19,20 @@ export default function SalesTeamLandingPage() {
     event.preventDefault();
     const url = normalizeWebsite(website);
     if (!url) return;
+    const trimmedFocus = focus.trim();
+    try {
+      window.sessionStorage.setItem('business-os-beta-draft', JSON.stringify({
+        website: url,
+        goal: trimmedFocus
+          ? `Build an AI sales team and find qualified prospects. Initial focus: ${trimmedFocus}`
+          : 'Build an AI sales team and find qualified prospects.',
+      }));
+      window.sessionStorage.setItem('aridon-sales-team-intent', JSON.stringify({ website: url, focus: trimmedFocus }));
+    } catch {
+      // Query parameters still carry the URL if browser storage is unavailable.
+    }
     const params = new URLSearchParams({ website: url, mode: 'sales-team' });
-    if (focus.trim()) params.set('focus', focus.trim());
+    if (trimmedFocus) params.set('focus', trimmedFocus);
     router.push(`/business-os/beta?${params.toString()}`);
   }
 
