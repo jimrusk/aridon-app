@@ -1,0 +1,62 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { appBaseUrl, stripeRequest, type StripeCheckoutSession } from '../../../../lib/stripeBilling';
+
+export const runtime = 'nodejs';
+const NO_STORE = { 'Cache-Control': 'no-store' };
+const ESSENTIALS_PRICE_ID = 'price_1U44dgD4wDvqb7Jr9Dcxi8gL';
+
+function text(value: unknown, max: number) {
+  return typeof value === 'string' ? value.trim().slice(0, max) : '';
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    if (!request.headers.get('content-type')?.includes('application/json')) {
+      return NextResponse.json({ error: 'Content-Type must be application/json.' }, { status: 415, headers: NO_STORE });
+    }
+
+    const body = await request.json();
+    const ownerName = text(body?.ownerName, 120);
+    const businessName = text(body?.businessName, 180);
+    const email = text(body?.email, 254).toLowerCase();
+    const industry = text(body?.industry, 160);
+
+    if (!ownerName || !businessName || !industry || !/^\S+@\S+\.\S+$/.test(email)) {
+      return NextResponse.json({ error: 'Name, business, industry and a valid email are required.' }, { status: 400, headers: NO_STORE });
+    }
+
+    const baseUrl = appBaseUrl(request);
+    const params = new URLSearchParams();
+    params.set('mode', 'subscription');
+    params.set('customer_email', email);
+    params.set('line_items[0][price]', ESSENTIALS_PRICE_ID);
+    params.set('line_items[0][quantity]', '1');
+    params.set('allow_promotion_codes', 'true');
+    params.set('billing_address_collection', 'auto');
+    params.set('success_url', `${baseUrl}/business-os/activate?session_id={CHECKOUT_SESSION_ID}`);
+    params.set('cancel_url', `${baseUrl}/business-os/essentials?cancelled=1`);
+    params.set('metadata[business_name]', businessName);
+    params.set('metadata[owner_name]', ownerName);
+    params.set('metadata[email]', email);
+    params.set('metadata[industry]', industry);
+    params.set('metadata[plan]', 'launch');
+    params.set('metadata[product_offer]', 'aridon_essentials_198');
+    params.set('subscription_data[metadata][business_name]', businessName);
+    params.set('subscription_data[metadata][owner_name]', ownerName);
+    params.set('subscription_data[metadata][email]', email);
+    params.set('subscription_data[metadata][industry]', industry);
+    params.set('subscription_data[metadata][plan]', 'launch');
+    params.set('subscription_data[metadata][product_offer]', 'aridon_essentials_198');
+
+    const session = await stripeRequest<StripeCheckoutSession>('/checkout/sessions', { method: 'POST', params });
+    if (!session.url) throw new Error('Stripe did not return a Checkout URL.');
+
+    return NextResponse.json({ checkoutUrl: session.url, sessionId: session.id }, { status: 201, headers: NO_STORE });
+  } catch (error) {
+    console.error('Aridon Essentials checkout error', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Secure checkout could not be started.' },
+      { status: 500, headers: NO_STORE },
+    );
+  }
+}
