@@ -1,6 +1,4 @@
-import type { CapacitorConfig } from '@capacitor/cli';
-
-const config: CapacitorConfig = {
+const config = {
   appId: 'com.aridon.businessai',
   appName: 'Aridon Business AI',
   webDir: 'www',
