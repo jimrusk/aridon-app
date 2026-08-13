@@ -1,0 +1,18 @@
+{
+  "name": "aridon-mobile-store",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "android": "cap add android",
+    "ios": "cap add ios",
+    "sync": "cap sync"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.4.2"
+  },
+  "devDependencies": {
+    "@capacitor/android": "8.4.2",
+    "@capacitor/cli": "8.4.2",
+    "@capacitor/ios": "8.4.2"
+  }
+}
