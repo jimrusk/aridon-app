@@ -23,6 +23,7 @@ export default function InternalLaunchers() {
     pathname.startsWith('/daily-demos') ||
     pathname.startsWith('/opportunity-intelligence') ||
     pathname.startsWith('/analyze-business') ||
+    pathname.startsWith('/sales-team') ||
     pathname.startsWith('/eva-chat')
   ) return null;
 
@@ -47,6 +48,7 @@ export default function InternalLaunchers() {
         <img src={EVA_AVATAR} alt="Eva" style={{ width: '46px', height: '46px', borderRadius: '50%', objectFit: 'cover', display: 'block' }} />
         <span>Eva Chat</span>
       </Link>
+      <Link href="/sales-team" aria-label="Build an AI sales team from a company website" style={{ ...launcherStyle, background: '#9EF0CF' }}>⚡ Build AI Sales Team</Link>
       <Link href="/analyze-business" aria-label="Analyze any business website" style={{ ...launcherStyle, background: '#F4D06F' }}>◎ Analyze Any Business</Link>
       <Link href="/business-os/growth-command" aria-label="Open Aridon Growth Command" style={{ ...launcherStyle, background: '#9EF0CF' }}>↗ Growth Command</Link>
       <Link href="/eva-core" aria-label="Open Eva Core inner-world lab" style={{ ...launcherStyle, background: '#9EF0CF' }}>◉ Eva Core</Link>
