@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { getServerClient } from './supabase';
+import { businessFeatureAllowed, upgradeMessage, type AridonFeature } from './planEntitlements';
 
 export type CustomerTenantSummary = {
   id: string;
@@ -29,6 +30,22 @@ export async function authenticatedCustomer(request: NextRequest) {
   const { data, error } = await db.auth.getUser(token);
   if (error || !data.user) {
     return { ok: false as const, status: 401, error: 'Your customer session has expired.' };
+  }
+
+  const pathname = request.nextUrl.pathname;
+  let requiredFeature: AridonFeature | null = null;
+  if (pathname.startsWith('/api/customer/sales/instantly')) requiredFeature = 'externalSalesIntegrations';
+  else if (pathname.startsWith('/api/customer/sales/')) requiredFeature = 'salesWorkspace';
+  else if (pathname === '/api/customer/assistant' && request.method === 'POST') {
+    const body = await request.clone().json().catch(() => null) as { researchWeb?: unknown } | null;
+    if (body?.researchWeb === true) requiredFeature = 'liveWebResearch';
+  }
+
+  if (requiredFeature) {
+    const membership = await customerTenantForUser(data.user.id);
+    if (membership && !businessFeatureAllowed(membership.tenant.plan, requiredFeature)) {
+      return { ok: false as const, status: 402, error: upgradeMessage(requiredFeature), upgradeRequired: true as const, feature: requiredFeature };
+    }
   }
 
   return { ok: true as const, db, user: data.user };
