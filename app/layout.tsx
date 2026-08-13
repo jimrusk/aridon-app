@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import InternalLaunchers from './InternalLaunchers';
 import CustomerSessionControls from './components/CustomerSessionControls';
 import SalesTeamIntentRedirect from './components/SalesTeamIntentRedirect';
+import PublicInstallPromo from './components/PublicInstallPromo';
 
 export const metadata: Metadata = {
   title: 'Aridon Executive Operating System',
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
+        <PublicInstallPromo />
         <CustomerSessionControls />
         <SalesTeamIntentRedirect />
         {children}
