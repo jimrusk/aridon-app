@@ -9,6 +9,9 @@ export default function CustomerSessionControls() {
   if (
     pathname === '/' ||
     pathname === '/sales' ||
+    pathname.startsWith('/analyze-business') ||
+    pathname.startsWith('/sales-team') ||
+    pathname.startsWith('/eva-chat') ||
     pathname.startsWith('/business-os') ||
     pathname.startsWith('/customer') ||
     pathname.startsWith('/demos') ||
