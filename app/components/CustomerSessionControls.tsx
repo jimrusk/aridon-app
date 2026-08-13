@@ -6,7 +6,15 @@ import { usePathname } from 'next/navigation';
 export default function CustomerSessionControls() {
   const pathname = usePathname();
 
-  if (pathname.startsWith('/business-os') || pathname.startsWith('/customer') || pathname.startsWith('/demos') || pathname.startsWith('/daily-demos') || pathname.startsWith('/opportunity-intelligence')) return null;
+  if (
+    pathname === '/' ||
+    pathname === '/sales' ||
+    pathname.startsWith('/business-os') ||
+    pathname.startsWith('/customer') ||
+    pathname.startsWith('/demos') ||
+    pathname.startsWith('/daily-demos') ||
+    pathname.startsWith('/opportunity-intelligence')
+  ) return null;
 
   if (pathname.startsWith('/workspace/')) {
     const slug = pathname.split('/')[2] || '';
@@ -30,7 +38,8 @@ export default function CustomerSessionControls() {
   }
 
   const links = [
-    { href: '/', label: 'Dashboard' },
+    { href: '/', label: 'Public Site' },
+    { href: '/dashboard', label: 'Workspace' },
     { href: '/boardroom', label: 'Boardroom' },
     { href: '/avatars', label: 'Main Room' },
     { href: '/ceo-brief', label: 'CEO Brief' },
@@ -41,10 +50,10 @@ export default function CustomerSessionControls() {
   return (
     <div style={barStyle}>
       <div style={barInner}>
-        <Link href="/" style={brandStyle}>ARIDON</Link>
+        <Link href="/dashboard" style={brandStyle}>ARIDON</Link>
         <nav aria-label="Aridon navigation" style={navStyle}>
           {links.map((link) => {
-            const active = link.href === '/' ? pathname === '/' : pathname.startsWith(link.href);
+            const active = link.href === '/' ? false : pathname.startsWith(link.href);
             return <Link key={link.href} href={link.href} style={{ ...navLink, ...(active ? activeNavLink : {}) }}>{link.label}</Link>;
           })}
         </nav>
@@ -53,27 +62,8 @@ export default function CustomerSessionControls() {
   );
 }
 
-const barStyle = {
-  position: 'sticky' as const,
-  top: 0,
-  zIndex: 1200,
-  background: '#08101D',
-  borderBottom: '1px solid #24334E',
-  color: '#F8FAFC',
-  padding: '10px 16px',
-  fontFamily: 'Arial, sans-serif',
-};
-
-const barInner = {
-  maxWidth: '1180px',
-  margin: '0 auto',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: '12px',
-  flexWrap: 'wrap' as const,
-};
-
+const barStyle = { position: 'sticky' as const, top: 0, zIndex: 1200, background: '#08101D', borderBottom: '1px solid #24334E', color: '#F8FAFC', padding: '10px 16px', fontFamily: 'Arial, sans-serif' };
+const barInner = { maxWidth: '1180px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' as const };
 const brandStyle = { color: '#F8FAFC', textDecoration: 'none', fontWeight: 950, letterSpacing: '.8px' };
 const navStyle = { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' as const };
 const navLink = { border: '1px solid #415171', color: '#E4EAF5', borderRadius: '10px', padding: '9px 12px', fontWeight: 900, textDecoration: 'none', fontSize: '13px' };
