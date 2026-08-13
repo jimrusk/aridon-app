@@ -1,0 +1,25 @@
+{
+  "name": "aridon-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis portable --x64 --publish never",
+    "dist:mac": "electron-builder --mac dmg zip --universal --publish never"
+  },
+  "devDependencies": {
+    "electron": "43.2.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.aridon.business",
+    "productName": "Aridon",
+    "files": ["main.cjs", "package.json"],
+    "directories": { "output": "dist" },
+    "artifactName": "Aridon-${version}-${os}-${arch}.${ext}",
+    "win": { "target": ["nsis", "portable"] },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true },
+    "mac": { "category": "public.app-category.business", "target": ["dmg", "zip"] }
+  }
+}
