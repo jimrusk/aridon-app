@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import SalesTeamPromo from './SalesTeamPromo';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://aridon-v02.vercel.app'),
@@ -35,5 +36,5 @@ export const metadata: Metadata = {
 };
 
 export default function BusinessOSLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return <><SalesTeamPromo />{children}</>;
 }
