@@ -17,8 +17,10 @@ type Analysis = {
     trust: number;
     aiSearchVisibility: number;
     indexingReadiness: number;
+    contentIntegrity: number;
   };
   authoritySignals: string[];
+  integrityFindings: string[];
   strengths: string[];
   opportunities: string[];
   executiveReview: Array<{ executive: string; finding: string }>;
@@ -80,7 +82,7 @@ export default function AnalyzeBusinessPage() {
         <div style={{ maxWidth: 930, paddingTop: 62 }}>
           <div style={{ color: '#9EF0CF', fontSize: 12, fontWeight: 950, letterSpacing: 1 }}>ARIDON · ANALYZE ANY BUSINESS</div>
           <h1 style={{ fontSize: 'clamp(46px,7vw,78px)', lineHeight: .96, letterSpacing: -3, margin: '14px 0 20px' }}>Paste a company website. Get the executive readout.</h1>
-          <p style={{ color: '#B8C4D5', lineHeight: 1.7, fontSize: 19, maxWidth: 900 }}>Aridon first identifies what kind of organization it is looking at, then scores clarity, conversion, authority, AI/search visibility, and indexing readiness before routing the findings through the executive team.</p>
+          <p style={{ color: '#B8C4D5', lineHeight: 1.7, fontSize: 19, maxWidth: 900 }}>Aridon identifies the organization type, scans high-signal pages, and scores clarity, conversion, authority, AI/search visibility, indexing readiness, and content integrity before routing the findings through the executive team.</p>
         </div>
 
         <form onSubmit={submit} style={{ ...card, marginTop: 28, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 10 }} className="analyze-form">
@@ -105,14 +107,26 @@ export default function AnalyzeBusinessPage() {
               </div>
             </section>
 
-            <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 10 }}>
+            <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10 }}>
               <Score label="Overall" value={analysis.scores.overall} />
               <Score label="Clarity" value={analysis.scores.clarity} />
               <Score label="Conversion" value={analysis.scores.conversion} />
               <Score label="Trust / Authority" value={analysis.scores.trust} />
               <Score label="AI / Search Visibility" value={analysis.scores.aiSearchVisibility} />
               <Score label="Indexing Readiness" value={analysis.scores.indexingReadiness} />
+              <Score label="Content Integrity & Freshness" value={analysis.scores.contentIntegrity} />
             </section>
+
+            {analysis.integrityFindings.length > 0 && (
+              <section style={{ ...card, borderColor: '#735A2F' }}>
+                <div style={{ color: '#F4D06F', fontWeight: 950, fontSize: 12 }}>CONTENT INTEGRITY & FRESHNESS FINDINGS</div>
+                <div style={{ display: 'grid', gap: 9, marginTop: 12 }}>
+                  {analysis.integrityFindings.map((item, index) => (
+                    <div key={item} style={{ borderTop: '1px solid #3A3324', paddingTop: 10, color: '#F2E8CF', lineHeight: 1.55 }}><strong style={{ color: '#F4D06F' }}>{index + 1}.</strong> {item}</div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             <section className="two-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 14 }}>
               <article style={card}>
