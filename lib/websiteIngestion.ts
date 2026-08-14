@@ -2,6 +2,7 @@ import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 
 const MAX_PAGES = 6;
+const MAX_CANDIDATES = 18;
 const MAX_BYTES_PER_PAGE = 450_000;
 const REQUEST_TIMEOUT_MS = 4_500;
 const MAX_TEXT_PER_PAGE = 7_500;
@@ -40,14 +41,21 @@ function samePublicSite(a: URL, b: URL) {
   return normalizedHost(a.hostname) === normalizedHost(b.hostname);
 }
 
+function urlKey(value: URL | string) {
+  const url = typeof value === 'string' ? new URL(value) : new URL(value.toString());
+  url.hash = '';
+  url.search = '';
+  url.hostname = normalizedHost(url.hostname);
+  url.pathname = url.pathname.replace(/\/+$/, '') || '/';
+  return `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname}`.toLowerCase();
+}
+
 function isPrivateIpv4(address: string) {
   const parts = address.split('.').map(Number);
   if (parts.length !== 4 || parts.some((part) => Number.isNaN(part))) return true;
   const [a, b] = parts;
   return (
-    a === 0 ||
-    a === 10 ||
-    a === 127 ||
+    a === 0 || a === 10 || a === 127 ||
     (a === 169 && b === 254) ||
     (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 168) ||
@@ -131,7 +139,7 @@ async function fetchHtml(startUrl: URL, siteRoot: URL) {
         redirect: 'manual',
         signal: controller.signal,
         headers: {
-          'User-Agent': 'AridonBusinessOSBeta/0.2 (+website-ingestion)',
+          'User-Agent': 'AridonBusinessOSBeta/0.3 (+website-ingestion)',
           Accept: 'text/html,application/xhtml+xml',
         },
         cache: 'no-store',
@@ -146,12 +154,11 @@ async function fetchHtml(startUrl: URL, siteRoot: URL) {
 
       if (!response.ok) throw new Error(`Website returned HTTP ${response.status}.`);
       const contentType = response.headers.get('content-type') || '';
-      if (!contentType.toLowerCase().includes('text/html') && !contentType.toLowerCase().includes('application/xhtml+xml')) {
+      if (!/text\/html|application\/xhtml\+xml/i.test(contentType)) {
         throw new Error('The website did not return an HTML page.');
       }
 
-      const html = await readLimitedText(response, controller);
-      return { url: current, html };
+      return { url: current, html: await readLimitedText(response, controller) };
     } finally {
       clearTimeout(timer);
     }
@@ -182,8 +189,7 @@ function attribute(tag: string, name: string) {
 }
 
 function metaDescription(html: string) {
-  const tags = html.match(/<meta\b[^>]*>/gi) || [];
-  for (const tag of tags) {
+  for (const tag of html.match(/<meta\b[^>]*>/gi) || []) {
     const name = attribute(tag, 'name').toLowerCase();
     const property = attribute(tag, 'property').toLowerCase();
     if (name === 'description' || property === 'og:description') {
@@ -210,10 +216,8 @@ function cleanVisibleText(html: string) {
 
 function extractContacts(html: string) {
   const contacts = new Set<string>();
-  const mailto = html.match(/mailto:([^"'?#\s>]+)/gi) || [];
-  const tel = html.match(/tel:([^"'?\s>]+)/gi) || [];
-  for (const item of mailto) contacts.add(decodeURIComponent(item.slice(7)).trim());
-  for (const item of tel) contacts.add(decodeURIComponent(item.slice(4)).trim());
+  for (const item of html.match(/mailto:([^"'?#\s>]+)/gi) || []) contacts.add(decodeURIComponent(item.slice(7)).trim());
+  for (const item of html.match(/tel:([^"'?\s>]+)/gi) || []) contacts.add(decodeURIComponent(item.slice(4)).trim());
   return [...contacts].filter(Boolean).slice(0, 20);
 }
 
@@ -231,7 +235,7 @@ function extractHeadings(html: string) {
 function linkScore(url: URL, label: string) {
   const haystack = `${url.pathname} ${label}`.toLowerCase();
   const priorities: Array<[RegExp, number]> = [
-    [/challenge|competition|initiative|programs?/, 105],
+    [/oil[- ]?gas|mining|aviation|challenge|competition|initiative|programs?/, 110],
     [/services?|solutions?|products?|what-we-do/, 100],
     [/about|team|company|leadership|board/, 95],
     [/portfolio|work|case-stud|results|testimonials?|impact/, 90],
@@ -252,19 +256,17 @@ function extractLinks(html: string, pageUrl: URL, siteRoot: URL) {
 
   while ((match = regex.exec(html))) {
     const href = attribute(match[1], 'href');
-    if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:')) continue;
+    if (!href || /^(#|mailto:|tel:|javascript:)/i.test(href)) continue;
+
     let url: URL;
-    try {
-      url = new URL(href, pageUrl);
-    } catch {
-      continue;
-    }
+    try { url = new URL(href, pageUrl); } catch { continue; }
     if (!['http:', 'https:'].includes(url.protocol) || !samePublicSite(url, siteRoot)) continue;
     url.hash = '';
     url.search = '';
-    const key = url.toString().replace(/\/$/, '');
+
     const label = plainText(match[2]).slice(0, 140);
     const candidate = { url: url.toString(), label, score: linkScore(url, label) };
+    const key = urlKey(url);
     const existing = results.get(key);
     if (!existing || candidate.score > existing.score) results.set(key, candidate);
   }
@@ -313,30 +315,50 @@ export async function ingestPublicWebsite(rawWebsite: string): Promise<WebsiteIn
 
   const home = await fetchHtml(requested, requested);
   const homeSnapshot = snapshot(home.html, home.url);
-  const links = extractLinks(home.html, home.url, home.url)
-    .filter((candidate) => candidate.url.replace(/\/$/, '') !== home.url.toString().replace(/\/$/, ''));
+  const pages: WebsitePageSnapshot[] = [homeSnapshot];
+  const seenFinal = new Set<string>([urlKey(home.url)]);
+  const queued = new Set<string>();
+  const navigation = new Map<string, string>();
+  const queue: LinkCandidate[] = [];
 
-  const selected = links.slice(0, MAX_PAGES - 1);
-  const extraPages = await Promise.all(
-    selected.map(async (candidate) => {
-      try {
-        const page = await fetchHtml(new URL(candidate.url), home.url);
-        return snapshot(page.html, page.url);
-      } catch {
-        return null;
-      }
-    }),
-  );
+  function enqueue(candidates: LinkCandidate[]) {
+    for (const candidate of candidates) {
+      const key = urlKey(candidate.url);
+      if (seenFinal.has(key) || queued.has(key)) continue;
+      queued.add(key);
+      queue.push(candidate);
+      if (candidate.label && !navigation.has(key)) navigation.set(key, candidate.label);
+    }
+    queue.sort((a, b) => b.score - a.score || a.url.localeCompare(b.url));
+  }
 
-  const pages = [homeSnapshot, ...extraPages.filter((page): page is WebsitePageSnapshot => Boolean(page))].slice(0, MAX_PAGES);
+  enqueue(extractLinks(home.html, home.url, home.url));
+
+  let attempted = 0;
+  while (pages.length < MAX_PAGES && queue.length && attempted < MAX_CANDIDATES) {
+    const candidate = queue.shift()!;
+    attempted += 1;
+    try {
+      const fetched = await fetchHtml(new URL(candidate.url), home.url);
+      const finalKey = urlKey(fetched.url);
+      if (seenFinal.has(finalKey)) continue;
+
+      seenFinal.add(finalKey);
+      pages.push(snapshot(fetched.html, fetched.url));
+      enqueue(extractLinks(fetched.html, fetched.url, home.url));
+    } catch {
+      // Keep scanning the next high-signal candidate.
+    }
+  }
+
   const contacts = [...new Set(pages.flatMap((page) => page.contacts))].slice(0, 25);
-  const navigation = links.slice(0, 16).map((candidate) => candidate.label || new URL(candidate.url).pathname).filter(Boolean);
+  const nav = [...navigation.values()].filter(Boolean).slice(0, 16);
   const partial = {
     requestedUrl: requested.toString(),
     canonicalUrl: home.url.toString(),
     pages,
     contacts,
-    navigation,
+    navigation: nav,
   };
 
   return { ...partial, knowledge: buildKnowledge(partial) };
