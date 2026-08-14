@@ -1,7 +1,7 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 
-const MAX_PAGES = 3;
+const MAX_PAGES = 6;
 const MAX_BYTES_PER_PAGE = 450_000;
 const REQUEST_TIMEOUT_MS = 4_500;
 const MAX_TEXT_PER_PAGE = 7_500;
@@ -231,9 +231,12 @@ function extractHeadings(html: string) {
 function linkScore(url: URL, label: string) {
   const haystack = `${url.pathname} ${label}`.toLowerCase();
   const priorities: Array<[RegExp, number]> = [
+    [/challenge|competition|initiative|programs?/, 105],
     [/services?|solutions?|products?|what-we-do/, 100],
-    [/about|team|company|leadership/, 90],
-    [/portfolio|work|case-stud|results|testimonials?/, 85],
+    [/about|team|company|leadership|board/, 95],
+    [/portfolio|work|case-stud|results|testimonials?|impact/, 90],
+    [/membership|member-benefits?|partners?|sponsors?/, 88],
+    [/events?|apply|application|register/, 82],
     [/contact|connect/, 70],
     [/pricing|plans/, 65],
     [/industr|markets?/, 60],
@@ -301,7 +304,7 @@ function buildKnowledge(result: Omit<WebsiteIngestionResult, 'knowledge'>) {
   });
 
   lines.push('', 'Use this as public-source company context. Treat claims on the website as the company’s own statements unless independently verified.');
-  return lines.join('\n').slice(0, 24_000);
+  return lines.join('\n').slice(0, 40_000);
 }
 
 export async function ingestPublicWebsite(rawWebsite: string): Promise<WebsiteIngestionResult> {
@@ -327,7 +330,7 @@ export async function ingestPublicWebsite(rawWebsite: string): Promise<WebsiteIn
 
   const pages = [homeSnapshot, ...extraPages.filter((page): page is WebsitePageSnapshot => Boolean(page))].slice(0, MAX_PAGES);
   const contacts = [...new Set(pages.flatMap((page) => page.contacts))].slice(0, 25);
-  const navigation = links.slice(0, 12).map((candidate) => candidate.label || new URL(candidate.url).pathname).filter(Boolean);
+  const navigation = links.slice(0, 16).map((candidate) => candidate.label || new URL(candidate.url).pathname).filter(Boolean);
   const partial = {
     requestedUrl: requested.toString(),
     canonicalUrl: home.url.toString(),
