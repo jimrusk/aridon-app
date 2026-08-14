@@ -1,5 +1,6 @@
 export type WebsiteDiagnosticKind =
   | 'canonical-domain-change'
+  | 'utility-redirect'
   | 'identity-mismatch'
   | 'https-downgrade'
   | 'transient-network-retry'
