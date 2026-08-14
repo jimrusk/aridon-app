@@ -1,4 +1,18 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+  title: 'Analyze Any Business | Aridon Executive OS',
+  description: 'Run a public business website through Aridon for organization-aware scoring, authority signals, AI/search visibility, indexing readiness, conversion opportunities, and an executive-team readout.',
+  robots: { index: true, follow: true },
+  alternates: { canonical: 'https://aridon-v02.vercel.app/analyze-business' },
+  openGraph: {
+    title: 'Analyze Any Business | Aridon',
+    description: 'Paste a company website and get an organization-aware executive readout across clarity, conversion, authority, AI/search visibility, and indexing readiness.',
+    url: 'https://aridon-v02.vercel.app/analyze-business',
+    type: 'website',
+  },
+};
 
 export default function AnalyzeBusinessLayout({ children }: { children: React.ReactNode }) {
   return <div className="prospect-analyzer">
