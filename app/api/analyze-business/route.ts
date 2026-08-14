@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ingestPublicWebsite } from '../../../lib/websiteIngestion';
+import {
+  ingestPublicWebsiteWithDiagnostics,
+  WebsiteDiagnosticError,
+} from '../../../lib/websiteIngestionWithDiagnostics';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -119,7 +122,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Enter a public business website to analyze.' }, { status: 400, headers: NO_STORE });
     }
 
-    const ingestion = await ingestPublicWebsite(website);
+    const ingestion = await ingestPublicWebsiteWithDiagnostics(website);
+
+    if (!ingestion.websiteDiagnostics.safeToScore) {
+      return NextResponse.json({
+        analyzedAt: new Date().toISOString(),
+        analysisStatus: 'diagnostic',
+        website: ingestion.canonicalUrl,
+        error: 'Aridon stopped before scoring because the destination website does not appear to represent the requested organization.',
+        domainDiagnostics: ingestion.websiteDiagnostics,
+      }, { status: 422, headers: NO_STORE });
+    }
+
     const combined = ingestion.pages
       .map((page) => `${page.title}\n${page.description}\n${page.headings.join(' ')}\n${page.text}`)
       .join('\n')
@@ -199,6 +213,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       analyzedAt: new Date().toISOString(),
+      analysisStatus: 'scored',
       website: ingestion.canonicalUrl,
       organizationType: kind,
       pagesScanned: ingestion.pages.length,
@@ -207,6 +222,7 @@ export async function POST(request: NextRequest) {
       scores: { overall, clarity, conversion, trust, aiSearchVisibility, indexingReadiness, contentIntegrity },
       authoritySignals,
       integrityFindings: integrity.findings,
+      domainDiagnostics: ingestion.websiteDiagnostics,
       strengths: strengths.slice(0, 7),
       opportunities: opportunities.slice(0, 9),
       executiveReview,
@@ -216,10 +232,18 @@ export async function POST(request: NextRequest) {
         description: page.description,
         headings: page.headings.slice(0, 8),
       })),
-      note: 'Aridon classifies the organization before scoring it and now checks Content Integrity & Freshness across the scanned pages for topic conflicts, copied descriptions, stale current-program language, and deadline contradictions. Indexing Readiness measures content and internal-discovery signals; robots, sitemap, canonical, structured-data, and external-index verification remain separate technical checks. Website claims are treated as the organization’s own statements unless independently verified.',
+      note: 'Aridon classifies the organization before scoring it and now checks Content Integrity & Freshness across the scanned pages for topic conflicts, copied descriptions, stale current-program language, deadline contradictions, canonical-domain redirects, HTTPS/HTTP behavior, and destination identity. Indexing Readiness measures content and internal-discovery signals; robots, sitemap, canonical, structured-data, and external-index verification remain separate technical checks. Website claims are treated as the organization’s own statements unless independently verified.',
     }, { headers: NO_STORE });
   } catch (error) {
     console.error('Analyze business error', error);
+    if (error instanceof WebsiteDiagnosticError) {
+      return NextResponse.json({
+        analyzedAt: new Date().toISOString(),
+        analysisStatus: 'diagnostic',
+        error: error.message,
+        domainDiagnostics: error.websiteDiagnostics,
+      }, { status: 502, headers: NO_STORE });
+    }
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Aridon could not analyze that website.' },
       { status: 500, headers: NO_STORE },
