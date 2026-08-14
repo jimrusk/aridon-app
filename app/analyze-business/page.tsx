@@ -3,8 +3,33 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 
+type DomainDiagnostic = {
+  kind: string;
+  severity: 'info' | 'warning' | 'error';
+  message: string;
+  from?: string;
+  to?: string;
+};
+
+type DomainDiagnostics = {
+  requestedUrl: string;
+  canonicalUrl?: string;
+  redirectChain: string[];
+  diagnostics: DomainDiagnostic[];
+  safeToScore: boolean;
+};
+
+type DiagnosticResult = {
+  analyzedAt: string;
+  analysisStatus: 'diagnostic';
+  website?: string;
+  error: string;
+  domainDiagnostics: DomainDiagnostics;
+};
+
 type Analysis = {
   analyzedAt: string;
+  analysisStatus?: 'scored';
   website: string;
   organizationType: string;
   pagesScanned: number;
@@ -21,6 +46,7 @@ type Analysis = {
   };
   authoritySignals: string[];
   integrityFindings: string[];
+  domainDiagnostics?: DomainDiagnostics;
   strengths: string[];
   opportunities: string[];
   executiveReview: Array<{ executive: string; finding: string }>;
@@ -44,6 +70,7 @@ function Score({ label, value }: { label: string; value: number }) {
 export default function AnalyzeBusinessPage() {
   const [website, setWebsite] = useState('');
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [diagnostic, setDiagnostic] = useState<DiagnosticResult | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -52,6 +79,7 @@ export default function AnalyzeBusinessPage() {
     setLoading(true);
     setError('');
     setAnalysis(null);
+    setDiagnostic(null);
     try {
       const response = await fetch('/api/analyze-business', {
         method: 'POST',
@@ -59,7 +87,13 @@ export default function AnalyzeBusinessPage() {
         body: JSON.stringify({ website }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data?.error || 'Aridon could not analyze that business.');
+      if (!response.ok) {
+        if (data?.analysisStatus === 'diagnostic' && data?.domainDiagnostics) {
+          setDiagnostic(data as DiagnosticResult);
+          return;
+        }
+        throw new Error(data?.error || 'Aridon could not analyze that business.');
+      }
       setAnalysis(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Aridon could not analyze that business.');
@@ -82,7 +116,7 @@ export default function AnalyzeBusinessPage() {
         <div style={{ maxWidth: 930, paddingTop: 62 }}>
           <div style={{ color: '#9EF0CF', fontSize: 12, fontWeight: 950, letterSpacing: 1 }}>ARIDON · ANALYZE ANY BUSINESS</div>
           <h1 style={{ fontSize: 'clamp(46px,7vw,78px)', lineHeight: .96, letterSpacing: -3, margin: '14px 0 20px' }}>Paste a company website. Get the executive readout.</h1>
-          <p style={{ color: '#B8C4D5', lineHeight: 1.7, fontSize: 19, maxWidth: 900 }}>Aridon identifies the organization type, scans high-signal pages, and scores clarity, conversion, authority, AI/search visibility, indexing readiness, and content integrity before routing the findings through the executive team.</p>
+          <p style={{ color: '#B8C4D5', lineHeight: 1.7, fontSize: 19, maxWidth: 900 }}>Aridon identifies the organization type, scans high-signal pages, checks domain and redirect health, and scores clarity, conversion, authority, AI/search visibility, indexing readiness, and content integrity before routing the findings through the executive team.</p>
         </div>
 
         <form onSubmit={submit} style={{ ...card, marginTop: 28, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 10 }} className="analyze-form">
@@ -93,6 +127,39 @@ export default function AnalyzeBusinessPage() {
         </form>
 
         {error && <div style={{ marginTop: 14, background: '#3A1620', border: '1px solid #7C3343', color: '#FFD7DF', borderRadius: 12, padding: 14 }}>{error}</div>}
+
+        {diagnostic && (
+          <section style={{ ...card, marginTop: 26, background: '#211A12', borderColor: '#7C6537' }}>
+            <div style={{ color: '#F4D06F', fontSize: 11, fontWeight: 950, letterSpacing: .7 }}>DOMAIN / HOSTING DIAGNOSTIC · NO BUSINESS SCORE ASSIGNED</div>
+            <h2 style={{ margin: '9px 0 6px', fontSize: 28 }}>{diagnostic.domainDiagnostics.requestedUrl}</h2>
+            <p style={{ color: '#F2E8CF', lineHeight: 1.6, margin: '8px 0 0' }}>{diagnostic.error}</p>
+
+            {diagnostic.domainDiagnostics.canonicalUrl && (
+              <div style={{ marginTop: 14, color: '#D9CCAF', lineHeight: 1.55 }}>
+                <strong style={{ color: '#F4D06F' }}>Destination:</strong> {diagnostic.domainDiagnostics.canonicalUrl}
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gap: 9, marginTop: 16 }}>
+              {diagnostic.domainDiagnostics.diagnostics.map((item, index) => (
+                <div key={`${item.kind}-${index}`} style={{ borderTop: '1px solid #4A3D25', paddingTop: 10, color: '#F2E8CF', lineHeight: 1.55 }}>
+                  <strong style={{ color: item.severity === 'error' ? '#FFB4C0' : '#F4D06F' }}>{item.severity.toUpperCase()}:</strong> {item.message}
+                </div>
+              ))}
+            </div>
+
+            {diagnostic.domainDiagnostics.redirectChain.length > 1 && (
+              <div style={{ marginTop: 18 }}>
+                <div style={{ color: '#D1B96E', fontWeight: 950, fontSize: 12 }}>REDIRECT / PROTOCOL CHAIN</div>
+                <div style={{ display: 'grid', gap: 6, marginTop: 9 }}>
+                  {diagnostic.domainDiagnostics.redirectChain.map((item, index) => (
+                    <div key={`${item}-${index}`} style={{ color: '#D9CCAF', fontSize: 13, overflowWrap: 'anywhere' }}>{index + 1}. {item}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         {analysis && (
           <div style={{ marginTop: 26, display: 'grid', gap: 16 }}>
@@ -106,6 +173,17 @@ export default function AnalyzeBusinessPage() {
                 <span style={pill}>{analysis.authoritySignals.length} authority signal{analysis.authoritySignals.length === 1 ? '' : 's'}</span>
               </div>
             </section>
+
+            {analysis.domainDiagnostics && analysis.domainDiagnostics.diagnostics.length > 0 && (
+              <section style={{ ...card, borderColor: '#536B8F' }}>
+                <div style={{ color: '#B9CFFF', fontWeight: 950, fontSize: 12 }}>DOMAIN / REDIRECT NOTES</div>
+                <div style={{ display: 'grid', gap: 9, marginTop: 12 }}>
+                  {analysis.domainDiagnostics.diagnostics.map((item, index) => (
+                    <div key={`${item.kind}-${index}`} style={{ borderTop: '1px solid #263650', paddingTop: 10, color: '#DCE4EF', lineHeight: 1.55 }}>{item.message}</div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10 }}>
               <Score label="Overall" value={analysis.scores.overall} />
