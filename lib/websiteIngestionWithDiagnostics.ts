@@ -129,9 +129,12 @@ function finalize(
 ): DiagnosedWebsiteIngestionResult {
   diagnostics.canonicalUrl = result.canonicalUrl;
   const canonical = new URL(result.canonicalUrl);
+  const changedDomain = !samePublicSite(requested, canonical);
+  const usedProtocolFallback = diagnostics.diagnostics.some((item) => item.kind === 'https-downgrade');
+  const requiresIdentityVerification = changedDomain || usedProtocolFallback;
 
-  if (!samePublicSite(requested, canonical)) {
-    if (looksLikeUtilityDestination(canonical, result)) {
+  if (requiresIdentityVerification) {
+    if (changedDomain && looksLikeUtilityDestination(canonical, result)) {
       diagnostics.safeToScore = false;
       addDiagnostic(diagnostics.diagnostics, {
         kind: 'utility-redirect',
@@ -210,7 +213,7 @@ export async function ingestPublicWebsiteWithDiagnostics(rawWebsite: string): Pr
         addDiagnostic(diagnostics.diagnostics, {
           kind: 'https-downgrade',
           severity: 'warning',
-          message: 'HTTPS did not respond reliably. Aridon is checking plain HTTP only as a diagnostic fallback and will still verify any redirect destination before scoring.',
+          message: 'HTTPS did not respond reliably. Aridon is checking plain HTTP only as a diagnostic fallback and will still verify the destination identity before scoring.',
           from: current.toString(),
           to: httpUrl.toString(),
         });
