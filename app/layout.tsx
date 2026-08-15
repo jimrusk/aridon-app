@@ -2,6 +2,7 @@ import './globals.css';
 import './avatars/avatar-room.css';
 import type { Metadata } from 'next';
 import InternalLaunchers from './InternalLaunchers';
+import AridonRadarTabs from './components/AridonRadarTabs';
 import CustomerSessionControls from './components/CustomerSessionControls';
 import SalesTeamIntentRedirect from './components/SalesTeamIntentRedirect';
 import PublicInstallPromo from './components/PublicInstallPromo';
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <CustomerSessionControls />
         <SalesTeamIntentRedirect />
         {children}
+        <AridonRadarTabs />
         <InternalLaunchers />
       </body>
     </html>
