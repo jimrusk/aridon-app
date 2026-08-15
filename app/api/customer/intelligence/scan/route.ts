@@ -4,7 +4,7 @@ import { authenticatedIntelligenceAccess } from '../../../../../lib/intelligence
 import { buildIntelligencePrompt, normalizeIntelligenceLane, weightedIntelligenceScore, type IntelligenceLane } from '../../../../../lib/intelligenceSuite';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
 const RESPONSES_URL = 'https://api.openai.com/v1/responses';
@@ -132,8 +132,8 @@ async function askRadar(prompt: string) {
   const payload = {
     model: process.env.INTELLIGENCE_SUITE_MODEL?.trim() || process.env.OPPORTUNITY_INTELLIGENCE_MODEL?.trim() || process.env.CUSTOMER_SALES_MODEL?.trim() || process.env.CUSTOMER_ASSISTANT_MODEL?.trim() || 'gpt-5.6',
     input: prompt,
-    tools: [{ type: 'web_search', search_context_size: 'medium' }],
-    max_output_tokens: 8000,
+    tools: [{ type: 'web_search', search_context_size: 'low' }],
+    max_output_tokens: 6000,
   };
   const response = await fetch(RESPONSES_URL, {
     method: 'POST',
