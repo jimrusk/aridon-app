@@ -8,6 +8,10 @@ export const maxDuration = 300;
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
 const RESPONSES_URL = 'https://api.openai.com/v1/responses';
+const DEFAULT_RESULT_COUNT = 24;
+const MIN_RESULT_COUNT = 20;
+const MAX_RESULT_COUNT = 30;
+const CANDIDATE_BUFFER = 6;
 
 type ResponsesPayload = {
   output_text?: string;
@@ -80,7 +84,7 @@ function extractSources(data: ResponsesPayload) {
       }
     }
   }
-  return urls.slice(0, 80);
+  return urls.slice(0, 120);
 }
 
 function parseJson(raw: string) {
@@ -133,7 +137,7 @@ async function askRadar(prompt: string) {
     model: process.env.INTELLIGENCE_SUITE_MODEL?.trim() || process.env.OPPORTUNITY_INTELLIGENCE_MODEL?.trim() || process.env.CUSTOMER_SALES_MODEL?.trim() || process.env.CUSTOMER_ASSISTANT_MODEL?.trim() || 'gpt-5.6',
     input: prompt,
     tools: [{ type: 'web_search', search_context_size: 'low' }],
-    max_output_tokens: 6000,
+    max_output_tokens: 14000,
   };
   const response = await fetch(RESPONSES_URL, {
     method: 'POST',
@@ -168,7 +172,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const lane = normalizeIntelligenceLane(body?.lane);
     if (!lane) return NextResponse.json({ error: 'Choose Aridon One, Two, or Three before scanning.' }, { status: 400, headers: NO_STORE });
-    const requestedCount = Math.max(1, Math.min(12, Number(body?.count) || 6));
+
+    const requested = Number(body?.count);
+    const requestedCount = Math.max(MIN_RESULT_COUNT, Math.min(MAX_RESULT_COUNT, Number.isFinite(requested) ? requested : DEFAULT_RESULT_COUNT));
+    const candidateCount = Math.min(MAX_RESULT_COUNT, requestedCount + CANDIDATE_BUFFER);
 
     const { data: profileRow, error: profileError } = await auth.db.from('customer_intelligence_profiles').select('*').eq('tenant_id', tenantId).eq('lane', lane).maybeSingle();
     if (profileError) throw profileError;
@@ -184,14 +191,15 @@ export async function POST(request: NextRequest) {
     if (runError) throw runError;
     runId = run.id;
 
-    const prompt = buildIntelligencePrompt({ lane, businessName: membership.tenant.business_name, industry: membership.tenant.industry, profile, count: requestedCount });
-    const result = await askRadar(prompt);
-    const rawItems = Array.isArray(result.json.leads) ? result.json.leads.slice(0, requestedCount) : [];
+    const prompt = buildIntelligencePrompt({ lane, businessName: membership.tenant.business_name, industry: membership.tenant.industry, profile, count: candidateCount });
+    const result = await askRadar(`${prompt}\n\nIMPORTANT: Return ${candidateCount} distinct candidates whenever public evidence supports them. We need a deep pipeline, not a short sample. Prefer breadth across independent sources and do not stop after six or ten results.`);
+    const rawItems = Array.isArray(result.json.leads) ? result.json.leads.slice(0, candidateCount) : [];
     const citedNormalized = new Set(result.sources.map(normalizedUrl));
     const citedHosts = new Set(result.sources.map(urlHost).filter(Boolean));
     const saved: Record<string, unknown>[] = [];
 
     for (const raw of rawItems) {
+      if (saved.length >= requestedCount) break;
       if (!raw || typeof raw !== 'object') continue;
       const item = raw as Record<string, unknown>;
       const entityName = text(item.entity_name, 500);
@@ -254,10 +262,11 @@ export async function POST(request: NextRequest) {
       status: 'completed',
       result_count: saved.length,
       source_urls: result.sources,
+      error_message: saved.length < MIN_RESULT_COUNT ? `Scan completed with ${saved.length} verified results; target is ${requestedCount}.` : null,
       completed_at: new Date().toISOString(),
     }).eq('id', runId);
 
-    return NextResponse.json({ lane, leads: saved, sourceUrls: result.sources }, { headers: NO_STORE });
+    return NextResponse.json({ lane, leads: saved, sourceUrls: result.sources, targetCount: requestedCount }, { headers: NO_STORE });
   } catch (error) {
     console.error('Intelligence Suite scan error', error);
     if (runId && failureDb) {
