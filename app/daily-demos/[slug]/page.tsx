@@ -6,13 +6,14 @@ import { dailyProspectDemos } from '../../../lib/prospectDemosDaily';
 import { prospectDemosAug11 } from '../../../lib/prospectDemosAug11';
 import { prospectDemosAug13 } from '../../../lib/prospectDemosAug13';
 import { prospectDemosAug14 } from '../../../lib/prospectDemosAug14';
+import { prospectDemosAug15 } from '../../../lib/prospectDemosAug15';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Private Aridon Executive OS Preview', robots: { index: false, follow: false, googleBot: { index: false, follow: false } } };
 type Props = { params: { slug: string } };
 
 export default function DailyProspectDemoPage({ params }: Props) {
-  const demo = [...dailyProspectDemos, ...prospectDemosAug11, ...prospectDemosAug13, ...prospectDemosAug14].find((item) => item.slug === params.slug);
+  const demo = [...dailyProspectDemos, ...prospectDemosAug11, ...prospectDemosAug13, ...prospectDemosAug14, ...prospectDemosAug15].find((item) => item.slug === params.slug);
   if (!demo || !demo.active || Date.now() >= new Date(demo.expiresAt).getTime()) notFound();
   const companyContext = `${demo.publicSummary} Publicly listed services: ${demo.services.join(', ')}. Demo opportunities identified by Aridon: ${demo.opportunities.join(' ')}`;
   return (
@@ -23,7 +24,7 @@ export default function DailyProspectDemoPage({ params }: Props) {
         <section style={{ background:'#fff', border:'1px solid #D9D3C8', borderRadius:20, padding:22, marginBottom:18 }}><div style={{ fontSize:12,fontWeight:950,color:'#24604E',letterSpacing:'.08em' }}>FIRST RECOVERY TARGETS TO TEST</div><div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:11,marginTop:15 }}>{demo.opportunities.map((item,index)=><article key={item} style={{ background:'#F7F5EF',borderRadius:14,padding:15 }}><strong>{String(index+1).padStart(2,'0')}</strong><p style={{ marginBottom:0,color:'#56534C',lineHeight:1.55 }}>{item}</p></article>)}</div></section>
         <section style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(230px,1fr))',gap:12,marginBottom:18 }}><article style={{background:'#fff',border:'1px solid #D9D3C8',borderRadius:18,padding:18}}><h2>$0 upfront</h2><p>Establish the baseline before the test begins.</p></article><article style={{background:'#fff',border:'1px solid #D9D3C8',borderRadius:18,padding:18}}><h2>Approval-gated</h2><p>No external sends, pricing changes, spending or commitments without company approval.</p></article><article style={{background:'#fff',border:'1px solid #D9D3C8',borderRadius:18,padding:18}}><h2>No revenue guarantee</h2><p>If measurable business value is not demonstrated during the pilot, the business can walk away.</p></article></section>
         <section id="boardroom" style={{ scrollMarginTop:20,marginBottom:18 }}><ProspectBoardroom companyName={demo.companyName} companyContext={companyContext} starterQuestions={demo.starterQuestions} /></section>
-        <section style={{ background:'#0D1420',color:'#fff',borderRadius:20,padding:22,marginBottom:18 }}><div style={{ fontSize:12,fontWeight:950,color:'#9EF0CF',letterSpacing:'.08em' }}>SAMPLE DAY-14 REVIEW</div><div style={{ display:'grid',gap:9,marginTop:12 }}>{demo.sampleBrief.map(item=><div key={item} style={{ background:'#121E30',border:'1px solid #2A3A57',borderRadius:12,padding:13,color:'#D4DEEB',lineHeight:1.5 }}>{item}</div>)}</div></section>
+        <section style={{ background:'#0D1420',color:'#fff',borderRadius:20,padding:22,marginBottom:18 }}><div style={{ fontSize:12,fontWeight:950,color:'#9EF0CF',letterSpacing:'.08em' }}>SAMPLE DAY-14 REVIEW</div><div style={{ display:'grid',gap:9,marginTop:12 }}>{demo.sampleBrief.map(item=><div key={item} style={{ background:'#121E30',border:'1px solid #2A3A57',borderRadius:12,padding:13,color:'#D4DEEB',lineHeight:1.5 }}>{item}</div>)}</section>
         <footer style={{ marginTop:20,color:'#756F65',fontSize:12,lineHeight:1.6 }}>Unofficial Aridon demonstration generated from publicly available business information. No private systems were accessed. Search indexing and link following are disabled. This page expires automatically unless the business engages, and Aridon will disable it sooner upon request.</footer>
       </div>
     </main>
