@@ -25,6 +25,24 @@ export function getBrowserClient(): SupabaseClient {
   return browserClient;
 }
 
+export function getUserScopedClient(accessToken: string): SupabaseClient {
+  const token = accessToken.trim();
+  if (!token) throw new Error('A user access token is required.');
+
+  return createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
+
 // Service-role access stays server-only and is initialized lazily. The secret key
 // remains in Vercel and is never embedded in the browser bundle or repository.
 export function getServerClient(): SupabaseClient {

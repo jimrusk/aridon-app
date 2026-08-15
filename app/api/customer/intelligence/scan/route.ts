@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticatedCustomer, customerTenantForUser, subscriptionAllowsAccess } from '../../../../../lib/customerAuth';
+import { authenticatedIntelligenceAccess } from '../../../../../lib/intelligenceAuth';
 import { buildIntelligencePrompt, normalizeIntelligenceLane, weightedIntelligenceScore, type IntelligenceLane } from '../../../../../lib/intelligenceSuite';
 
 export const runtime = 'nodejs';
@@ -149,12 +149,11 @@ async function askRadar(prompt: string) {
 }
 
 async function gate(request: NextRequest) {
-  const auth = await authenticatedCustomer(request);
-  if (!auth.ok) return { response: NextResponse.json({ error: auth.error }, { status: auth.status, headers: NO_STORE }) };
-  const membership = await customerTenantForUser(auth.user.id);
-  if (!membership) return { response: NextResponse.json({ error: 'No customer workspace is attached to this account.' }, { status: 404, headers: NO_STORE }) };
-  if (!subscriptionAllowsAccess(membership.tenant.subscription_status)) return { response: NextResponse.json({ error: 'This workspace is not active.' }, { status: 402, headers: NO_STORE }) };
-  return { auth, membership };
+  const access = await authenticatedIntelligenceAccess(request);
+  if (!access.ok) {
+    return { response: NextResponse.json({ error: access.error }, { status: access.status, headers: NO_STORE }) };
+  }
+  return { auth: { db: access.db, user: access.user }, membership: access.membership };
 }
 
 export async function POST(request: NextRequest) {
