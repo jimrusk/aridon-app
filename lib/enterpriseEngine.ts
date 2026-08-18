@@ -35,6 +35,12 @@ export type EnterpriseScan = {
   annualOpportunity: number;
   opportunities: Opportunity[];
   executiveBrief: string[];
+  forwardDeploymentPlan: {
+    phase: string;
+    objective: string;
+    outputs: string[];
+  }[];
+  openAIAlignment: string[];
   proofBaseline: {
     annualRevenue: number;
     employees: number;
@@ -168,6 +174,39 @@ export function runEnterpriseScan(raw: Partial<EnterpriseInput>): EnterpriseScan
   const ratio = input.annualRevenue > 0 ? annualOpportunity / input.annualRevenue : 0;
   const opportunityScore = Math.max(1, Math.min(100, Math.round(35 + ranked.length * 6 + Math.min(ratio, 0.35) * 100)));
 
+  const forwardDeploymentPlan = [
+    {
+      phase: '1 · Identify the right use cases',
+      objective: 'Rank high-impact opportunities by measurable business value, confidence, feasibility and required human oversight.',
+      outputs: ['Opportunity map', 'Value-at-stake estimate', 'Use-case priority', 'Success metrics and baseline'],
+    },
+    {
+      phase: '2 · Redesign workflows',
+      objective: 'Move from isolated AI assistance to delegated work with clearly defined handoffs, exceptions and owner approval gates.',
+      outputs: ['Current-state workflow', 'AI-enabled future state', 'Human/agent responsibility map', 'Exception and escalation paths'],
+    },
+    {
+      phase: '3 · Integrate systems and business context',
+      objective: 'Ground agents in the same CRM, finance, support, documents and operating data used by the business.',
+      outputs: ['System inventory', 'Required permissions', 'Business context map', 'Data-quality and access risks'],
+    },
+    {
+      phase: '4 · Deploy responsibly',
+      objective: 'Run production workflows with explicit permissions, auditable actions, human approvals and observable outcomes.',
+      outputs: ['Agent identity and scope', 'Approval policy', 'Audit trail', 'Production rollout plan'],
+    },
+    {
+      phase: '5 · Drive adoption and change management',
+      objective: 'Make the new way of working usable by the people who own the process, not just technically functional.',
+      outputs: ['Role-based onboarding', 'Operating playbook', 'Adoption metrics', 'Owner and team feedback loop'],
+    },
+    {
+      phase: '6 · Evaluate, optimize and assure value',
+      objective: 'Use the ROI Ledger to compare baseline vs. realized impact and continuously improve workflow quality, reliability and economics.',
+      outputs: ['Evaluation set', 'Quality and reliability metrics', 'Verified ROI', 'Optimization backlog and scale decision'],
+    },
+  ];
+
   return {
     companyName: input.companyName,
     analyzedAt: new Date().toISOString(),
@@ -178,7 +217,16 @@ export function runEnterpriseScan(raw: Partial<EnterpriseInput>): EnterpriseScan
       `${ranked.length} measurable opportunities identified with an estimated annual value of $${annualOpportunity.toLocaleString('en-US')}.`,
       ranked[0] ? `Highest-value starting point: ${ranked[0].title} (~$${ranked[0].annualValue.toLocaleString('en-US')}/year).` : 'Add operating metrics to produce a quantified opportunity map.',
       'External messages, commitments, payments and consequential actions remain behind explicit human approval.',
-      'ROI Ledger should record baseline, intervention, evidence source, realized value and confidence so estimates can be replaced by verified outcomes.',
+      'ROI Ledger records baseline, intervention, evidence source, realized value and confidence so estimates can be replaced by verified outcomes.',
+    ],
+    forwardDeploymentPlan,
+    openAIAlignment: [
+      'Identify the right use cases and focus on the highest-impact opportunities.',
+      'Redesign workflows instead of adding disconnected AI point solutions.',
+      'Integrate with existing systems and data so agents operate with real business context.',
+      'Use secure, governed deployment with explicit permissions and auditable actions.',
+      'Drive adoption and change management so AI becomes part of everyday work.',
+      'Evaluate and optimize continuously, with measurable business impact and value assurance.',
     ],
     proofBaseline: {
       annualRevenue: input.annualRevenue,
