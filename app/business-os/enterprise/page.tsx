@@ -14,12 +14,16 @@ type Opportunity = {
   approvalRequired: boolean;
 };
 
+type DeploymentPhase = { phase: string; objective: string; outputs: string[] };
+
 type Scan = {
   companyName: string;
   opportunityScore: number;
   annualOpportunity: number;
   opportunities: Opportunity[];
   executiveBrief: string[];
+  forwardDeploymentPlan: DeploymentPhase[];
+  openAIAlignment: string[];
   proofBaseline: Record<string, number>;
 };
 
@@ -58,8 +62,8 @@ export default function EnterprisePage() {
     <main style={{ minHeight: '100vh', background: '#07101D', color: '#F8FAFC', fontFamily: 'Arial, sans-serif' }}>
       <section style={{ maxWidth: 1180, margin: '0 auto', padding: '56px 20px 34px' }}>
         <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1.4, color: '#9EF0CF' }}>ARIDON ENTERPRISE · PROOF MODE</div>
-        <h1 style={{ fontSize: 'clamp(44px,7vw,78px)', lineHeight: .96, letterSpacing: -2.5, margin: '14px 0 18px', maxWidth: 950 }}>Find the money your company is leaving on the table.</h1>
-        <p style={{ color: '#B9C4D4', fontSize: 19, lineHeight: 1.65, maxWidth: 850 }}>Aridon establishes a business baseline, quantifies revenue, cash and productivity opportunities, assigns an executive agent, proposes the workflow, and tracks what is actually recovered in the ROI Ledger.</p>
+        <h1 style={{ fontSize: 'clamp(44px,7vw,78px)', lineHeight: .96, letterSpacing: -2.5, margin: '14px 0 18px', maxWidth: 950 }}>Move from AI ambition to measurable business impact.</h1>
+        <p style={{ color: '#B9C4D4', fontSize: 19, lineHeight: 1.65, maxWidth: 900 }}>Aridon identifies the right use cases, redesigns workflows, maps the systems and business context agents need, keeps consequential actions governed, and tracks realized value in the ROI Ledger.</p>
       </section>
 
       <section style={{ maxWidth: 1180, margin: '0 auto', padding: '0 20px 64px' }}>
@@ -91,7 +95,7 @@ export default function EnterprisePage() {
 
           <aside style={{ display: 'grid', gap: 14 }}>
             <Card title="What Aridon measures" items={['Revenue recovery', 'Lead-conversion upside', 'Overdue cash recovery', 'Administrative capacity', 'Labor leverage', 'Customer retention']} />
-            <Card title="Governance by default" items={['Human approval for external sends', 'No autonomous spending or commitments', 'Every opportunity gets a confidence score', 'Estimates become verified ROI only with evidence']} />
+            <Card title="Production-ready controls" items={['Explicit human approval for consequential actions', 'No autonomous spending or commitments', 'Confidence scoring and traceable recommendations', 'Estimates become verified ROI only with evidence']} />
           </aside>
         </div>
       </section>
@@ -122,6 +126,20 @@ export default function EnterprisePage() {
               <article style={{ background: '#DDE9FF', borderRadius: 18, padding: 20 }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 1.1 }}>ROI LEDGER · BASELINE</div>{Object.entries(scan.proofBaseline).map(([key, value]) => <div key={key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, borderTop: '1px solid #BCCAE4', padding: '9px 0', fontSize: 13 }}><span>{key.replace(/([A-Z])/g, ' $1')}</span><strong>{key.toLowerCase().includes('rate') ? `${Math.round(value * 1000) / 10}%` : value.toLocaleString('en-US')}</strong></div>)}</article>
             </aside>
           </div>
+
+          <div style={{ marginTop: 28 }}>
+            <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: 1.2, color: '#285E4D' }}>FORWARD DEPLOYMENT PLAN</div>
+            <h2 style={{ fontSize: 38, margin: '8px 0 18px' }}>From the right use case to production, adoption and value assurance.</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(290px,1fr))', gap: 12 }}>
+              {scan.forwardDeploymentPlan.map(step => <article key={step.phase} style={{ background: '#fff', border: '1px solid #D4CEC1', borderRadius: 16, padding: 18 }}><strong style={{ fontSize: 17 }}>{step.phase}</strong><p style={{ color: '#56514A', lineHeight: 1.55 }}>{step.objective}</p>{step.outputs.map(output => <div key={output} style={{ fontSize: 13, padding: '6px 0', borderTop: '1px solid #ECE7DE' }}>✓ {output}</div>)}</article>)}
+            </div>
+          </div>
+
+          <article style={{ marginTop: 20, background: '#0D1728', color: '#fff', borderRadius: 18, padding: 22 }}>
+            <div style={{ color: '#9EF0CF', fontSize: 11, fontWeight: 950, letterSpacing: 1.2 }}>OPENAI-NATIVE DELIVERY MODEL</div>
+            <h2 style={{ fontSize: 32, margin: '9px 0 12px' }}>Aridon is designed to complement frontier model and agent infrastructure.</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 8 }}>{scan.openAIAlignment.map(item => <div key={item} style={{ background: '#14233A', borderRadius: 11, padding: 12, color: '#D7E1EF', lineHeight: 1.5 }}>✓ {item}</div>)}</div>
+          </article>
         </div>
       </section>}
 
