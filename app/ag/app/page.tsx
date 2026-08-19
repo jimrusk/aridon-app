@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { BarChart3, Bot, Droplets, Package, Sprout, Tractor, Users, WalletCards, Wrench, ClipboardList } from 'lucide-react';
+import { BarChart3, Bot, Droplets, Package, Sprout, Tractor, Users, WalletCards, Wrench, ClipboardList, ShieldCheck } from 'lucide-react';
 
 const modules=[
   ['Sales & Buyers','Track contracts, buyers, follow-up and revenue opportunities',BarChart3],
@@ -11,10 +11,11 @@ const modules=[
   ['Farm Financials','See operating margin, cash needs and cost trends',WalletCards],
   ['Work Orders','Turn recommendations into accountable field tasks',Wrench],
   ['Reports & Documents','Keep operating, lender and compliance records together',ClipboardList],
+  ['Enterprise Governance','Goal governance, assurance, reporting, stakeholders and program spend',ShieldCheck],
 ];
 
 export default function AgApp(){return <main style={{minHeight:'100vh',background:'#eef4ee',color:'#183b4e',fontFamily:'Arial,sans-serif',paddingBottom:90}}>
-<header style={{background:'#0a533e',color:'#fff',padding:'18px 18px 22px',position:'sticky',top:0,zIndex:10,boxShadow:'0 4px 16px #173b2a24'}}><div style={{maxWidth:1180,margin:'auto',display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><div style={{fontSize:12,fontWeight:950,color:'#a9e67a',letterSpacing:1}}>ARIDON AG</div><strong style={{fontSize:23}}>Farm Command Center</strong></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link href="/ag" style={{color:'#fff',textDecoration:'none',fontWeight:800}}>Home</Link><Link href="/ag/install" style={{background:'#a9e67a',color:'#143326',textDecoration:'none',padding:'9px 12px',borderRadius:9,fontWeight:900}}>Install App</Link></div></div></header>
+<header style={{background:'#0a533e',color:'#fff',padding:'18px 18px 22px',position:'sticky',top:0,zIndex:10,boxShadow:'0 4px 16px #173b2a24'}}><div style={{maxWidth:1180,margin:'auto',display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><div style={{fontSize:12,fontWeight:950,color:'#a9e67a',letterSpacing:1}}>ARIDON AG</div><strong style={{fontSize:23}}>Farm Command Center</strong></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link href="/ag" style={{color:'#fff',textDecoration:'none',fontWeight:800}}>Home</Link><Link href="/ag/governance" style={{color:'#a9e67a',textDecoration:'none',fontWeight:900}}>Enterprise Governance</Link><Link href="/ag/install" style={{background:'#a9e67a',color:'#143326',textDecoration:'none',padding:'9px 12px',borderRadius:9,fontWeight:900}}>Install App</Link></div></div></header>
 <section style={{maxWidth:1180,margin:'auto',padding:'24px 18px'}}>
 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:12}}>
 <Card title="Today's Farm Score" value="82/100" sub="3 opportunities need attention" />
@@ -28,8 +29,10 @@ export default function AgApp(){return <main style={{minHeight:'100vh',backgroun
 <section style={{background:'#0d314c',color:'#fff',borderRadius:20,padding:22}}><div style={{fontSize:12,fontWeight:950,color:'#a9e67a'}}>THIS WEEK</div><h2 style={{fontSize:30,margin:'7px 0 12px'}}>Farm priorities</h2><ul style={{lineHeight:1.9,paddingLeft:20,color:'#d7e5ee'}}><li>Protect margin on Field 7</li><li>Close open buyer follow-ups</li><li>Reduce Crew B overtime</li><li>Prepare water-use report</li><li>Complete Pump #2 service</li></ul><Link href="/ag#profit-check" style={{display:'inline-block',marginTop:8,background:'#a9e67a',color:'#153427',textDecoration:'none',fontWeight:950,padding:'12px 14px',borderRadius:10}}>Run Profit Check</Link></section>
 </div>
 
+<section style={{marginTop:16,background:'linear-gradient(135deg,#e5f0e3,#f8fbf7)',border:'1px solid #cfe0d1',borderRadius:20,padding:22,display:'grid',gridTemplateColumns:'minmax(0,1fr) auto',gap:18,alignItems:'center'}}><div><div style={{display:'flex',gap:9,alignItems:'center',color:'#2e7d32',fontSize:12,fontWeight:950}}><ShieldCheck size={20}/>ARIDON AG ENTERPRISE</div><h2 style={{margin:'8px 0 7px',fontSize:30}}>Sustainable Agriculture Governance OS</h2><p style={{margin:0,color:'#607284',lineHeight:1.55,maxWidth:760}}>For major food, beverage and agriculture organizations: govern sustainability goals, supplier assurance, reporting, stakeholder execution, contracts and program budgets from one command center.</p></div><Link href="/ag/governance" style={{background:'#0a533e',color:'#fff',textDecoration:'none',padding:'12px 15px',borderRadius:10,fontWeight:950,whiteSpace:'nowrap'}}>Open Enterprise Demo</Link></section>
+
 <h2 style={{fontSize:30,margin:'28px 0 12px'}}>Your farm operating system</h2>
-<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(230px,1fr))',gap:12}}>{modules.map(([title,text,Icon]:any)=><section key={title} style={{background:'#fff',borderRadius:17,padding:19,border:'1px solid #dce8df'}}><Icon size={24} color="#2e7d32"/><h3 style={{margin:'10px 0 6px'}}>{title}</h3><p style={{margin:0,color:'#607284',lineHeight:1.5,fontSize:14}}>{text}</p></section>)}</div>
+<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(230px,1fr))',gap:12}}>{modules.map(([title,text,Icon]:any)=><section key={title} style={{background:'#fff',borderRadius:17,padding:19,border:'1px solid #dce8df'}}><Icon size={24} color="#2e7d32"/><h3 style={{margin:'10px 0 6px'}}>{title}</h3><p style={{margin:0,color:'#607284',lineHeight:1.5,fontSize:14}}>{text}</p>{title==='Enterprise Governance'&&<Link href="/ag/governance" style={{display:'inline-block',marginTop:12,color:'#0a533e',fontWeight:950,textDecoration:'none'}}>Open governance dashboard →</Link>}</section>)}</div>
 
 <section style={{marginTop:20,background:'#e3efe3',borderRadius:18,padding:20}}><strong>Built for the field:</strong> use this dashboard from a phone, tablet or desktop. Install Aridon Ag to your home screen for a dedicated app-style experience.</section>
 </section>
