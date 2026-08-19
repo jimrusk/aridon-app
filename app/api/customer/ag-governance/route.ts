@@ -1,10 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticatedCustomer, customerTenantForUser, subscriptionAllowsAccess } from '../../../../lib/customerAuth';
+import { getUserScopedClient } from '../../../../lib/supabase';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 const NO_STORE = { 'Cache-Control': 'no-store' };
 
 type EntityName = 'goal' | 'supplier' | 'action' | 'report' | 'finance' | 'stakeholder' | 'evidence';
+
+type TenantSummary = {
+  id: string;
+  slug: string;
+  business_name: string;
+  owner_name: string | null;
+  industry: string | null;
+  tagline: string | null;
+  primary_color: string | null;
+  accent_color: string | null;
+  plan: string | null;
+  status: string | null;
+  subscription_status: string | null;
+};
 
 const entityConfig: Record<EntityName, { table: string; fields: string[] }> = {
   goal: {
@@ -50,17 +65,58 @@ function cleanPayload(entity: EntityName, input: unknown) {
   return result;
 }
 
-async function context(request: NextRequest, slug: string) {
-  const auth = await authenticatedCustomer(request);
-  if (!auth.ok) return { error: NextResponse.json({ error: auth.error }, { status: auth.status, headers: NO_STORE }) } as const;
-  if (!slug) return { error: NextResponse.json({ error: 'Workspace slug is required.' }, { status: 400, headers: NO_STORE }) } as const;
+function subscriptionAllowsAccess(status: string | null | undefined) {
+  return ['active', 'trialing', 'past_due', 'beta'].includes(status || '');
+}
 
-  const membership = await customerTenantForUser(auth.user.id, slug);
-  if (!membership) return { error: NextResponse.json({ error: 'You do not have access to this workspace.' }, { status: 403, headers: NO_STORE }) } as const;
-  if (!subscriptionAllowsAccess(membership.tenant.subscription_status)) {
+async function context(request: NextRequest, slug: string) {
+  const authorization = request.headers.get('authorization');
+  if (!authorization?.startsWith('Bearer ')) {
+    return { error: NextResponse.json({ error: 'Customer login required.' }, { status: 401, headers: NO_STORE }) } as const;
+  }
+
+  const accessToken = authorization.slice(7).trim();
+  if (!accessToken) {
+    return { error: NextResponse.json({ error: 'Customer login required.' }, { status: 401, headers: NO_STORE }) } as const;
+  }
+  if (!slug) {
+    return { error: NextResponse.json({ error: 'Workspace slug is required.' }, { status: 400, headers: NO_STORE }) } as const;
+  }
+
+  const db = getUserScopedClient(accessToken);
+  const { data: userData, error: userError } = await db.auth.getUser(accessToken);
+  if (userError || !userData.user) {
+    return { error: NextResponse.json({ error: 'Your customer session has expired.' }, { status: 401, headers: NO_STORE }) } as const;
+  }
+
+  const { data: memberships, error: membershipError } = await db
+    .from('customer_memberships')
+    .select('tenant_id,role')
+    .eq('user_id', userData.user.id);
+  if (membershipError) throw membershipError;
+  if (!memberships?.length) {
+    return { error: NextResponse.json({ error: 'You do not have access to this workspace.' }, { status: 403, headers: NO_STORE }) } as const;
+  }
+
+  const tenantIds = memberships.map((membership) => membership.tenant_id);
+  const { data: tenants, error: tenantError } = await db
+    .from('customer_tenants')
+    .select('id,slug,business_name,owner_name,industry,tagline,primary_color,accent_color,plan,status,subscription_status')
+    .in('id', tenantIds)
+    .eq('slug', slug)
+    .limit(1);
+  if (tenantError) throw tenantError;
+  if (!tenants?.length) {
+    return { error: NextResponse.json({ error: 'You do not have access to this workspace.' }, { status: 403, headers: NO_STORE }) } as const;
+  }
+
+  const tenant = tenants[0] as TenantSummary;
+  const membership = memberships.find((item) => item.tenant_id === tenant.id);
+  if (!subscriptionAllowsAccess(tenant.subscription_status)) {
     return { error: NextResponse.json({ error: 'This workspace needs active access.', billingRequired: true }, { status: 402, headers: NO_STORE }) } as const;
   }
-  return { auth, membership } as const;
+
+  return { db, user: userData.user, membership: { tenant, role: membership?.role || 'member' } } as const;
 }
 
 export async function GET(request: NextRequest) {
@@ -69,9 +125,8 @@ export async function GET(request: NextRequest) {
     const resolved = await context(request, slug);
     if ('error' in resolved) return resolved.error;
 
-    const { auth, membership } = resolved;
+    const { db, membership } = resolved;
     const tenantId = membership.tenant.id;
-    const db = auth.db;
 
     const [goals, suppliers, actions, reports, finance, stakeholders, evidence] = await Promise.all([
       db.from('ag_governance_goals').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: true }),
@@ -111,11 +166,11 @@ export async function POST(request: NextRequest) {
     const resolved = await context(request, slug);
     if ('error' in resolved) return resolved.error;
 
-    const { auth, membership } = resolved;
+    const { db, membership } = resolved;
     const tenantId = membership.tenant.id;
 
     if (body.entity === 'starter') {
-      const existing = await auth.db.from('ag_governance_goals').select('id').eq('tenant_id', tenantId).limit(1);
+      const existing = await db.from('ag_governance_goals').select('id').eq('tenant_id', tenantId).limit(1);
       if (existing.error) throw existing.error;
       if (existing.data?.length) return NextResponse.json({ ok: true, seeded: false }, { headers: NO_STORE });
 
@@ -135,9 +190,9 @@ export async function POST(request: NextRequest) {
       ];
 
       const [goalInsert, actionInsert, reportInsert] = await Promise.all([
-        auth.db.from('ag_governance_goals').insert(starterGoals),
-        auth.db.from('ag_governance_actions').insert(starterActions),
-        auth.db.from('ag_governance_reports').insert(starterReports),
+        db.from('ag_governance_goals').insert(starterGoals),
+        db.from('ag_governance_actions').insert(starterActions),
+        db.from('ag_governance_reports').insert(starterReports),
       ]);
       if (goalInsert.error) throw goalInsert.error;
       if (actionInsert.error) throw actionInsert.error;
@@ -148,7 +203,7 @@ export async function POST(request: NextRequest) {
     if (!isEntity(body.entity)) return NextResponse.json({ error: 'A valid entity is required.' }, { status: 400, headers: NO_STORE });
     const entity = body.entity;
     const data = cleanPayload(entity, body.data);
-    const result = await auth.db.from(entityConfig[entity].table).insert({ ...data, tenant_id: tenantId }).select('*').single();
+    const result = await db.from(entityConfig[entity].table).insert({ ...data, tenant_id: tenantId }).select('*').single();
     if (result.error) throw result.error;
     return NextResponse.json({ item: result.data }, { status: 201, headers: NO_STORE });
   } catch (error) {
@@ -168,12 +223,12 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Entity and item id are required.' }, { status: 400, headers: NO_STORE });
     }
 
-    const { auth, membership } = resolved;
+    const { db, membership } = resolved;
     const entity = body.entity;
     const data = cleanPayload(entity, body.data);
     data.updated_at = new Date().toISOString();
 
-    const result = await auth.db
+    const result = await db
       .from(entityConfig[entity].table)
       .update(data)
       .eq('id', body.id)
@@ -197,7 +252,7 @@ export async function DELETE(request: NextRequest) {
     if ('error' in resolved) return resolved.error;
     if (!isEntity(entityValue) || !id) return NextResponse.json({ error: 'Entity and item id are required.' }, { status: 400, headers: NO_STORE });
 
-    const result = await resolved.auth.db
+    const result = await resolved.db
       .from(entityConfig[entityValue].table)
       .delete()
       .eq('id', id)
