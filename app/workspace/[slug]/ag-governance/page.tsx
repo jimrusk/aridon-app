@@ -1,20 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
-  BarChart3,
   Bot,
   CheckCircle2,
   ClipboardCheck,
-  DollarSign,
   FileCheck2,
-  Leaf,
   Plus,
   RefreshCw,
-  ShieldCheck,
   Target,
   Users,
 } from 'lucide-react';
@@ -168,8 +164,8 @@ export default function AgGovernanceWorkspace({ params }: { params: { slug: stri
         {tab === 'suppliers' && <SuppliersPanel data={data} mutate={mutate} update={update} saving={saving} />}
         {tab === 'actions' && <ActionsPanel data={data} mutate={mutate} update={update} saving={saving} />}
         {tab === 'reports' && <ReportsPanel data={data} mutate={mutate} update={update} saving={saving} />}
-        {tab === 'finance' && <FinancePanel data={data} mutate={mutate} saving={saving} />}
-        {tab === 'stakeholders' && <StakeholdersPanel data={data} mutate={mutate} saving={saving} />}
+        {tab === 'finance' && <FinancePanel data={data} mutate={mutate} update={update} saving={saving} />}
+        {tab === 'stakeholders' && <StakeholdersPanel data={data} mutate={mutate} update={update} saving={saving} />}
       </section>
       <style>{`@media(max-width:760px){.starter{grid-template-columns:1fr !important}.two-col{grid-template-columns:1fr !important}.three-col{grid-template-columns:1fr !important}}`}</style>
     </main>
