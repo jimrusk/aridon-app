@@ -1,5 +1,20 @@
--- Aridon 3 advanced acquisition underwriting schema.
--- Production migration name: add_acquisition_underwriting_os
+-- Aridon 3 acquisition thesis + advanced underwriting schema.
+-- Production migrations already applied:
+--   add_acquisition_underwriting_os
+--   add_acquisition_thesis
+--   add_acquisition_thesis_fit_score
+
+alter table public.acquisition_leads
+  add column if not exists thesis_fit_score integer not null default 0 check (thesis_fit_score between 0 and 100);
+
+create table if not exists public.acquisition_theses (
+  id uuid primary key default gen_random_uuid(),
+  name text not null default 'Primary Acquisition Thesis',
+  active boolean not null default true,
+  criteria jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
 
 create table if not exists public.acquisition_underwriting (
   id uuid primary key default gen_random_uuid(),
@@ -41,9 +56,11 @@ create table if not exists public.acquisition_takeover_tasks (
   updated_at timestamptz not null default now()
 );
 
+create index if not exists acquisition_theses_active_idx on public.acquisition_theses(active, updated_at desc);
 create index if not exists acquisition_evidence_lead_idx on public.acquisition_evidence(lead_id, created_at desc);
 create index if not exists acquisition_takeover_tasks_lead_idx on public.acquisition_takeover_tasks(lead_id, phase, due_day);
 
+alter table public.acquisition_theses enable row level security;
 alter table public.acquisition_underwriting enable row level security;
 alter table public.acquisition_evidence enable row level security;
 alter table public.acquisition_takeover_tasks enable row level security;
