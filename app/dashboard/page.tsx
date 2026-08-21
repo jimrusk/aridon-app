@@ -6,6 +6,8 @@ const links=[
   ['/execution','Execution Engine','Move approved work into execution.'],
   ['/controls','Approval Center','Review actions that need owner approval.'],
   ['/avatars','Executive Voice Room','Talk with the Aridon executive team.'],
+  ['/acquisitions/pipeline','Acquisition Pipeline','Run Aridon 3 from lead capture through underwriting, LOI, diligence, close, and the first 100 days.'],
+  ['/acquisitions/thesis','Acquisition Thesis','Define exactly what Aridon should buy and what it should automatically reject.'],
   ['/acquisitions','Acquisition Deal Engine','Score leverage, structure financing, and build a seller negotiation plan.'],
   ['/business-os','Business OS','Open the customer-facing operating system.'],
   ['/analyze-business','Analyze Any Business','Run the public business analyzer.']
