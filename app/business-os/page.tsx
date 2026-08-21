@@ -35,6 +35,7 @@ export default function BusinessOSLanding() {
           <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
             <Link href="/business-os" style={{ color: '#F8FAFC', textDecoration: 'none', fontWeight: 950, letterSpacing: 1 }}>ARIDON · EXECUTIVE OS</Link>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Link href="/business-os/enterprise" style={darkOutline}>Enterprise Scanner</Link>
               <a href="#team" style={darkOutline}>The Team</a>
               <a href="#challenge" style={darkOutline}>Live Challenge</a>
               <Link href="/customer/login" style={darkOutline}>Sign In</Link>
@@ -48,10 +49,11 @@ export default function BusinessOSLanding() {
               <h1 style={{ fontSize: 'clamp(48px,8vw,86px)', lineHeight: .92, letterSpacing: -3, margin: '18px 0 24px', maxWidth: 900 }}>Your company doesn’t need another chatbot. It needs an executive team.</h1>
               <p style={{ fontSize: 20, lineHeight: 1.65, color: '#BFC9D8', maxWidth: 790 }}>Aridon gives an owner eight specialized AI executives, a shared Company Brain, an Executive Boardroom, controlled execution, and one Chief of Staff who keeps the business moving.</p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 28 }}>
-                <Link href="/business-os/beta" style={heroPrimary}>Create My Free Business OS</Link>
+                <Link href="/business-os/enterprise" style={heroPrimary}>Run Enterprise Scanner</Link>
+                <Link href="/business-os/beta" style={heroSecondary}>Create My Free Business OS</Link>
                 <a href="#challenge" style={heroSecondary}>Challenge the Executive Team</a>
               </div>
-              <p style={{ color: '#8796AC', fontSize: 13, marginTop: 12 }}>Start with a private beta workspace. No credit card. Important external actions remain under your control.</p>
+              <p style={{ color: '#8796AC', fontSize: 13, marginTop: 12 }}>Enterprise Scanner quantifies revenue, cash and productivity opportunities before deployment. Important external actions remain under your control.</p>
             </div>
 
             <div style={{ background: '#0D1728', border: '1px solid #2A3A57', borderRadius: 24, padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.22)' }}>
@@ -65,6 +67,13 @@ export default function BusinessOSLanding() {
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      <section style={{ background: '#DDE9FF', padding: '56px 20px' }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 20, alignItems: 'center' }}>
+          <div><div style={eyebrow}>ARIDON ENTERPRISE</div><h2 style={{ fontSize: 36, margin: '8px 0 10px' }}>Scan the company before deploying agents.</h2><p style={body}>Quantify revenue leakage, lead-conversion upside, overdue cash, administrative capacity, labor leverage and retention risk. Then assign the right executive agent, keep approvals in place, and track verified ROI.</p></div>
+          <Link href="/business-os/enterprise" style={{ ...primaryButton, textAlign: 'center', minWidth: 220 }}>Run Enterprise Scan</Link>
         </div>
       </section>
 
@@ -140,34 +149,29 @@ export default function BusinessOSLanding() {
               </article>
             ))}
           </div>
-          <div style={{ marginTop: 18, color: '#625E55', lineHeight: 1.6, fontSize: 13 }}>Stripe shows final recurring price and payment details before subscription. See the <Link href="/business-os/terms" style={{ color: '#171717', fontWeight: 850 }}>Terms</Link> and <Link href="/business-os/privacy" style={{ color: '#171717', fontWeight: 850 }}>Privacy Notice</Link>.</div>
+          <div style={{ marginTop: 18, color: '#625E55', lineHeight: 1.6, fontSize: 13 }}>Stripe shows final recurring price and payment details before subscription. See the <Link href="/business-os/terms">Terms</Link> and <Link href="/business-os/privacy">Privacy Policy</Link>.</div>
         </div>
       </section>
 
-      <section style={{ background: '#9EF0CF', padding: '68px 20px' }}><div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}><div style={{ fontWeight: 950, fontSize: 12 }}>YOUR EXECUTIVE TEAM IS READY FOR A REAL PROBLEM</div><h2 style={{ fontSize: 'clamp(38px,6vw,64px)', lineHeight: .98, letterSpacing: -2, margin: '11px 0 16px' }}>Stop managing AI tools. Start running the business with an AI leadership system.</h2><div style={{ display: 'flex', justifyContent: 'center', gap: 9, flexWrap: 'wrap', marginTop: 18 }}><Link href="/business-os/beta" style={primaryButton}>Build My Free Business OS</Link><a href="#challenge" style={secondaryButton}>Challenge the Team First</a></div></div></section>
-
-      <footer style={{ padding: '28px 20px', textAlign: 'center', color: '#6D6D68', fontSize: 12 }}>Aridon Executive Operating System · <Link href="/business-os/revenue" style={{ color: 'inherit' }}>Revenue Calculator</Link> · <Link href="/business-os/terms" style={{ color: 'inherit' }}>Terms</Link> · <Link href="/business-os/privacy" style={{ color: 'inherit' }}>Privacy</Link></footer>
-      <style>{`@media(max-width:820px){.hero-grid,.two-col{grid-template-columns:1fr !important}.hero-grid h1{letter-spacing:-2px !important}}`}</style>
+      <style>{`@media(max-width:800px){.hero-grid,.two-col{grid-template-columns:1fr!important}}`}</style>
     </main>
   );
 }
 
-function Step({ number, title, text }: { number: string; title: string; text: string }) {
-  return <article style={{ background: '#fff', border: '1px solid #D0CBC0', borderRadius: 16, padding: 19 }}><div style={{ width: 34, height: 34, display: 'grid', placeItems: 'center', background: '#171717', color: '#fff', borderRadius: 10, fontWeight: 950 }}>{number}</div><h3 style={{ fontSize: 20 }}>{title}</h3><p style={{ ...body, marginBottom: 0 }}>{text}</p></article>;
-}
+function Step({ number, title, text }: { number: string; title: string; text: string }) { return <article style={featureCard}><div style={{ width: 32, height: 32, display: 'grid', placeItems: 'center', borderRadius: 10, background: '#171717', color: '#fff', fontWeight: 950 }}>{number}</div><h3 style={{ fontSize: 21, marginBottom: 7 }}>{title}</h3><p style={body}>{text}</p></article>; }
 
-const eyebrow = { color: '#24604E', fontWeight: 950, fontSize: 11, letterSpacing: 1 };
-const eyebrowDark = { color: '#9EF0CF', fontWeight: 950, fontSize: 11, letterSpacing: 1 };
-const sectionTitle = { fontSize: 'clamp(36px,5vw,56px)', lineHeight: 1, letterSpacing: -1.5, margin: '9px 0 14px' };
-const body = { color: '#56564F', lineHeight: 1.65, fontSize: 16 };
-const mintPill = { background: '#9EF0CF', color: '#07130F', padding: '10px 14px', borderRadius: 999, textDecoration: 'none', fontWeight: 950 };
-const darkOutline = { border: '1px solid #3C4A63', color: '#E6EBF3', padding: '9px 12px', borderRadius: 999, textDecoration: 'none', fontWeight: 850, fontSize: 13 };
-const heroPrimary = { background: '#9EF0CF', color: '#07130F', padding: '14px 18px', borderRadius: 11, textDecoration: 'none', fontWeight: 950 };
-const heroSecondary = { border: '1px solid #526078', color: '#F1F4F8', padding: '13px 17px', borderRadius: 11, textDecoration: 'none', fontWeight: 900 };
-const featureCard = { background: 'rgba(255,255,255,.72)', border: '1px solid #B7C6DE', borderRadius: 19, padding: 22 };
-const darkFeature = { background: '#121F33', border: '1px solid #2E405F', borderRadius: 18, padding: 20 };
-const tagGrid = { display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginTop: 15 };
-const darkTag = { display: 'inline-block', background: '#172A35', border: '1px solid #315F57', color: '#CFF4E7', borderRadius: 999, padding: '8px 10px', fontSize: 12, fontWeight: 800 };
-const roadmapTag = { display: 'inline-block', background: '#2A2518', border: '1px solid #6D5B2C', color: '#F6E5A8', borderRadius: 999, padding: '8px 10px', fontSize: 12, fontWeight: 800 };
-const primaryButton = { background: '#171717', color: '#fff', padding: '14px 19px', borderRadius: 11, textDecoration: 'none', fontWeight: 900 };
-const secondaryButton = { border: '1px solid #AAA499', color: '#171717', padding: '13px 18px', borderRadius: 11, textDecoration: 'none', fontWeight: 850 };
+const eyebrow = { fontSize: 11, fontWeight: 950, letterSpacing: 1.2, color: '#285E4D' } as const;
+const eyebrowDark = { fontSize: 11, fontWeight: 950, letterSpacing: 1.2, color: '#9EF0CF' } as const;
+const sectionTitle = { fontSize: 'clamp(36px,5vw,58px)', lineHeight: 1, letterSpacing: -1.7, margin: '10px 0 16px' } as const;
+const body = { color: '#57534B', lineHeight: 1.7, marginTop: 0 } as const;
+const featureCard = { background: '#fff', border: '1px solid #CCC5B8', borderRadius: 18, padding: 21 } as const;
+const darkFeature = { background: '#121F34', border: '1px solid #2A3B59', borderRadius: 18, padding: 21 } as const;
+const tagGrid = { display: 'grid', gap: 8, marginTop: 14 } as const;
+const darkTag = { background: '#17263E', borderRadius: 10, padding: '10px 12px', color: '#D6E1F1', fontSize: 13 } as const;
+const roadmapTag = { ...darkTag, color: '#E6D89A' } as const;
+const primaryButton = { display: 'inline-block', padding: '12px 15px', borderRadius: 10, background: '#171717', color: '#fff', textDecoration: 'none', fontWeight: 950, fontSize: 14 } as const;
+const secondaryButton = { ...primaryButton, background: '#fff', color: '#171717', border: '1px solid #CFC9BD' } as const;
+const darkOutline = { display: 'inline-block', padding: '9px 11px', border: '1px solid #3A4964', borderRadius: 999, color: '#D8E1EE', textDecoration: 'none', fontSize: 12, fontWeight: 850 } as const;
+const mintPill = { ...darkOutline, background: '#9EF0CF', borderColor: '#9EF0CF', color: '#07130F' } as const;
+const heroPrimary = { display: 'inline-block', background: '#9EF0CF', color: '#07130F', textDecoration: 'none', padding: '13px 17px', borderRadius: 11, fontWeight: 950 } as const;
+const heroSecondary = { ...heroPrimary, background: 'transparent', color: '#F8FAFC', border: '1px solid #3A4964' } as const;
