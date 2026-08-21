@@ -6,6 +6,7 @@ const links=[
   ['/execution','Execution Engine','Move approved work into execution.'],
   ['/controls','Approval Center','Review actions that need owner approval.'],
   ['/avatars','Executive Voice Room','Talk with the Aridon executive team.'],
+  ['/acquisitions','Acquisition Deal Engine','Score leverage, structure financing, and build a seller negotiation plan.'],
   ['/business-os','Business OS','Open the customer-facing operating system.'],
   ['/analyze-business','Analyze Any Business','Run the public business analyzer.']
 ];
