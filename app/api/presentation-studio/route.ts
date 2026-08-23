@@ -92,7 +92,6 @@ async function buildPptx(deck: DeckSpec) {
   pptx.company = 'Aridon';
   pptx.subject = deck.subtitle;
   pptx.title = deck.title;
-  pptx.lang = 'en-US';
 
   const dark = '07101D';
   const mint = '9EF0CF';
