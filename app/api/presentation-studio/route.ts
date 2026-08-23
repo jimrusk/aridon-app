@@ -86,7 +86,7 @@ async function createDeckSpec(title: string, purpose: string, audience: string, 
 }
 
 async function buildPptx(deck: DeckSpec) {
-  const pptx = new PptxGenJS();
+  const pptx: any = new PptxGenJS();
   pptx.layout = 'LAYOUT_WIDE';
   pptx.author = 'Aridon';
   pptx.company = 'Aridon';
@@ -102,7 +102,7 @@ async function buildPptx(deck: DeckSpec) {
   titleSlide.background = { color: dark };
   titleSlide.addShape(pptx.ShapeType.rect, { x: 0.6, y: 0.7, w: 0.12, h: 5.8, fill: { color: mint }, line: { color: mint } });
   titleSlide.addText('ARIDON PRESENTATION STUDIO', { x: 1.0, y: 0.75, w: 5.5, h: 0.35, fontFace: 'Arial', fontSize: 12, bold: true, color: mint, charSpacing: 1.2 });
-  titleSlide.addText(deck.title, { x: 1.0, y: 1.45, w: 10.9, h: 2.2, fontFace: 'Arial', fontSize: 32, bold: true, color: white, margin: 0.02, breakLine: false, valign: 'mid' });
+  titleSlide.addText(deck.title, { x: 1.0, y: 1.45, w: 10.9, h: 2.2, fontFace: 'Arial', fontSize: 32, bold: true, color: white, margin: 0.02, breakLine: false, valign: 'middle' });
   titleSlide.addText(deck.subtitle, { x: 1.0, y: 4.0, w: 9.8, h: 1.1, fontFace: 'Arial', fontSize: 17, color: soft, margin: 0.02, valign: 'top' });
   titleSlide.addText('Research → executive review → decision-ready output', { x: 1.0, y: 6.45, w: 7.8, h: 0.3, fontFace: 'Arial', fontSize: 10, color: soft });
 
@@ -123,7 +123,7 @@ async function buildPptx(deck: DeckSpec) {
     bullets.forEach((bullet, bulletIndex) => {
       const y = startY + bulletIndex * 0.78;
       slide.addShape(pptx.ShapeType.ellipse, { x: 1.38, y: y + 0.15, w: 0.12, h: 0.12, fill: { color: mint }, line: { color: mint } });
-      slide.addText(bullet, { x: 1.7, y, w: 9.9, h: 0.55, fontFace: 'Arial', fontSize: 18, color: bodyColor, margin: 0.01, valign: 'mid' });
+      slide.addText(bullet, { x: 1.7, y, w: 9.9, h: 0.55, fontFace: 'Arial', fontSize: 18, color: bodyColor, margin: 0.01, valign: 'middle' });
     });
     slide.addText('ARIDON', { x: 11.55, y: 6.92, w: 1.0, h: 0.2, fontFace: 'Arial', fontSize: 8, bold: true, color: light ? '6B665E' : soft, align: 'right' });
   });
