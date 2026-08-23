@@ -8,6 +8,7 @@ export default function CreatorStudioLayout({ children }: { children: React.Reac
         <Link href="/customer/creator" style={pillStyle}>✦ Create</Link>
         <Link href="/customer/creator/library" style={{ ...pillStyle, background: '#79E0BC' }}>▦ AI Master Library</Link>
         <Link href="/customer/creator/business-builder" style={{ ...pillStyle, background: '#F4D88B' }}>◆ AI Business Builder</Link>
+        <Link href="/growth-desk" style={{ ...pillStyle, background: '#FFD68A' }}>$ Growth Desk</Link>
         <Link href="/customer/creator/review" style={{ ...pillStyle, background: '#B9CFFF' }}>✓ Edit · Approve · Reject</Link>
         <Link href="/customer/visual" style={{ ...pillStyle, background: '#D9E4FF' }}>◈ Build Visuals</Link>
       </div>
