@@ -13,11 +13,11 @@ const testCheckout = {
 } as const;
 
 const liveCheckout = {
-  health: process.env.ARIDON_CHECKOUT_HEALTH_SCAN_URL || '',
-  growth: process.env.ARIDON_CHECKOUT_GROWTH_BLUEPRINT_URL || '',
-  executive: process.env.ARIDON_CHECKOUT_EXECUTIVE_AUDIT_URL || '',
-  acquisition: process.env.ARIDON_CHECKOUT_ACQUISITION_DD_URL || '',
-  subscription: process.env.ARIDON_CHECKOUT_BUSINESS_OS_URL || '',
+  health: process.env.ARIDON_CHECKOUT_HEALTH_SCAN_URL || 'https://book.stripe.com/cNidR8dQ35qX6ZE7JM4AU0d',
+  growth: process.env.ARIDON_CHECKOUT_GROWTH_BLUEPRINT_URL || 'https://book.stripe.com/6oUbJ0dQ34mT6ZEe8a4AU0e',
+  executive: process.env.ARIDON_CHECKOUT_EXECUTIVE_AUDIT_URL || 'https://book.stripe.com/9B64gy27l9Hd5VAggi4AU0f',
+  acquisition: process.env.ARIDON_CHECKOUT_ACQUISITION_DD_URL || 'https://book.stripe.com/28E8wO6nB3iPes6d464AU0g',
+  subscription: process.env.ARIDON_CHECKOUT_BUSINESS_OS_URL || 'https://buy.stripe.com/8x2aEW6nB1aH1Fkggi4AU0h',
 } as const;
 
 type OfferKey = keyof typeof testCheckout;
