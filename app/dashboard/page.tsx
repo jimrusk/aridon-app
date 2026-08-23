@@ -3,6 +3,7 @@ import Link from 'next/link';
 const links=[
   ['/boardroom','Executive Boardroom','Bring a decision to the executive team.'],
   ['/ceo-brief','CEO Brief','Build the current executive summary.'],
+  ['/finance','FP&A Command Center','Plan, forecast, stress-test cash and margins, and ask the numbers what they mean.'],
   ['/execution','Execution Engine','Move approved work into execution.'],
   ['/controls','Approval Center','Review actions that need owner approval.'],
   ['/avatars','Executive Voice Room','Talk with the Aridon executive team.'],
