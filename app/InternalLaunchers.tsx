@@ -25,6 +25,9 @@ export default function InternalLaunchers() {
     pathname.startsWith('/analyze-business') ||
     pathname.startsWith('/site-indexing') ||
     pathname.startsWith('/sales-team') ||
+    pathname.startsWith('/presentation-studio') ||
+    pathname.startsWith('/facebook-launch') ||
+    pathname.startsWith('/model-router') ||
     pathname.startsWith('/eva-chat')
   ) return null;
 
@@ -33,6 +36,9 @@ export default function InternalLaunchers() {
       <Link href="/eva-chat" aria-label="Chat with Eva" title="Chat with Eva" style={{ display: 'flex', alignItems: 'center', gap: '9px', background: '#151A28', color: '#F5F7FB', border: '2px solid #D45A2A', borderRadius: '999px', padding: '4px 12px 4px 4px', fontWeight: 900, textDecoration: 'none', boxShadow: '0 12px 32px rgba(0,0,0,.42)' }}>
         <img src={EVA_AVATAR} alt="Eva" style={{ width: '46px', height: '46px', borderRadius: '50%', objectFit: 'cover', display: 'block' }} /><span>Eva Chat</span>
       </Link>
+      <Link href="/presentation-studio" aria-label="Open Aridon Presentation Studio" style={{ ...launcherStyle, background: '#FFD5A8' }}>▣ Presentation Studio</Link>
+      <Link href="/facebook-launch" aria-label="Open Aridon Facebook Page Launch Center" style={{ ...launcherStyle, background: '#A8C7FF' }}>f Facebook Launch</Link>
+      <Link href="/model-router" aria-label="Open Aridon model router" style={{ ...launcherStyle, background: '#C9A7FF' }}>⌘ Model Router</Link>
       <Link href="/impact-os" aria-label="Open Aridon Impact OS" style={{ ...launcherStyle, background: '#C9A7FF' }}>✦ Impact OS</Link>
       <Link href="/sales-team" aria-label="Build an AI sales team from a company website" style={{ ...launcherStyle, background: '#9EF0CF' }}>⚡ Build AI Sales Team</Link>
       <Link href="/site-indexing" aria-label="Open Aridon Index Engine" style={{ ...launcherStyle, background: '#B9CFFF' }}>⌁ Index Engine</Link>
