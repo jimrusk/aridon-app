@@ -3,7 +3,7 @@ export type AridonChatMessage = {
   content: string;
 };
 
-export type AridonProvider = 'openai' | 'anthropic' | 'gemini' | 'xai' | 'deepseek';
+export type AridonProvider = 'openai' | 'anthropic' | 'gemini' | 'xai' | 'deepseek' | 'local';
 export type AridonTask =
   | 'live_research'
   | 'social_intelligence'
@@ -11,9 +11,10 @@ export type AridonTask =
   | 'multilingual'
   | 'long_context'
   | 'creative'
+  | 'private_local'
   | 'general';
 
-type ProviderConfig = {
+export type ProviderConfig = {
   provider: AridonProvider;
   label: string;
   model: string;
@@ -21,10 +22,11 @@ type ProviderConfig = {
   specialty: string;
 };
 
-type ProviderAttempt = {
+export type ProviderAttempt = {
   provider: AridonProvider;
   model: string;
   ok: boolean;
+  latencyMs: number;
   error?: string;
 };
 
@@ -37,6 +39,9 @@ export type RouterResult = {
     reason: string;
     fallbackUsed: boolean;
     attempts: ProviderAttempt[];
+    totalLatencyMs: number;
+    inputCharacters: number;
+    outputCharacters: number;
   };
 };
 
@@ -57,7 +62,7 @@ export function getProviderCatalog(): ProviderConfig[] {
       label: 'OpenAI',
       model: env('ARIDON_OPENAI_MODEL') || env('ARIDON_CHAT_MODEL') || env('ARIDON_ADVISOR_MODEL') || 'gpt-5-mini',
       enabled: Boolean(env('OPENAI_API_KEY')),
-      specialty: 'Live research, general executive work, visual/creative planning and default fallback',
+      specialty: 'Live research, general executive work, creative planning and default fallback',
     },
     {
       provider: 'anthropic',
@@ -69,23 +74,30 @@ export function getProviderCatalog(): ProviderConfig[] {
     {
       provider: 'gemini',
       label: 'Gemini',
-      model: env('ARIDON_GEMINI_MODEL') || 'gemini-3.7-flash',
+      model: env('ARIDON_GEMINI_MODEL') || 'gemini-2.5-flash',
       enabled: Boolean(env('GEMINI_API_KEY')),
       specialty: 'Multilingual work, localization and large-context synthesis',
     },
     {
       provider: 'xai',
       label: 'Grok',
-      model: env('ARIDON_XAI_MODEL') || 'grok-4.6',
+      model: env('ARIDON_XAI_MODEL') || 'grok-4',
       enabled: Boolean(env('XAI_API_KEY')),
-      specialty: 'Social/X-style analysis, conversational tone and trend-oriented framing',
+      specialty: 'Social/X-oriented analysis, conversational framing and trend-oriented work',
     },
     {
       provider: 'deepseek',
       label: 'DeepSeek',
-      model: env('ARIDON_DEEPSEEK_MODEL') || 'deepseek-v4-flash',
+      model: env('ARIDON_DEEPSEEK_MODEL') || 'deepseek-chat',
       enabled: Boolean(env('DEEPSEEK_API_KEY')),
       specialty: 'Coding, technical reasoning and cost-sensitive analytical work',
+    },
+    {
+      provider: 'local',
+      label: 'Local LLM',
+      model: env('ARIDON_LOCAL_LLM_MODEL') || 'local-model',
+      enabled: Boolean(env('ARIDON_LOCAL_LLM_URL')),
+      specialty: 'Private or offline work through an OpenAI-compatible local endpoint such as Ollama, LM Studio or vLLM',
     },
   ];
 }
@@ -98,13 +110,17 @@ export function classifyTask(messages: AridonChatMessage[]): { task: AridonTask;
   const text = allText(messages);
   const size = messages.reduce((sum, message) => sum + message.content.length, 0);
 
+  const privateLocal = /(keep (it )?local|local only|offline model|do not send.*cloud|private model|on[- ]prem|on premise|local llm|ollama|lm studio|vllm)/i;
   const liveResearch = /(https?:\/\/|www\.|latest|today|current|right now|news|breaking|funding|grant|regulation|competitor|website|look up|research|search the web|recent|market price|who is|contact info)/i;
   const coding = /(code|coding|debug|bug|typescript|javascript|python|sql|api route|repository|github|vercel|build error|compile|function|developer|programming)/i;
   const multilingual = /(translate|translation|multilingual|localize|localization|spanish|español|french|français|german|deutsch|portuguese|japanese|korean|hindi|arabic|language version)/i;
   const social = /(twitter|\bx\b|social media|viral|sentiment|influencer|post performance|social trend|threads|reddit reaction)/i;
-  const creative = /(image|visual|logo|mockup|creative|campaign concept|ad concept|brand concept|storyboard|illustration|design direction)/i;
+  const creative = /(image|visual|logo|mockup|creative|campaign concept|ad concept|brand concept|storyboard|illustration|design direction|presentation|pitch deck|slides)/i;
   const longForm = /(contract|proposal|report|newsletter|white paper|whitepaper|policy|document|rewrite|edit this|summarize this|due diligence|memorandum|business plan)/i;
 
+  if (privateLocal.test(text)) {
+    return { task: 'private_local', reason: 'The user explicitly requested local or private processing, so Aridon prioritizes the configured local model.' };
+  }
   if (liveResearch.test(text)) {
     return { task: 'live_research', reason: 'The request depends on current or public information, so Aridon prioritizes a web-capable route.' };
   }
@@ -121,27 +137,29 @@ export function classifyTask(messages: AridonChatMessage[]): { task: AridonTask;
     return { task: 'long_context', reason: 'The request is document-heavy or benefits from long-context synthesis.' };
   }
   if (creative.test(text)) {
-    return { task: 'creative', reason: 'The request is primarily creative, visual or campaign-oriented.' };
+    return { task: 'creative', reason: 'The request is primarily creative, visual, presentation or campaign-oriented.' };
   }
   return { task: 'general', reason: 'The request is broad executive work without a stronger specialist signal.' };
 }
 
 function preferredProviders(task: AridonTask): AridonProvider[] {
   switch (task) {
+    case 'private_local':
+      return ['local', 'openai', 'anthropic', 'gemini', 'deepseek', 'xai'];
     case 'live_research':
-      return ['openai', 'xai', 'gemini', 'anthropic', 'deepseek'];
+      return ['openai', 'xai', 'gemini', 'anthropic', 'deepseek', 'local'];
     case 'social_intelligence':
-      return ['xai', 'openai', 'gemini', 'anthropic', 'deepseek'];
+      return ['xai', 'openai', 'gemini', 'anthropic', 'deepseek', 'local'];
     case 'coding':
-      return ['deepseek', 'openai', 'anthropic', 'gemini', 'xai'];
+      return ['deepseek', 'openai', 'anthropic', 'local', 'gemini', 'xai'];
     case 'multilingual':
-      return ['gemini', 'openai', 'anthropic', 'deepseek', 'xai'];
+      return ['gemini', 'openai', 'anthropic', 'local', 'deepseek', 'xai'];
     case 'long_context':
-      return ['anthropic', 'gemini', 'openai', 'deepseek', 'xai'];
+      return ['anthropic', 'gemini', 'openai', 'local', 'deepseek', 'xai'];
     case 'creative':
-      return ['openai', 'gemini', 'anthropic', 'xai', 'deepseek'];
+      return ['openai', 'gemini', 'anthropic', 'xai', 'local', 'deepseek'];
     default:
-      return ['openai', 'anthropic', 'gemini', 'deepseek', 'xai'];
+      return ['openai', 'anthropic', 'gemini', 'local', 'deepseek', 'xai'];
   }
 }
 
@@ -253,9 +271,12 @@ async function runOpenAICompatible(
   url: string,
   apiKey: string,
 ) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
   const response = await fetch(url, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({
       model: config.model,
       messages: [{ role: 'system', content: system }, ...messages],
@@ -276,20 +297,30 @@ async function runProvider(config: ProviderConfig, messages: AridonChatMessage[]
   if (config.provider === 'anthropic') return runAnthropic(config, messages, system);
   if (config.provider === 'gemini') return runGemini(config, messages, system);
   if (config.provider === 'xai') return runOpenAICompatible(config, messages, system, XAI_CHAT_URL, env('XAI_API_KEY'));
-  return runOpenAICompatible(config, messages, system, DEEPSEEK_CHAT_URL, env('DEEPSEEK_API_KEY'));
+  if (config.provider === 'deepseek') return runOpenAICompatible(config, messages, system, DEEPSEEK_CHAT_URL, env('DEEPSEEK_API_KEY'));
+  return runOpenAICompatible(config, messages, system, env('ARIDON_LOCAL_LLM_URL'), env('ARIDON_LOCAL_LLM_API_KEY'));
 }
 
 export async function routeModel(messages: AridonChatMessage[], system: string): Promise<RouterResult> {
+  const routeStarted = Date.now();
   const classification = classifyTask(messages);
   const candidates = orderedAvailableProviders(classification.task);
   if (!candidates.length) throw new Error('No AI provider is configured for Aridon.');
 
   const attempts: ProviderAttempt[] = [];
+  const inputCharacters = messages.reduce((sum, message) => sum + message.content.length, 0);
+
   for (let index = 0; index < candidates.length; index += 1) {
     const candidate = candidates[index];
+    const attemptStarted = Date.now();
     try {
       const text = await runProvider(candidate, messages, system, classification.task);
-      attempts.push({ provider: candidate.provider, model: candidate.model, ok: true });
+      attempts.push({
+        provider: candidate.provider,
+        model: candidate.model,
+        ok: true,
+        latencyMs: Date.now() - attemptStarted,
+      });
       return {
         text,
         routing: {
@@ -299,12 +330,21 @@ export async function routeModel(messages: AridonChatMessage[], system: string):
           reason: classification.reason,
           fallbackUsed: index > 0,
           attempts,
+          totalLatencyMs: Date.now() - routeStarted,
+          inputCharacters,
+          outputCharacters: text.length,
         },
       };
     } catch (error) {
       const message = cleanError(error);
       console.error(`Aridon model router provider failure: ${candidate.provider}`, message);
-      attempts.push({ provider: candidate.provider, model: candidate.model, ok: false, error: message });
+      attempts.push({
+        provider: candidate.provider,
+        model: candidate.model,
+        ok: false,
+        latencyMs: Date.now() - attemptStarted,
+        error: message,
+      });
     }
   }
 
@@ -322,13 +362,14 @@ export function getRouterStatus() {
       specialty,
     })),
     routes: [
+      { task: 'Private / local-only work', preferred: 'Local LLM', fallback: 'Cloud only if the local route is unavailable' },
       { task: 'Live research', preferred: 'OpenAI', fallback: 'Next configured provider' },
       { task: 'Social intelligence', preferred: 'Grok', fallback: 'OpenAI' },
-      { task: 'Coding / technical', preferred: 'DeepSeek', fallback: 'OpenAI / Claude' },
+      { task: 'Coding / technical', preferred: 'DeepSeek', fallback: 'OpenAI / Claude / Local' },
       { task: 'Multilingual', preferred: 'Gemini', fallback: 'OpenAI / Claude' },
-      { task: 'Long documents', preferred: 'Claude', fallback: 'Gemini / OpenAI' },
-      { task: 'Creative / visual planning', preferred: 'OpenAI', fallback: 'Gemini / Claude' },
-      { task: 'General executive work', preferred: 'OpenAI', fallback: 'Claude / Gemini' },
+      { task: 'Long documents', preferred: 'Claude', fallback: 'Gemini / OpenAI / Local' },
+      { task: 'Creative / presentations', preferred: 'OpenAI', fallback: 'Gemini / Claude' },
+      { task: 'General executive work', preferred: 'OpenAI', fallback: 'Claude / Gemini / Local' },
     ],
   };
 }
