@@ -5,6 +5,7 @@ const packages = [
     name: 'AI Revenue Sprint',
     price: '$495',
     tag: 'Fastest first sale',
+    checkoutUrl: 'https://book.stripe.com/aFa00i3bp5qX97Me8a4AU07',
     items: [
       'Business + website diagnostic',
       'Offer and positioning improvements',
@@ -19,6 +20,7 @@ const packages = [
     name: 'Growth Sprint',
     price: '$995',
     tag: 'Best value',
+    checkoutUrl: 'https://book.stripe.com/4gMfZg8vJ7z5abQe8a4AU08',
     items: [
       'Everything in AI Revenue Sprint',
       '10 qualified prospect targets',
@@ -33,6 +35,7 @@ const packages = [
     name: 'Growth Build',
     price: '$1,995',
     tag: 'Done-with-you implementation',
+    checkoutUrl: 'https://book.stripe.com/dRmaEW8vJf1xes65BE4AU09',
     items: [
       'Everything in Growth Sprint',
       'Campaign asset buildout',
@@ -42,6 +45,27 @@ const packages = [
       'Weekly execution checkpoint',
       '30-day implementation support',
     ],
+  },
+];
+
+const monthlyPlans = [
+  {
+    price: '$298/mo',
+    name: 'Essentials',
+    description: 'Monthly review + prioritized growth actions.',
+    checkoutUrl: 'https://buy.stripe.com/00wbJ06nBg5B97M5BE4AU0a',
+  },
+  {
+    price: '$795/mo',
+    name: 'Growth',
+    description: 'Ongoing campaigns, follow-up, research, and sales support.',
+    checkoutUrl: 'https://buy.stripe.com/3cI28q7rFcTpfwa4xA4AU0b',
+  },
+  {
+    price: '$1,995/mo',
+    name: 'Growth Partner',
+    description: 'High-touch execution and implementation support.',
+    checkoutUrl: 'https://buy.stripe.com/cNi4gycLZ8D93Ns5BE4AU0c',
   },
 ];
 
@@ -86,7 +110,8 @@ export default function GrowthDeskPage() {
                 <div style={{ display: 'grid', gap: 8 }}>
                   {pkg.items.map((item) => <div key={item} style={itemRow}>✓ {item}</div>)}
                 </div>
-                <Link href="/customer/start" style={{ ...primaryButton, marginTop: 18, display: 'inline-block' }}>Start This Sprint</Link>
+                <a href={pkg.checkoutUrl} style={{ ...primaryButton, marginTop: 18, display: 'inline-block' }}>Book & Pay Securely</a>
+                <div style={secureNote}>Secure live checkout powered by Stripe.</div>
               </article>
             ))}
           </div>
@@ -96,13 +121,19 @@ export default function GrowthDeskPage() {
           <div>
             <div style={eyebrow}>RECURRING REVENUE</div>
             <h2 style={sectionTitle}>Aridon AI Growth Desk Monthly</h2>
-            <p style={muted}>After the first project, move qualified customers into ongoing support for campaigns, follow-up, proposals, prospect research, website improvements, competitive checks, and workflow automation.</p>
+            <p style={muted}>After the first project, qualified customers can move into ongoing support for campaigns, follow-up, proposals, prospect research, website improvements, competitive checks, and workflow automation.</p>
           </div>
           <div style={monthlyGrid}>
-            <div style={monthlyCard}><strong>$298/mo</strong><span>Essentials</span><small>Monthly review + prioritized growth actions.</small></div>
-            <div style={monthlyCard}><strong>$795/mo</strong><span>Growth</span><small>Ongoing campaigns, follow-up, research, and sales support.</small></div>
-            <div style={monthlyCard}><strong>$1,995/mo</strong><span>Growth Partner</span><small>High-touch execution and implementation support.</small></div>
+            {monthlyPlans.map((plan) => (
+              <article key={plan.name} style={monthlyCard}>
+                <strong style={{ fontSize: 24 }}>{plan.price}</strong>
+                <span style={{ fontWeight: 900 }}>{plan.name}</span>
+                <small style={{ color: '#AEB9CB', lineHeight: 1.45 }}>{plan.description}</small>
+                <a href={plan.checkoutUrl} style={{ ...primaryButton, display: 'inline-block', marginTop: 6, textAlign: 'center' }}>Subscribe</a>
+              </article>
+            ))}
           </div>
+          <p style={{ ...muted, marginTop: 12, fontSize: 12 }}>Monthly plans renew automatically each month until canceled. Checkout collects payment securely through Stripe.</p>
         </section>
 
         <section style={section}>
@@ -124,7 +155,7 @@ export default function GrowthDeskPage() {
         <section style={ctaPanel}>
           <div>
             <div style={eyebrow}>SELL THE RESULT, NOT THE TOOL</div>
-            <h2 style={{ margin: '7px 0 7px', fontSize: 30 }}>Aridon already has the machinery. Now use it to close paying work.</h2>
+            <h2 style={{ margin: '7px 0 7px', fontSize: 30 }}>Aridon has the machinery. Now use it to close paying work.</h2>
             <p style={{ margin: 0, color: '#21312A', lineHeight: 1.6 }}>Start with one industry, one offer, and ten high-fit prospects. Revenue is never guaranteed, but this path is built to shorten the distance between capability and a customer saying yes.</p>
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -133,7 +164,7 @@ export default function GrowthDeskPage() {
           </div>
         </section>
 
-        <p style={footnote}>Payment checkout is being prepared in Stripe test mode first. Live charging should only be enabled after the live Stripe account and final terms are confirmed.</p>
+        <p style={footnote}>Live Stripe checkout is enabled for all six Growth Desk offers. Project scope, kickoff timing, and required customer inputs are confirmed after checkout.</p>
       </div>
     </main>
   );
@@ -158,6 +189,7 @@ const sectionTitle = { fontSize: 32, margin: '7px 0 13px' };
 const cards = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 12 };
 const card = { background: '#0D1723', border: '1px solid #243449', borderRadius: 16, padding: 18 };
 const itemRow = { color: '#CCD6E3', lineHeight: 1.45, fontSize: 14 };
+const secureNote = { color: '#8495AA', fontSize: 11, marginTop: 8 };
 const monthlyGrid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10, marginTop: 14 };
 const monthlyCard = { background: '#09131F', border: '1px solid #26374D', borderRadius: 13, padding: 15, display: 'grid', gap: 6 };
 const timeline = { display: 'grid', gap: 8 };
