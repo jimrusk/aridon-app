@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Sprout,
   Upload,
+  type LucideIcon,
 } from 'lucide-react';
 
 type EvidenceKey = 'fields' | 'inputs' | 'fuel' | 'yield' | 'practices' | 'invoices';
@@ -259,6 +260,6 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
   return <label style={{ display: 'grid', gap: 5, fontSize: 12, fontWeight: 900, color: '#52677a' }}><span>{label}</span><input value={value} onChange={(e) => onChange(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #cfdad3', borderRadius: 9, padding: '10px 11px', fontSize: 14, color: '#183b4e', background: '#fff' }} /></label>;
 }
 
-function PacketRow({ icon: Icon, label }: { icon: React.ComponentType<{ size?: number; color?: string }>; label: string }) {
+function PacketRow({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
   return <div style={{ display: 'flex', gap: 9, alignItems: 'center', padding: 11, borderRadius: 11, background: '#f5f8f5' }}><Icon size={19} color="#2e7d32"/><span style={{ fontWeight: 850, fontSize: 14 }}>{label}</span></div>;
 }
