@@ -48,6 +48,13 @@ export default function RanchAppPage() {
         </div>
       </header>
 
+      <nav className={styles.mobileNav} aria-label="Ranch command center navigation">
+        <a href="#today"><Home size={20} /><span>Today</span></a>
+        <a href="#health"><AlertTriangle size={20} /><span>Health</span></a>
+        <a href="#tools"><Beef size={20} /><span>Tools</span></a>
+        <Link href="/ranch/verified-data"><ShieldCheck size={20} /><span>Data</span></Link>
+      </nav>
+
       <div className={styles.shell}>
         <section id="today" className={styles.section}>
           <div className={styles.sectionHeading}>
@@ -123,13 +130,6 @@ export default function RanchAppPage() {
           </details>
         </section>
       </div>
-
-      <nav className={styles.mobileNav} aria-label="Ranch command center navigation">
-        <a href="#today"><Home size={20} /><span>Today</span></a>
-        <a href="#health"><AlertTriangle size={20} /><span>Health</span></a>
-        <a href="#tools"><Beef size={20} /><span>Tools</span></a>
-        <Link href="/ranch/verified-data"><ShieldCheck size={20} /><span>Data</span></Link>
-      </nav>
     </main>
   );
 }
