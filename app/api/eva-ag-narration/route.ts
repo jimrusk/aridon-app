@@ -33,14 +33,15 @@ export async function GET(req: NextRequest) {
       speed: 1.01,
     });
     const audio = Buffer.from(await speech.arrayBuffer());
-    return new Response(audio, {
-      status: 200,
-      headers: {
-        'Cache-Control': 'no-store',
-        'Content-Type': 'audio/mpeg',
-        'Content-Length': String(audio.byteLength),
+    return Response.json(
+      {
+        part,
+        text: SCRIPT[part - 1],
+        mime: 'audio/mpeg',
+        audio_base64: audio.toString('base64'),
       },
-    });
+      { status: 200, headers: { 'Cache-Control': 'no-store' } },
+    );
   } catch (error) {
     console.error('Eva Aridon Ag narration error', error);
     return Response.json({ error: 'Narration temporarily unavailable.' }, { status: 500 });
