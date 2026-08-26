@@ -25,7 +25,8 @@ export default function InternalLaunchers() {
     pathname.startsWith('/analyze-business') ||
     pathname.startsWith('/site-indexing') ||
     pathname.startsWith('/sales-team') ||
-    pathname.startsWith('/eva-chat')
+    pathname.startsWith('/eva-chat') ||
+    pathname.startsWith('/ranch')
   ) return null;
 
   return (
