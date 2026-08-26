@@ -30,6 +30,7 @@ export default function InternalLaunchers() {
     pathname.startsWith('/demos') ||
     pathname.startsWith('/daily-demos') ||
     pathname.startsWith('/opportunity-intelligence') ||
+    pathname.startsWith('/property-intelligence') ||
     pathname.startsWith('/analyze-business') ||
     pathname.startsWith('/site-indexing') ||
     pathname.startsWith('/sales-team') ||
@@ -90,6 +91,7 @@ export default function InternalLaunchers() {
         <img src={EVA_AVATAR} alt="Eva" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', display: 'block' }} />
         <span>Eva</span>
       </Link>
+      <Link href="/property-intelligence" aria-label="Open nationwide property intelligence hunter" style={{ ...launcherStyle, background: '#FFE1A8' }}>⌂ Property</Link>
       <Link href="/agent-supervisor" aria-label="Open Aridon Agent Supervisor" style={{ ...launcherStyle, background: '#9EF0CF' }}>◎ Agents</Link>
       <Link href="/presentation-studio" aria-label="Open Aridon Presentation Studio" style={{ ...launcherStyle, background: '#FFD5A8' }}>▣ Present</Link>
       <Link href="/facebook-launch" aria-label="Open Aridon Facebook Page Launch Center" style={{ ...launcherStyle, background: '#A8C7FF' }}>f Facebook</Link>
