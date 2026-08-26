@@ -15,41 +15,27 @@ const SCRIPT = [
 ];
 
 export async function GET(req: NextRequest) {
-  const rawPart = req.nextUrl.searchParams.get('part') || '';
-  const part = Number.parseInt(rawPart, 10);
-  if (!Number.isInteger(part) || part < 1 || part > SCRIPT.length) {
-    return Response.json({ error: 'Invalid narration part.' }, { status: 400 });
-  }
-  if (!process.env.OPENAI_API_KEY) {
-    return Response.json({ error: 'Studio voice is not configured.' }, { status: 503 });
-  }
+  const rawPart = req.nextUrl.searchParams.get('part') || 'all';
+  const text = rawPart === 'all' ? SCRIPT.join(' ') : SCRIPT[Number.parseInt(rawPart, 10) - 1];
+  if (!text) return Response.json({ error: 'Invalid narration part.' }, { status: 400 });
+  if (!process.env.OPENAI_API_KEY) return Response.json({ error: 'Studio voice is not configured.' }, { status: 503 });
+
   try {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const speech = await client.audio.speech.create({
-      model: process.env.OPENAI_TTS_MODEL || 'tts-1-hd',
+      model: 'gpt-4o-mini-tts',
       voice: 'shimmer',
-      input: SCRIPT[part - 1],
-      response_format: 'mp3',
-      speed: 1.01,
+      input: text,
+      instructions: 'Speak as Eva, a warm, confident, natural American female business narrator. Sound conversational and human, not robotic or overly polished. Use relaxed pacing, natural emphasis, brief pauses between ideas, and a trustworthy agricultural business tone. Avoid a synthetic announcer cadence.',
+      response_format: 'opus',
+      speed: 0.98,
     });
     const audio = Buffer.from(await speech.arrayBuffer());
-
-    if (req.nextUrl.searchParams.get('raw') === '1') {
-      return new Response(audio, {
-        status: 200,
-        headers: {
-          'Cache-Control': 'no-store',
-          'Content-Type': 'audio/mpeg',
-          'Content-Length': String(audio.byteLength),
-          'Content-Disposition': `inline; filename="eva-aridon-ag-${part}.mp3"`,
-        },
-      });
-    }
-
-    return Response.json(
-      { part, text: SCRIPT[part - 1], mime: 'audio/mpeg', audio_base64: audio.toString('base64') },
-      { status: 200, headers: { 'Cache-Control': 'no-store' } },
-    );
+    return Response.json({
+      part: rawPart,
+      mime: 'audio/ogg',
+      audio_base64: audio.toString('base64'),
+    }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     console.error('Eva Aridon Ag narration error', error);
     return Response.json({ error: 'Narration temporarily unavailable.' }, { status: 500 });
