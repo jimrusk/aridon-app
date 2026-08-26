@@ -1,0 +1,45 @@
+name: Eva Ag Voice Artifact
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/eva-ag-voice-artifact.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+timeout-minutes: 10
+
+jobs:
+  render-eva-voice:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Eva studio narration
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5 6; do
+            if curl --fail --silent --show-error --location \
+              'https://aridon-v02.vercel.app/api/eva-ag-narration?part=all' \
+              -o eva-response.json; then
+              break
+            fi
+            sleep 15
+          done
+          python - <<'PY'
+          import base64, json
+          with open('eva-response.json', 'r', encoding='utf-8') as f:
+              data = json.load(f)
+          audio = base64.b64decode(data['audio_base64'])
+          with open('eva_aridon_ag.ogg', 'wb') as f:
+              f.write(audio)
+          print('Wrote', len(audio), 'bytes')
+          PY
+      - name: Upload Eva voice artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: eva-aridon-ag-voice
+          path: eva_aridon_ag.ogg
+          if-no-files-found: error
+          retention-days: 1
