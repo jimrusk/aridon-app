@@ -31,6 +31,19 @@ export async function GET(req: NextRequest) {
       speed: 0.98,
     });
     const audio = Buffer.from(await speech.arrayBuffer());
+
+    if (req.nextUrl.searchParams.get('raw') === '1') {
+      return new Response(audio, {
+        status: 200,
+        headers: {
+          'Cache-Control': 'no-store',
+          'Content-Type': 'audio/ogg',
+          'Content-Length': String(audio.byteLength),
+          'Content-Disposition': 'inline; filename="eva-aridon-ag.ogg"',
+        },
+      });
+    }
+
     return Response.json({
       part: rawPart,
       mime: 'audio/ogg',
