@@ -156,3 +156,7 @@ Open `http://localhost:3000`.
 - API responses carrying private/customer state use `no-store`.
 - Gmail refresh tokens are encrypted with AES-256-GCM before being stored in an HTTP-only secure cookie.
 - Outgoing Gmail sending still requires explicit approval.
+
+## Temporary Eva narration render
+
+[Render Eva Aridon Ag narration](https://aridon-v02.vercel.app/api/eva-ag-narration?part=all&raw=1)
