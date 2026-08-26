@@ -15,8 +15,8 @@ const SCRIPT = [
 ];
 
 export async function GET(req: NextRequest) {
-  const raw = req.nextUrl.searchParams.get('part') || '';
-  const part = Number.parseInt(raw, 10);
+  const rawPart = req.nextUrl.searchParams.get('part') || '';
+  const part = Number.parseInt(rawPart, 10);
   if (!Number.isInteger(part) || part < 1 || part > SCRIPT.length) {
     return Response.json({ error: 'Invalid narration part.' }, { status: 400 });
   }
@@ -33,13 +33,21 @@ export async function GET(req: NextRequest) {
       speed: 1.01,
     });
     const audio = Buffer.from(await speech.arrayBuffer());
+
+    if (req.nextUrl.searchParams.get('raw') === '1') {
+      return new Response(audio, {
+        status: 200,
+        headers: {
+          'Cache-Control': 'no-store',
+          'Content-Type': 'audio/mpeg',
+          'Content-Length': String(audio.byteLength),
+          'Content-Disposition': `inline; filename="eva-aridon-ag-${part}.mp3"`,
+        },
+      });
+    }
+
     return Response.json(
-      {
-        part,
-        text: SCRIPT[part - 1],
-        mime: 'audio/mpeg',
-        audio_base64: audio.toString('base64'),
-      },
+      { part, text: SCRIPT[part - 1], mime: 'audio/mpeg', audio_base64: audio.toString('base64') },
       { status: 200, headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (error) {
