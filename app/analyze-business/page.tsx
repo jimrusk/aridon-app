@@ -56,6 +56,7 @@ type Analysis = {
 
 const card = { background: '#0D1728', border: '1px solid #2A3A57', borderRadius: 18, padding: 18 } as const;
 const pill = { background: '#173149', border: '1px solid #315474', borderRadius: 999, padding: '7px 10px', color: '#D8E9F8', fontSize: 12 } as const;
+const starterDiagnosticUrl = 'https://book.stripe.com/cNidR8dQ35qX6ZE7JM4AU0d';
 
 function Score({ label, value }: { label: string; value: number }) {
   return (
@@ -108,7 +109,7 @@ export default function AnalyzeBusinessPage() {
         <nav style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <Link href="/" style={{ color: '#F8FAFC', textDecoration: 'none', fontWeight: 950 }}>ARIDON</Link>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Link href="/business-os/growth-command" style={{ color: '#E8EDF5', textDecoration: 'none', border: '1px solid #40516D', padding: '9px 12px', borderRadius: 10, fontWeight: 850 }}>Growth Command</Link>
+            <Link href="/growth" style={{ color: '#E8EDF5', textDecoration: 'none', border: '1px solid #40516D', padding: '9px 12px', borderRadius: 10, fontWeight: 850 }}>Growth Packages</Link>
             <Link href="/" style={{ color: '#07130F', textDecoration: 'none', background: '#9EF0CF', padding: '10px 13px', borderRadius: 10, fontWeight: 950 }}>Dashboard</Link>
           </div>
         </nav>
@@ -220,6 +221,17 @@ export default function AnalyzeBusinessPage() {
                   {analysis.opportunities.map((item, index) => <div key={item} style={{ borderTop: '1px solid #263650', paddingTop: 10, color: '#DCE4EF', lineHeight: 1.55 }}><strong style={{ color: '#F4D06F' }}>{index + 1}.</strong> {item}</div>)}
                 </div>
               </article>
+            </section>
+
+            <section style={{ ...card, background: 'linear-gradient(135deg,#10261F,#102033)', borderColor: '#3C6B59' }}>
+              <div style={{ color: '#9EF0CF', fontWeight: 950, fontSize: 12 }}>TURN THE FREE SCAN INTO AN ACTION PLAN</div>
+              <h2 style={{ margin: '8px 0 8px', fontSize: 30 }}>Want Aridon to go deeper on the problems it just found?</h2>
+              <p style={{ color: '#C5D1DF', lineHeight: 1.65, margin: 0, maxWidth: 860 }}>The $198 Starter Diagnostic expands this scan into a focused review of revenue leaks, conversion gaps, trust issues, missed follow-up, AI opportunities, and the highest-priority next actions. If implementation is justified after that, you can choose a larger package separately.</p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
+                <a href={starterDiagnosticUrl} style={{ background: '#9EF0CF', color: '#07130F', textDecoration: 'none', borderRadius: 11, padding: '12px 15px', fontWeight: 950 }}>Get the $198 Starter Diagnostic</a>
+                <Link href="/growth" style={{ border: '1px solid #587268', color: '#E8F7F1', textDecoration: 'none', borderRadius: 11, padding: '11px 15px', fontWeight: 900 }}>See All Growth Options</Link>
+              </div>
+              <div style={{ color: '#91A0B5', fontSize: 11, marginTop: 10 }}>No revenue guarantee. The paid diagnostic is optional and does not change the free results above.</div>
             </section>
 
             <section style={card}>
