@@ -8,6 +8,7 @@ export type GrowthModule = {
 };
 
 export const growthModules: GrowthModule[] = [
+  { id: 'marketing-autopilot', name: 'Marketing Autopilot', owner: 'Marketing + Revenue + Technology', mission: 'Run the daily scan-diagnose-prioritize-draft-measure loop, automatically complete reversible marketing work and route publishing, outbound and spend changes into approval.', status: 'active', metrics: ['Marketing health', 'Actions completed', 'Approvals waiting'] },
   { id: 'seo', name: 'SEO Sentinel', owner: 'Marketing + Technology', mission: 'Audit technical SEO, metadata, internal links, page quality and conversion friction.', status: 'active', metrics: ['Technical health', 'Indexed pages', 'Priority fixes'] },
   { id: 'ai-visibility', name: 'AI Visibility Monitor', owner: 'Strategy + Marketing', mission: 'Track the questions Aridon should win in AI answer engines and build the content needed to earn those mentions.', status: 'ready', metrics: ['Tracked prompts', 'Brand mentions', 'Citation coverage'] },
   { id: 'competitors', name: 'Competitor War Room', owner: 'Strategy', mission: 'Watch competitor positioning, pages, partnerships, contracts, press, keywords and market moves.', status: 'active', metrics: ['Competitors watched', 'Material changes', 'Response actions'] },

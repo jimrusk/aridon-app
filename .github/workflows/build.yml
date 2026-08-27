@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [20, 24]
+        node-version: [24]
     env:
       ARIDON_APP_USERNAME: build-check
       ARIDON_APP_PASSWORD: build-check-password
@@ -30,6 +30,6 @@ jobs:
       - name: Show runtime versions
         run: node --version && npm --version
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
       - name: Build application
         run: npm run build

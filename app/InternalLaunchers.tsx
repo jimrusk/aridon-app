@@ -101,6 +101,7 @@ export default function InternalLaunchers() {
       <Link href="/site-indexing" aria-label="Open Aridon Index Engine" style={{ ...launcherStyle, background: '#B9CFFF' }}>⌁ Index</Link>
       <Link href="/analyze-business" aria-label="Analyze any business website" style={{ ...launcherStyle, background: '#F4D06F' }}>◎ Analyze</Link>
       <Link href="/business-os/growth-command" aria-label="Open Aridon Growth Command" style={{ ...launcherStyle, background: '#9EF0CF' }}>↗ Growth</Link>
+      <Link href="/marketing-autopilot" aria-label="Open Aridon Marketing Autopilot" style={{ ...launcherStyle, background: '#8FE2C2' }}>⟳ Autopilot</Link>
       <Link href="/eva-core" aria-label="Open Eva Core inner-world lab" style={{ ...launcherStyle, background: '#9EF0CF' }}>◉ Eva Core</Link>
       <Link href="/customers/metrics" aria-label="Open customer product health" style={{ ...launcherStyle, background: '#B9CFFF' }}>▣ Health</Link>
       <Link href="/customers/feedback" aria-label="Review customer feedback" style={{ ...launcherStyle, background: '#FFD5A8' }}>✦ Feedback</Link>
