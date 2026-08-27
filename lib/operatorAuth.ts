@@ -18,6 +18,11 @@ export function operatorRequestAuthorized(request: NextRequest) {
     basicCredential(process.env.ARIDON_APP_USERNAME || process.env.ARIDON_USERNAME, process.env.ARIDON_APP_PASSWORD || process.env.ARIDON_PASSWORD),
     basicCredential(process.env.ARIDON_APP_SECONDARY_USERNAME, process.env.ARIDON_APP_SECONDARY_PASSWORD),
   ].filter(Boolean) as string[];
+
+  // Aridon's current middleware intentionally leaves the operator interface open at the
+  // application layer. Preserve that operating mode when no Basic Auth credentials are
+  // configured, while automatically enforcing Basic Auth if credentials are enabled.
+  if (!credentials.length) return true;
   return credentials.some((credential) => safeEqual(provided, credential));
 }
 
