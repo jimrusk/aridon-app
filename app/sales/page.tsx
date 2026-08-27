@@ -1,100 +1,117 @@
 import Link from 'next/link';
+import { highTicketOffers } from '../../lib/highTicketCheckout';
 
 const mint = '#9EF0CF';
 const dark = '#07101D';
+const panel = { background: '#0D1728', border: '1px solid #2A3A57', borderRadius: 18, padding: 20 } as const;
 
 export default function SalesHome() {
-  return <main style={{minHeight:'100vh',background:dark,color:'#F8FAFC',fontFamily:'Arial,sans-serif'}}>
-    <section style={{maxWidth:1160,margin:'0 auto',padding:'24px 20px 72px'}}>
-      <nav style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
-        <strong style={{letterSpacing:1}}>ARIDON</strong>
-        <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
-          <Link href="/business-os/proof" style={nav}>Proof</Link>
-          <a href="#pricing" style={nav}>Pricing</a>
-          <Link href="/?workspace=1" style={nav}>Workspace</Link>
-          <Link href="/analyze-business" style={smallButton}>Analyze My Business Free</Link>
-        </div>
-      </nav>
+  const steps = [
+    ['01', 'Analyze', 'Start with the real business. Aridon scans the website, scores the major growth signals, and surfaces the strongest opportunities.'],
+    ['02', 'Diagnose', 'A $198 diagnostic turns the scan into a more focused revenue, conversion, trust, follow-up, and AI opportunity review.'],
+    ['03', 'Plan', 'The $497 Action Plan converts findings into a prioritized 90-day roadmap.'],
+    ['04', 'Implement', 'Choose the $2,500 Sprint for focused fixes or the $7,500 Growth Engine for a broader done-for-you buildout.'],
+    ['05', 'Manage', 'After implementation, qualified businesses can continue at $1,500/month for ongoing optimization and reporting.'],
+  ];
 
-      <div className="hero" style={{display:'grid',gridTemplateColumns:'1.2fr .8fr',gap:28,alignItems:'center',paddingTop:72}}>
-        <div>
-          <div style={{color:mint,fontWeight:950,fontSize:12,letterSpacing:1.2}}>AI EXECUTIVE TEAM FOR OWNER-LED BUSINESSES</div>
-          <h1 style={{fontSize:'clamp(48px,7vw,82px)',lineHeight:.94,letterSpacing:-3.5,margin:'14px 0 22px'}}>Find what your business is leaking. Put an AI executive team on fixing it.</h1>
-          <p style={{color:'#B8C4D5',fontSize:20,lineHeight:1.65,maxWidth:790}}>Start with a free analysis of your real website. Aridon scores clarity, conversion, trust and visibility, then shows what the executive team would attack first. If the value is there, continue with Aridon for $497/month.</p>
-          <div style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:24}}>
-            <Link href="/analyze-business" style={button}>Analyze My Business Free</Link>
-            <a href="#pricing" style={outline}>See the $497 Plan</a>
+  return (
+    <main style={{ minHeight: '100vh', background: dark, color: '#F8FAFC', fontFamily: 'Arial, sans-serif' }}>
+      <section style={{ maxWidth: 1160, margin: '0 auto', padding: '24px 20px 78px' }}>
+        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <Link href="/" style={{ color: '#fff', textDecoration: 'none', fontWeight: 950, letterSpacing: 1 }}>ARIDON</Link>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Link href="/business-os/proof" style={nav}>Proof</Link>
+            <Link href="/growth" style={nav}>Growth Packages</Link>
+            <Link href="/analyze-business" style={smallButton}>Analyze My Business Free</Link>
           </div>
-          <div style={{display:'flex',gap:15,flexWrap:'wrap',marginTop:15,color:'#91A0B5',fontSize:12,fontWeight:800}}><span>✓ No card to analyze</span><span>✓ No login required</span><span>✓ Owner approval stays in control</span></div>
-        </div>
+        </nav>
 
-        <aside style={{background:'#102033',border:'1px solid #2A3A57',borderRadius:22,padding:22}}>
-          <div style={{color:mint,fontSize:11,fontWeight:950}}>WHAT ARIDON CAN ATTACK</div>
-          <h2 style={{fontSize:30,lineHeight:1.05,margin:'10px 0 12px'}}>One business. One team. One measurable next move.</h2>
-          {[
-            ['Revenue leaks','Stale estimates, dormant customers, missed follow-up and slow response.'],
-            ['Conversion leaks','Weak calls to action, unclear offers and trust gaps.'],
-            ['Execution leaks','Work that dies in inboxes, spreadsheets or “we need to get to that.”'],
-            ['Decision leaks','Research and comparisons that steal owner time.']
-          ].map(([title,text])=><div key={title} style={{borderTop:'1px solid #2A3A57',padding:'13px 0'}}><strong>{title}</strong><div style={{color:'#AEBBD0',lineHeight:1.5,fontSize:14,marginTop:4}}>{text}</div></div>)}
-        </aside>
-      </div>
-    </section>
+        <div className="hero" style={{ display: 'grid', gridTemplateColumns: '1.15fr .85fr', gap: 28, alignItems: 'center', paddingTop: 68 }}>
+          <div>
+            <div style={{ color: mint, fontWeight: 950, fontSize: 12, letterSpacing: 1.2 }}>ARIDON BUSINESS GROWTH SYSTEM</div>
+            <h1 style={{ fontSize: 'clamp(48px,7vw,82px)', lineHeight: .94, letterSpacing: -3.5, margin: '14px 0 22px' }}>Find what the business is leaking. Then fix the parts worth fixing.</h1>
+            <p style={{ color: '#B8C4D5', fontSize: 20, lineHeight: 1.65, maxWidth: 790 }}>Aridon starts with a free analysis instead of asking a business to buy a giant software package. If the evidence is strong enough, the customer can move from diagnosis to a plan, implementation, and ongoing managed growth.</p>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 24 }}>
+              <Link href="/analyze-business" style={button}>Analyze My Business Free</Link>
+              <Link href="/growth" style={outline}>See Growth Packages</Link>
+            </div>
+            <div style={{ display: 'flex', gap: 15, flexWrap: 'wrap', marginTop: 15, color: '#91A0B5', fontSize: 12, fontWeight: 800 }}><span>✓ No card for the free scan</span><span>✓ Secure Stripe checkout</span><span>✓ No revenue guarantee</span></div>
+          </div>
 
-    <section style={{background:'#F4F1E9',color:'#171717',padding:'70px 20px'}}>
-      <div style={{maxWidth:1100,margin:'0 auto'}}>
-        <div style={{fontSize:12,fontWeight:950}}>HOW IT WORKS</div>
-        <h2 style={{fontSize:'clamp(38px,6vw,60px)',lineHeight:1,letterSpacing:-2,margin:'10px 0 22px'}}>See the value before you buy the system.</h2>
-        <div className="steps" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14}}>
-          <Step n="01" title="Analyze" text="Paste your website. Get a real executive readout on what is working and what is costing opportunity." />
-          <Step n="02" title="Prioritize" text="Aridon turns the findings into the next few moves instead of burying you under a giant feature list." />
-          <Step n="03" title="Execute" text="Continue only when the work is worth paying for. Keep consequential actions under owner approval." />
+          <aside style={{ ...panel, background: '#102033' }}>
+            <div style={{ color: mint, fontSize: 11, fontWeight: 950 }}>THE MONEY STAIRCASE</div>
+            {[
+              ['Free', 'Business Scan', 'See the evidence first.'],
+              ['$198', 'Starter Diagnostic', 'Find the highest-priority leaks.'],
+              ['$497', 'Action Plan', 'Turn findings into a 90-day roadmap.'],
+              ['$2,500', 'Implementation Sprint', 'Fix the highest-priority issues.'],
+              ['$7,500', 'Growth Engine', 'Build the broader growth system.'],
+              ['$1,500/mo', 'Managed Growth', 'Keep improving what was built.'],
+            ].map(([price, title, text]) => <div key={title} style={{ borderTop: '1px solid #2A3A57', padding: '12px 0' }}><strong style={{ color: mint }}>{price}</strong> <strong>{title}</strong><div style={{ color: '#AEBBD0', lineHeight: 1.45, fontSize: 13, marginTop: 3 }}>{text}</div></div>)}
+          </aside>
         </div>
-        <div style={{marginTop:38,background:'#171717',color:'#fff',borderRadius:20,padding:26}}>
-          <div style={{color:mint,fontWeight:950,fontSize:12}}>NO CANNED DEMO</div>
-          <h3 style={{fontSize:34,margin:'8px 0'}}>Give Aridon your own business to analyze.</h3>
-          <p style={{color:'#C8CDD5',lineHeight:1.6,maxWidth:760}}>The fastest way to understand Aridon is to use it on something real. The free analyzer is the front door.</p>
-          <Link href="/analyze-business" style={button}>Run the Free Analysis</Link>
-        </div>
-      </div>
-    </section>
+      </section>
 
-    <section style={{background:'#0A1422',padding:'70px 20px'}}>
-      <div style={{maxWidth:1100,margin:'0 auto'}}>
-        <div style={{color:mint,fontWeight:950,fontSize:12}}>NOT ANOTHER CHATBOT TAB</div>
-        <h2 style={{fontSize:'clamp(38px,6vw,60px)',lineHeight:1,letterSpacing:-2,margin:'10px 0 22px'}}>Aridon is built to move business work.</h2>
-        <div className="features" style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:14}}>
-          <Feature title="Executive lenses" text="Operations, growth, finance, research and risk thinking around the same problem." />
-          <Feature title="Company context" text="Leads, projects, tasks and company knowledge stay connected to the work." />
-          <Feature title="Controlled execution" text="Prepare actions quickly while keeping high-consequence decisions behind human approval." />
-          <Feature title="Proof over promises" text="Use measurable pilots and a public proof scoreboard instead of vague AI claims." />
+      <section style={{ background: '#F4F1E9', color: '#171717', padding: '68px 20px' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <div style={{ fontSize: 12, fontWeight: 950 }}>HOW IT WORKS</div>
+          <h2 style={{ fontSize: 'clamp(38px,6vw,60px)', lineHeight: 1, letterSpacing: -2, margin: '10px 0 22px' }}>The customer climbs only when the next step makes economic sense.</h2>
+          <div className="steps" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 12 }}>
+            {steps.map(([n, title, text]) => <Step key={n} n={n} title={title} text={text} />)}
+          </div>
         </div>
-        <div style={{marginTop:22}}><Link href="/business-os/proof" style={outline}>View the Public Proof Scoreboard</Link></div>
-      </div>
-    </section>
+      </section>
 
-    <section id="pricing" style={{background:'#F4F1E9',color:'#171717',padding:'70px 20px'}}>
-      <div style={{maxWidth:900,margin:'0 auto'}}>
-        <div style={{fontSize:12,fontWeight:950}}>FOUNDING CONTINUATION</div>
-        <h2 style={{fontSize:'clamp(40px,6vw,62px)',lineHeight:1,margin:'10px 0 18px'}}>One simple paid next step.</h2>
-        <div style={{background:'#fff',border:'1px solid #D4CEC2',borderRadius:20,padding:26}}>
-          <div><strong style={{fontSize:58}}>$497</strong><span style={{fontSize:18}}> / month</span></div>
-          <p style={{fontSize:18,lineHeight:1.65,color:'#5D5A54'}}>Continue with Aridon when the analysis, demo or pilot shows enough value to justify keeping the executive operating system working for your business.</p>
-          <ul style={{lineHeight:1.9,color:'#3F3C37'}}><li>Executive analysis and decision support</li><li>Growth and revenue-recovery tools</li><li>Projects, tasks and company context</li><li>Owner-approved execution path</li><li>Cancel anytime</li></ul>
-          <Link href="/business-os/revenue-recovery" style={{...button,display:'inline-block'}}>See the Pilot & $497 Continuation</Link>
-          <p style={{fontSize:12,color:'#777067',marginTop:12}}>No revenue guarantee. Starting a paid subscription is an explicit owner decision.</p>
+      <section style={{ background: '#0A1422', padding: '68px 20px' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <div style={{ color: mint, fontWeight: 950, fontSize: 12 }}>SELL THE RESULT, NOT THE AI</div>
+          <h2 style={{ fontSize: 'clamp(38px,6vw,60px)', lineHeight: 1, letterSpacing: -2, margin: '10px 0 22px' }}>The backend is built around business outcomes.</h2>
+          <div className="features" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 14 }}>
+            <Feature title="Recover missed leads" text="Find stale inquiries, broken follow-up, weak calls to action, and other places where demand falls through the cracks." />
+            <Feature title="Increase conversion" text="Improve offers, trust signals, landing pages, website messaging, and the path from interest to action." />
+            <Feature title="Reduce manual work" text="Identify workflows where automation can reduce owner and staff time without surrendering consequential decisions." />
+            <Feature title="Measure before expanding" text="Use a baseline and actual results to decide whether a larger implementation or managed service is justified." />
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <footer style={{padding:'28px 20px',borderTop:'1px solid #22324A',color:'#8FA0B8'}}><div style={{maxWidth:1100,margin:'0 auto',display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}><strong style={{color:'#fff'}}>ARIDON</strong><span>Analyze → Decide → Approve → Execute → Measure</span></div></footer>
-    <style>{`@media(max-width:820px){.hero,.steps,.features{grid-template-columns:1fr !important}}`}</style>
-  </main>;
+      <section id="pricing" style={{ background: '#F4F1E9', color: '#171717', padding: '68px 20px' }}>
+        <div style={{ maxWidth: 1050, margin: '0 auto' }}>
+          <div style={{ fontSize: 12, fontWeight: 950 }}>PAID NEXT STEPS</div>
+          <h2 style={{ fontSize: 'clamp(40px,6vw,62px)', lineHeight: 1, margin: '10px 0 18px' }}>Start small. Scale only after value is visible.</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 12 }}>
+            {[
+              highTicketOffers.healthScan,
+              highTicketOffers.actionPlan,
+              highTicketOffers.implementationSprint,
+              highTicketOffers.growthEngine,
+              highTicketOffers.managedGrowth,
+            ].map((offer) => (
+              <article key={offer.key} style={{ background: '#fff', border: '1px solid #D4CEC2', borderRadius: 18, padding: 20 }}>
+                <strong style={{ fontSize: 30 }}>{offer.price}</strong><span style={{ color: '#6C665E', fontSize: 12 }}> {offer.priceDetail}</span>
+                <h3 style={{ fontSize: 22, margin: '8px 0' }}>{offer.name}</h3>
+                <p style={{ color: '#5D5A54', lineHeight: 1.55, minHeight: 96 }}>{offer.summary}</p>
+                <a href={offer.href} style={{ ...darkButton, display: 'inline-block' }}>{offer.type === 'subscription' ? 'Start Managed Growth' : 'Book & Pay Securely'}</a>
+              </article>
+            ))}
+          </div>
+          <div style={{ marginTop: 18, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Link href="/growth" style={darkButton}>See Full Package Details</Link>
+            <span style={{ fontSize: 12, color: '#777067' }}>Prices purchase the stated service. Results and revenue are not guaranteed.</span>
+          </div>
+        </div>
+      </section>
+
+      <footer style={{ padding: '28px 20px', borderTop: '1px solid #22324A', color: '#8FA0B8' }}><div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}><strong style={{ color: '#fff' }}>ARIDON</strong><span>Analyze → Diagnose → Plan → Implement → Measure → Manage</span></div></footer>
+      <style>{`@media(max-width:820px){.hero,.features{grid-template-columns:1fr !important}}`}</style>
+    </main>
+  );
 }
 
-function Step({n,title,text}:{n:string;title:string;text:string}){return <article style={{background:'#fff',border:'1px solid #D4CEC2',borderRadius:16,padding:20}}><div style={{fontSize:12,fontWeight:950,color:'#6B665E'}}>{n}</div><h3 style={{fontSize:25,margin:'8px 0'}}>{title}</h3><p style={{color:'#5D5A54',lineHeight:1.6,margin:0}}>{text}</p></article>}
-function Feature({title,text}:{title:string;text:string}){return <article style={{background:'#0D1728',border:'1px solid #2A3A57',borderRadius:16,padding:20}}><h3 style={{margin:'0 0 8px'}}>{title}</h3><p style={{color:'#AEBBD0',lineHeight:1.6,margin:0}}>{text}</p></article>}
-const nav={color:'#DCE4EF',textDecoration:'none',fontWeight:800,fontSize:13} as const;
-const smallButton={background:mint,color:'#07130F',textDecoration:'none',fontWeight:950,padding:'10px 13px',borderRadius:10,fontSize:13} as const;
-const button={background:mint,color:'#07130F',textDecoration:'none',fontWeight:950,padding:'14px 18px',borderRadius:12,textAlign:'center' as const};
-const outline={border:'1px solid #51617A',color:'#fff',textDecoration:'none',fontWeight:900,padding:'13px 17px',borderRadius:12,textAlign:'center' as const};
+function Step({ n, title, text }: { n: string; title: string; text: string }) { return <article style={{ background: '#fff', border: '1px solid #D4CEC2', borderRadius: 16, padding: 19 }}><div style={{ fontSize: 12, fontWeight: 950, color: '#6B665E' }}>{n}</div><h3 style={{ fontSize: 24, margin: '8px 0' }}>{title}</h3><p style={{ color: '#5D5A54', lineHeight: 1.58, margin: 0 }}>{text}</p></article>; }
+function Feature({ title, text }: { title: string; text: string }) { return <article style={panel}><h3 style={{ margin: '0 0 8px' }}>{title}</h3><p style={{ color: '#AEBBD0', lineHeight: 1.6, margin: 0 }}>{text}</p></article>; }
+const nav = { color: '#DCE4EF', textDecoration: 'none', fontWeight: 800, fontSize: 13 } as const;
+const smallButton = { background: mint, color: '#07130F', textDecoration: 'none', fontWeight: 950, padding: '10px 13px', borderRadius: 10, fontSize: 13 } as const;
+const button = { background: mint, color: '#07130F', textDecoration: 'none', fontWeight: 950, padding: '14px 18px', borderRadius: 12, textAlign: 'center' as const };
+const outline = { border: '1px solid #51617A', color: '#fff', textDecoration: 'none', fontWeight: 900, padding: '13px 17px', borderRadius: 12, textAlign: 'center' as const };
+const darkButton = { background: '#102019', color: '#fff', textDecoration: 'none', fontWeight: 900, padding: '11px 14px', borderRadius: 10 } as const;
