@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { escapeXml, executiveByName, publicOrigin, verifyPhoneToken, voiceFor } from '../../../../../lib/executivePhone';
+import { escapeXml, executiveByName, publicOrigin, verifyPhoneToken, voiceFor } from '../../../../lib/executivePhone';
 
 export const runtime = 'nodejs';
 
