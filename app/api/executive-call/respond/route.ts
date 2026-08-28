@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
-import { executives } from '../../../../../lib/executives';
-import { getServerClient } from '../../../../../lib/supabase';
-import { escapeXml, executiveByName, publicOrigin, verifyPhoneToken, voiceFor } from '../../../../../lib/executivePhone';
+import { executives } from '../../../../lib/executives';
+import { getServerClient } from '../../../../lib/supabase';
+import { escapeXml, executiveByName, publicOrigin, verifyPhoneToken, voiceFor } from '../../../../lib/executivePhone';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
