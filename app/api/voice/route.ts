@@ -23,6 +23,9 @@ const EXECUTIVE_VOICES: Record<string, VoiceProfile> = {
   Oracle: { voice: 'nova', speed: 1.08 },
   Ethos: { voice: 'onyx', speed: 0.84 },
   Ledger: { voice: 'echo', speed: 0.93 },
+  'Sierra Bennett': { voice: 'nova', speed: 0.98 },
+  'Maya Torres': { voice: 'shimmer', speed: 0.94 },
+  'Claire Morgan': { voice: 'alloy', speed: 0.96 },
   Eva: { voice: 'shimmer', speed: 1.01 },
 };
 
