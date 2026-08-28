@@ -48,7 +48,7 @@ export default function ExecutiveCallPage({ params }: { params: { slug: string }
     <section style={panel}>
       <div style={label}>WHO SHOULD CALL?</div>
       <div style={teamGrid}>{executives.map((item) => <button key={item.id} onClick={() => setExecutive(item.name)} style={{...card,...(executive===item.name?activeCard:{})}}><img src={item.avatar} alt="" style={avatar}/><div><strong>{item.name}</strong><small style={small}>{item.role}</small></div></button>)}</div>
-      <div style={callBox}><label style={fieldLabel}>Your phone number</label><input value={phoneNumber} onChange={(e)=>setPhoneNumber(e.target.value)} placeholder="+15055551212" inputMode="tel" style={input}/><button onClick={callMe} disabled={disabled} style={{...callButton,opacity:disabled?.45:1}}>{busy ? 'Starting call…' : `📞 Call me with ${executive}`}</button></div>
+      <div style={callBox}><label style={fieldLabel}>Your phone number</label><input value={phoneNumber} onChange={(e)=>setPhoneNumber(e.target.value)} placeholder="+15055551212" inputMode="tel" style={input}/><button onClick={callMe} disabled={disabled} style={{...callButton,opacity:disabled ? .45 : 1}}>{busy ? 'Starting call…' : `📞 Call me with ${executive}`}</button></div>
       {message && <div style={success}>{message}</div>}
       {error && <div style={errorBox}>{error}</div>}
       <p style={note}>Eva uses an Australian English voice. The other executives have their own voices. Calls use the same Aridon executive rules: they can talk, analyze and advise, but consequential commitments remain behind owner approval.</p>
