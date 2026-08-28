@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Invalid AgriWebb OAuth callback state.' }, { status: 400 });
     }
 
-    const { clientId, clientSecret } = requireAgriWebbConfig();
+    const { clientId, clientSecret } = await requireAgriWebbConfig();
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
