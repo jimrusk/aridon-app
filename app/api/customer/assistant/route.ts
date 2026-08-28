@@ -69,6 +69,26 @@ function extractSources(data: ResponsesPayload) {
   return sources.slice(0, 12);
 }
 
+function routedExecutive(requested: string, messages: ChatMessage[]) {
+  const explicit = executives.find((item) => item.name.toLowerCase() === requested.toLowerCase());
+  if (explicit) return explicit;
+
+  const latest = [...messages].reverse().find((message) => message.role === 'user')?.content.toLowerCase() || '';
+  const route = (name: string) => executives.find((item) => item.name === name) || executives[executives.length - 1];
+
+  if (/\b(farm|ranch|crop|livestock|cattle|agriculture|agricultural|agriwebb|producer|acre|harvest|irrigation|tractor|equipment|buyer|buyers|usda|nrcs|fsa)\b/.test(latest)) return route('Sierra Bennett');
+  if (/\b(awg|atmospheric water|water|drought|well|energy|power|microgrid|battery|solar|iron grid|resilience|kilowatt|kwh|storage)\b/.test(latest)) return route('Maya Torres');
+  if (/\b(research|investigate|company research|contact research|verify|source|compare|comparison|diligence|background|intelligence|find out|what changed|changes|evidence)\b/.test(latest)) return route('Claire Morgan');
+  if (/\b(cash|budget|forecast|finance|financial|funding|loan|debt|capital|margin|profit|cost|expense|apr|valuation)\b/.test(latest)) return route('Nova');
+  if (/\b(contract|legal|compliance|regulation|regulatory|risk|liability|terms|agreement|governance|lawsuit|attorney)\b/.test(latest)) return route('Ethos');
+  if (/\b(technology|technical|software|code|api|integration|deployment|database|engineering|system|architecture|bug|website|app|ai)\b/.test(latest)) return route('Atlas');
+  if (/\b(marketing|campaign|brand|message|messaging|advertising|seo|content|press|communications|social media)\b/.test(latest)) return route('Oracle');
+  if (/\b(revenue|sales|pipeline|pricing|lead|leads|customer|customers|conversion|close|deal|prospect|follow[- ]?up)\b/.test(latest)) return route('Ledger');
+  if (/\b(strategy|market|competitor|competition|partnership|positioning|growth plan|opportunity|acquisition|expand|expansion)\b/.test(latest)) return route('Scout');
+  if (/\b(operations|operate|project|task|deadline|workflow|process|priority|priorities|execution|team|schedule|stuck|blocker)\b/.test(latest)) return route('Heather');
+  return route('Eva');
+}
+
 export async function POST(request: NextRequest) {
   try {
     const auth = await authenticatedCustomer(request);
@@ -81,12 +101,14 @@ export async function POST(request: NextRequest) {
     const slug = text(body?.slug, 80);
     const messages = cleanMessages(body?.messages);
     const researchWeb = Boolean(body?.researchWeb);
-    const executiveName = text(body?.executive, 80) || 'Eva';
-    const executive = executives.find((item) => item.name.toLowerCase() === executiveName.toLowerCase()) || executives.find((item) => item.name === 'Eva') || executives[0];
+    const executiveName = text(body?.executive, 80) || 'Auto';
 
     if (!slug || !messages) {
       return NextResponse.json({ error: 'Workspace and message history are required.' }, { status: 400, headers: NO_STORE });
     }
+
+    const executive = routedExecutive(executiveName, messages);
+    const autoRouted = !executives.some((item) => item.name.toLowerCase() === executiveName.toLowerCase());
 
     const membership = await customerTenantForUser(auth.user.id, slug);
     if (!membership) return NextResponse.json({ error: 'You do not have access to this workspace.' }, { status: 403, headers: NO_STORE });
@@ -106,19 +128,10 @@ export async function POST(request: NextRequest) {
     if (knowledgeResult.error) throw knowledgeResult.error;
     if (filesResult.error) throw filesResult.error;
 
-    const knowledge = (knowledgeResult.data || []).map((item) => ({
-      title: item.title,
-      category: item.category,
-      content: text(item.content, 2800),
-    }));
+    const knowledge = (knowledgeResult.data || []).map((item) => ({ title: item.title, category: item.category, content: text(item.content, 2800) }));
     const sourceFiles = (filesResult.data || [])
       .filter((item) => item.extracted_text)
-      .map((item) => ({
-        filename: item.filename,
-        extraction_status: item.extraction_status,
-        content: text(item.extracted_text, 3500),
-        note: text(item.notes, 400),
-      }));
+      .map((item) => ({ filename: item.filename, extraction_status: item.extraction_status, content: text(item.extracted_text, 3500), note: text(item.notes, 400) }));
 
     const tenantContext = JSON.stringify({
       business: membership.tenant.business_name,
@@ -130,11 +143,9 @@ export async function POST(request: NextRequest) {
       uploaded_company_files: sourceFiles,
     }, null, 2).slice(0, 38000);
 
-    const conversation = messages
-      .map((message) => `${message.role.toUpperCase()}: ${message.content}`)
-      .join('\n\n');
+    const conversation = messages.map((message) => `${message.role.toUpperCase()}: ${message.content}`).join('\n\n');
 
-    const systemPrompt = `You are ${executive.name}, the ${executive.role} inside a customer's Private Business OS. You are one member of an eight-executive digital leadership team.\n\nYOUR EXECUTIVE LANE:\n- Role: ${executive.role}\n- Primary focus: ${executive.focus}\n- Tone: ${executive.tone}\n- Communication style: ${executive.voice}\n- Expertise: ${executive.expertise.join(', ')}\n\nRULES:\n- You serve the customer's company, not the platform operator. Never reveal or imply access to another customer's data or the operator's private records.\n- Use the tenant context below when relevant. Treat company-entered data and extracted company files as user-provided information, not independently verified fact.\n- The Brand Brain may appear inside knowledge as JSON. Use its approved claims, restrictions, audiences, voice, products and differentiators when doing public-facing work.\n- Uploaded company-file extractions are reusable working context. If extraction notes say a file was limited or failed, do not pretend you read material that is absent.\n- Stay in your executive lane when it helps, but answer normal business questions usefully. If another executive is better suited, say who should join and why instead of refusing.\n- Maintain continuity with the conversation history. The customer should feel they are speaking to the same executive throughout the session.\n- Be practical, warm, concise, and action-oriented. Challenge weak assumptions when the stakes matter.\n- Never pretend an action was completed unless the system actually performed it. If a capability is not connected, explain the exact next step.\n- For legal, tax, accounting, medical, safety, or regulated decisions, provide general information and recommend qualified review when appropriate.\n- If web research is enabled, separate current sourced facts from inference.\n- Do not expose private chain-of-thought. Give concise reasoning summaries instead.\n- When useful, finish with the next 1 to 3 actions.\n\nTENANT CONTEXT:\n${tenantContext}\n\nCONVERSATION:\n${conversation}`;
+    const systemPrompt = `You are ${executive.name}, the ${executive.role} inside a customer's Private Business OS. You are one member of an eleven-executive digital leadership team.\n\nYOUR EXECUTIVE LANE:\n- Role: ${executive.role}\n- Primary focus: ${executive.focus}\n- Tone: ${executive.tone}\n- Communication style: ${executive.voice}\n- Expertise: ${executive.expertise.join(', ')}\n\nRULES:\n- You serve the customer's company, not the platform operator. Never reveal or imply access to another customer's data or the operator's private records.\n- Use the tenant context below when relevant. Treat company-entered data and extracted company files as user-provided information, not independently verified fact.\n- The Brand Brain may appear inside knowledge as JSON. Use its approved claims, restrictions, audiences, voice, products and differentiators when doing public-facing work.\n- Uploaded company-file extractions are reusable working context. If extraction notes say a file was limited or failed, do not pretend you read material that is absent.\n- Stay in your executive lane when it helps, but answer normal business questions usefully. If another executive is better suited, identify who should join and why.\n- Maintain continuity with the conversation history. The customer should feel they are speaking to the same executive team throughout the session.\n- Be practical, warm, concise, and action-oriented. Challenge weak assumptions when the stakes matter.\n- Never pretend an action was completed unless the system actually performed it. If a capability is not connected, explain the exact next step.\n- Research, analysis, planning and drafting are allowed. External sends, spending, signatures, commitments, destructive actions, and other consequential actions require explicit owner approval.\n- For legal, tax, accounting, medical, safety, or regulated decisions, provide general information and recommend qualified review when appropriate.\n- If web research is enabled, separate current sourced facts from inference.\n- Do not expose private chain-of-thought. Give concise reasoning summaries instead.\n- When useful, finish with the next 1 to 3 actions.\n\nTENANT CONTEXT:\n${tenantContext}\n\nCONVERSATION:\n${conversation}`;
 
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) return NextResponse.json({ error: 'The AI service is not configured on this deployment.' }, { status: 503, headers: NO_STORE });
@@ -161,24 +172,12 @@ export async function POST(request: NextRequest) {
     const latestUser = [...messages].reverse().find((message) => message.role === 'user');
 
     const { error: logError } = await db.from('customer_assistant_messages').insert([
-      {
-        tenant_id: membership.tenant.id,
-        user_id: auth.user.id,
-        role: 'user',
-        content: latestUser?.content || '',
-        web_research: researchWeb,
-      },
-      {
-        tenant_id: membership.tenant.id,
-        user_id: auth.user.id,
-        role: 'assistant',
-        content: `[${executive.name}] ${reply}`,
-        web_research: researchWeb,
-      },
+      { tenant_id: membership.tenant.id, user_id: auth.user.id, role: 'user', content: latestUser?.content || '', web_research: researchWeb },
+      { tenant_id: membership.tenant.id, user_id: auth.user.id, role: 'assistant', content: `[${executive.name}] ${reply}`, web_research: researchWeb },
     ]);
     if (logError) console.error('Customer assistant log error', logError);
 
-    return NextResponse.json({ reply, executive: executive.name, sources: extractSources(data), researchWeb }, { headers: NO_STORE });
+    return NextResponse.json({ reply, executive: executive.name, autoRouted, sources: extractSources(data), researchWeb }, { headers: NO_STORE });
   } catch (error) {
     console.error('Customer assistant error', error);
     return NextResponse.json(
