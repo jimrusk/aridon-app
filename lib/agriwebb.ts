@@ -1,4 +1,5 @@
 import { createHash, randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
+import { getServerClient } from './supabase';
 
 export const AGRIWEBB_STAGING_AUTH = 'https://auth.staging.agriwebb.com';
 export const AGRIWEBB_STAGING_API = 'https://api.staging.agriwebb.com';
@@ -30,12 +31,27 @@ export type AgriWebbTokenPayload = {
   organization?: string | null;
 };
 
+let cachedStagingSecret = '';
+
 export function agriWebbClientId() {
   return process.env.AGRIWEBB_CLIENT_ID || AGRIWEBB_STAGING_CLIENT_ID;
 }
 
-export function agriWebbClientSecret() {
-  return process.env.AGRIWEBB_CLIENT_SECRET || '';
+async function agriWebbClientSecret() {
+  if (process.env.AGRIWEBB_CLIENT_SECRET?.trim()) return process.env.AGRIWEBB_CLIENT_SECRET.trim();
+  if (cachedStagingSecret) return cachedStagingSecret;
+
+  const db = getServerClient();
+  const { data, error } = await db
+    .from('agriwebb_integration_credentials')
+    .select('client_secret')
+    .eq('environment', 'staging')
+    .single();
+  if (error || !data?.client_secret) {
+    throw new Error('AgriWebb staging client secret is not available in the server secret store.');
+  }
+  cachedStagingSecret = String(data.client_secret);
+  return cachedStagingSecret;
 }
 
 export function agriWebbRedirectUri() {
@@ -45,10 +61,9 @@ export function agriWebbRedirectUri() {
   return 'http://localhost:3000/api/integrations/agriwebb/oauth/callback';
 }
 
-export function requireAgriWebbConfig() {
+export async function requireAgriWebbConfig() {
   const clientId = agriWebbClientId();
-  const clientSecret = agriWebbClientSecret();
-  if (!clientSecret) throw new Error('AGRIWEBB_CLIENT_SECRET is not configured for AgriWebb staging.');
+  const clientSecret = await agriWebbClientSecret();
   return { clientId, clientSecret, redirectUri: agriWebbRedirectUri() };
 }
 
@@ -57,9 +72,9 @@ export function newOauthState() {
 }
 
 function tokenKey() {
-  const secret = agriWebbClientSecret();
-  if (!secret) throw new Error('AgriWebb staging credentials are not configured.');
-  return createHash('sha256').update(secret).digest();
+  const serverSecret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serverSecret) throw new Error('Server credential is unavailable for AgriWebb token protection.');
+  return createHash('sha256').update(`agriwebb-token-cookie:${serverSecret}`).digest();
 }
 
 export function sealTokenPayload(payload: unknown) {
@@ -85,7 +100,7 @@ export function openTokenPayload<T = any>(value: string): T {
 
 export async function refreshAgriWebbToken(payload: AgriWebbTokenPayload) {
   if (!payload.refresh_token) throw new Error('AgriWebb refresh token is unavailable; reconnect the staging integration.');
-  const { clientId, clientSecret } = requireAgriWebbConfig();
+  const { clientId, clientSecret } = await requireAgriWebbConfig();
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
     refresh_token: payload.refresh_token,
