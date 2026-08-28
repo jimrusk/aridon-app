@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AGRIWEBB_STAGING_API, AGRIWEBB_STAGING_AUTH, agriWebbRedirectUri, requireAgriWebbConfig, sealTokenPayload } from '../../../../../../lib/agriwebb';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
