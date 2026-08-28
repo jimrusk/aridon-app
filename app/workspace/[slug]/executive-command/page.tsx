@@ -7,15 +7,15 @@ import { getBrowserClient } from '../../../../lib/supabase';
 import { executives } from '../../../../lib/executives';
 
 type Message = { role: 'user' | 'assistant'; content: string; executive?: string; sources?: Array<{ title: string; url: string }> };
-
 type Workspace = { tenant?: { business_name?: string } };
 
 export default function ExecutiveCommand({ params }: { params: { slug: string } }) {
   const router = useRouter();
   const [token, setToken] = useState('');
   const [businessName, setBusinessName] = useState('Your company');
-  const [executive, setExecutive] = useState('Eva');
-  const [messages, setMessages] = useState<Message[]>([{ role: 'assistant', executive: 'Eva', content: 'I’m Eva. Ask me anything about the business, tell me what is stuck, or tell me what you want finished. I can bring in the executive best suited to the problem.' }]);
+  const [executive, setExecutive] = useState('Auto');
+  const [lastResponder, setLastResponder] = useState('Eva');
+  const [messages, setMessages] = useState<Message[]>([{ role: 'assistant', executive: 'Eva', content: 'I’m Eva. Ask Aridon anything. In Auto mode I’ll route the question to the executive best suited to answer it, while keeping the conversation in one place.' }]);
   const [input, setInput] = useState('');
   const [researchWeb, setResearchWeb] = useState(false);
   const [speakReplies, setSpeakReplies] = useState(true);
@@ -37,7 +37,8 @@ export default function ExecutiveCommand({ params }: { params: { slug: string } 
   }, [params.slug, router]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, busy]);
-  const active = executives.find((item) => item.name === executive) || executives[executives.length - 1];
+  const visibleExecutive = executive === 'Auto' ? lastResponder : executive;
+  const active = executives.find((item) => item.name === visibleExecutive) || executives[executives.length - 1];
   const canSend = useMemo(() => Boolean(token && input.trim() && !busy), [token, input, busy]);
 
   function speak(text: string) {
@@ -73,9 +74,10 @@ export default function ExecutiveCommand({ params }: { params: { slug: string } 
         body: JSON.stringify({ slug: params.slug, executive, researchWeb, messages: nextMessages.slice(-20).map(({ role, content }) => ({ role, content })) }),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || `${executive} could not answer right now.`);
+      if (!response.ok) throw new Error(data.error || 'Aridon could not answer right now.');
       const reply = data.reply || 'I did not receive a readable response.';
-      const respondingExecutive = data.executive || executive;
+      const respondingExecutive = data.executive || (executive === 'Auto' ? 'Eva' : executive);
+      setLastResponder(respondingExecutive);
       setMessages((current) => [...current, { role: 'assistant', executive: respondingExecutive, content: reply, sources: Array.isArray(data.sources) ? data.sources : [] }]);
       speak(reply);
     } catch (err) { setError(err instanceof Error ? err.message : 'The executive team is temporarily unavailable.'); }
@@ -83,19 +85,24 @@ export default function ExecutiveCommand({ params }: { params: { slug: string } 
   }
 
   return <main style={page}><div style={shell}>
-    <header style={header}><div><div style={eyebrow}>ARIDON EXECUTIVE COMMAND</div><h1 style={h1}>Ask Aridon.</h1><p style={lead}>{businessName} · One conversation with your executive team.</p></div><Link href={`/workspace/${params.slug}/executive-suite`} style={link}>Executive Suite →</Link></header>
+    <header style={header}><div><div style={eyebrow}>ARIDON EXECUTIVE COMMAND</div><h1 style={h1}>Ask Aridon.</h1><p style={lead}>{businessName} · One conversation. Aridon routes the work.</p></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link href={`/workspace/${params.slug}`} style={link}>Company Home</Link><Link href={`/workspace/${params.slug}/executive-suite`} style={link}>Executive Suite →</Link></div></header>
 
     <section style={grid}>
-      <aside style={teamPanel}><div style={label}>YOUR EXECUTIVES</div>{executives.map((item) => <button key={item.id} onClick={() => setExecutive(item.name)} style={{...execButton, ...(executive === item.name ? activeButton : {})}}><img src={item.avatar} alt="" style={avatar}/><span><b>{item.name}</b><small style={small}>{item.abbr} · {item.role}</small></span></button>)}</aside>
+      <aside style={teamPanel}>
+        <div style={label}>ROUTING</div>
+        <button onClick={() => setExecutive('Auto')} style={{...execButton, ...(executive === 'Auto' ? activeButton : {})}}><span style={autoAvatar}>A</span><span><b>Auto · Ask Aridon</b><small style={small}>Eva routes each question to the best executive</small></span></button>
+        <div style={{...label,marginTop:12}}>OR PICK AN EXECUTIVE</div>
+        {executives.map((item) => <button key={item.id} onClick={() => setExecutive(item.name)} style={{...execButton, ...(executive === item.name ? activeButton : {})}}><img src={item.avatar} alt="" style={avatar}/><span><b>{item.name}</b><small style={small}>{item.abbr} · {item.role}</small></span></button>)}
+      </aside>
 
       <section style={chatPanel}>
-        <div style={activeHeader}><img src={active.avatar} alt="" style={heroAvatar}/><div><div style={statusDot}>{busy ? '● THINKING' : listening ? '● LISTENING' : '● READY'}</div><h2 style={{margin:'4px 0'}}>{active.name}</h2><div style={muted}>{active.role} · {active.tagline}</div></div></div>
-        <div style={messagesBox}>{messages.map((message, index) => <article key={index} style={{...bubble, marginLeft: message.role === 'user' ? 'auto' : 0, background: message.role === 'user' ? '#17304A' : '#111D30'}}><div style={speaker}>{message.role === 'user' ? 'YOU' : (message.executive || executive).toUpperCase()}</div><div style={{whiteSpace:'pre-wrap', lineHeight:1.6}}>{message.content}</div>{message.sources?.length ? <div style={{marginTop:10}}>{message.sources.map((source) => <a key={source.url} href={source.url} target="_blank" rel="noreferrer" style={sourceLink}>{source.title}</a>)}</div> : null}</article>)}{busy && <div style={working}>{active.name} is working on it…</div>}<div ref={bottomRef}/></div>
+        <div style={activeHeader}><img src={active.avatar} alt="" style={heroAvatar}/><div><div style={statusDot}>{busy ? '● THINKING' : listening ? '● LISTENING' : '● READY'}</div><h2 style={{margin:'4px 0'}}>{executive === 'Auto' ? `Ask Aridon · ${active.name} ready` : active.name}</h2><div style={muted}>{executive === 'Auto' ? 'Automatic executive routing' : `${active.role} · ${active.tagline}`}</div></div></div>
+        <div style={messagesBox}>{messages.map((message, index) => <article key={index} style={{...bubble, marginLeft: message.role === 'user' ? 'auto' : 0, background: message.role === 'user' ? '#17304A' : '#111D30'}}><div style={speaker}>{message.role === 'user' ? 'YOU' : (message.executive || lastResponder).toUpperCase()}</div><div style={{whiteSpace:'pre-wrap', lineHeight:1.6}}>{message.content}</div>{message.sources?.length ? <div style={{marginTop:10}}>{message.sources.map((source) => <a key={source.url} href={source.url} target="_blank" rel="noreferrer" style={sourceLink}>{source.title}</a>)}</div> : null}</article>)}{busy && <div style={working}>{executive === 'Auto' ? 'Aridon is routing and working on it…' : `${active.name} is working on it…`}</div>}<div ref={bottomRef}/></div>
         {error && <div style={errorBox}>{error}</div>}
         <div style={controls}><label style={toggle}><input type="checkbox" checked={researchWeb} onChange={(e)=>setResearchWeb(e.target.checked)}/> Current web research</label><label style={toggle}><input type="checkbox" checked={speakReplies} onChange={(e)=>setSpeakReplies(e.target.checked)}/> Speak replies</label></div>
-        <form onSubmit={(e)=>send(e)} style={composer}><button type="button" onClick={startListening} style={mic}>{listening ? 'Listening…' : '🎙 Talk'}</button><textarea value={input} onChange={(e)=>setInput(e.target.value)} rows={3} placeholder={`Ask ${active.name} a question or tell ${active.name} what you want done…`} style={textarea}/><button disabled={!canSend} style={{...sendButton, opacity:canSend?1:.45}}>Send</button></form>
+        <form onSubmit={(e)=>send(e)} style={composer}><button type="button" onClick={startListening} style={mic}>{listening ? 'Listening…' : '🎙 Talk'}</button><textarea value={input} onChange={(e)=>setInput(e.target.value)} rows={3} placeholder={executive === 'Auto' ? 'Ask Aridon a question or tell Aridon what you need done…' : `Ask ${active.name} a question or tell ${active.name} what you want done…`} style={textarea}/><button disabled={!canSend} style={{...sendButton, opacity:canSend?1:.45}}>Send</button></form>
         <div style={quickRow}>{['What needs my attention today?','What are we waiting on?','What would you do next?','Challenge this before I spend money.'].map((p)=><button key={p} disabled={busy || !token} onClick={()=>send(undefined,p)} style={quick}>{p}</button>)}</div>
-        <p style={guardrail}>Aridon may research, analyze, plan and draft. External sends, spending, signatures, commitments and other consequential actions stay behind your approval controls.</p>
+        <p style={guardrail}>Aridon may answer, research, analyze, plan and draft. External sends, spending, signatures, commitments and other consequential actions stay behind your approval controls.</p>
       </section>
     </section>
   </div></main>;
@@ -114,6 +121,7 @@ const label={fontSize:10,fontWeight:950,color:'#7F91AB',margin:'3px 4px 10px'} a
 const execButton={width:'100%',display:'flex',alignItems:'center',gap:10,textAlign:'left',border:'1px solid transparent',background:'transparent',color:'#EAF0F8',padding:9,borderRadius:12,cursor:'pointer',marginBottom:5} as const;
 const activeButton={background:'#15243A',border:'1px solid #3B5576'} as const;
 const avatar={width:44,height:44,borderRadius:12,objectFit:'cover'} as const;
+const autoAvatar={width:44,height:44,borderRadius:12,display:'grid',placeItems:'center',background:'#9EF0CF',color:'#07130F',fontWeight:950} as const;
 const small={display:'block',color:'#8FA0B8',fontSize:10,marginTop:3} as const;
 const chatPanel={background:'#0D1726',border:'1px solid #25344D',borderRadius:18,overflow:'hidden'} as const;
 const activeHeader={display:'flex',gap:14,alignItems:'center',padding:16,borderBottom:'1px solid #25344D'} as const;
