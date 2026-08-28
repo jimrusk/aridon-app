@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticatedCustomer, customerTenantForUser, subscriptionAllowsAccess } from '../../../../../lib/customerAuth';
-import { executiveByName, publicOrigin, signPhoneToken } from '../../../../../lib/executivePhone';
+import { authenticatedCustomer, customerTenantForUser, subscriptionAllowsAccess } from '../../../../lib/customerAuth';
+import { executiveByName, publicOrigin, signPhoneToken } from '../../../../lib/executivePhone';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
