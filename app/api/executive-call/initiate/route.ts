@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim();
     const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
-    const fromNumber = process.env.TWILIO_PHONE_NUMBER?.trim();
+    const fromNumber = process.env.TWILIO_FROM_NUMBER?.trim() || process.env.TWILIO_PHONE_NUMBER?.trim();
     if (!accountSid || !authToken || !fromNumber) {
       return NextResponse.json({ error: 'Aridon phone calling is built but the telephony account is not connected yet.' }, { status: 503, headers: NO_STORE });
     }
