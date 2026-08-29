@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticatedCustomer, customerTenantForUser, subscriptionAllowsAccess } from '../../../../lib/customerAuth';
+import { authenticatedCustomer, subscriptionAllowsAccess } from '../../../../lib/customerAuth';
+import { getUserScopedClient } from '../../../../lib/supabase';
 import { executives } from '../../../../lib/executives';
 
 export const runtime = 'nodejs';
@@ -110,13 +111,53 @@ export async function POST(request: NextRequest) {
     const executive = routedExecutive(executiveName, messages);
     const autoRouted = !executives.some((item) => item.name.toLowerCase() === executiveName.toLowerCase());
 
-    const membership = await customerTenantForUser(auth.user.id, slug);
-    if (!membership) return NextResponse.json({ error: 'You do not have access to this workspace.' }, { status: 403, headers: NO_STORE });
+    const authorization = request.headers.get('authorization') || '';
+    const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+    if (!accessToken) {
+      return NextResponse.json({ error: 'Customer login required.' }, { status: 401, headers: NO_STORE });
+    }
+
+    const db = getUserScopedClient(accessToken);
+    const { data: memberships, error: membershipError } = await db
+      .from('customer_memberships')
+      .select('tenant_id,role')
+      .eq('user_id', auth.user.id)
+      .limit(10);
+    if (membershipError) throw membershipError;
+    if (!memberships?.length) {
+      return NextResponse.json({ error: 'No customer workspace is attached to this account.' }, { status: 403, headers: NO_STORE });
+    }
+
+    const tenantIds = memberships.map((item) => item.tenant_id);
+    const tenantFields = 'id,slug,business_name,owner_name,industry,tagline,primary_color,accent_color,plan,status,subscription_status,stripe_customer_id';
+    let tenantQuery = db.from('customer_tenants').select(tenantFields).in('id', tenantIds).eq('slug', slug);
+    const { data: matchedTenants, error: tenantError } = await tenantQuery.limit(1);
+    if (tenantError) throw tenantError;
+
+    let tenant = matchedTenants?.[0];
+    if (!tenant && memberships.length === 1) {
+      const { data: canonicalTenants, error: canonicalError } = await db
+        .from('customer_tenants')
+        .select(tenantFields)
+        .eq('id', memberships[0].tenant_id)
+        .limit(1);
+      if (canonicalError) throw canonicalError;
+      tenant = canonicalTenants?.[0];
+    }
+
+    if (!tenant) {
+      return NextResponse.json({ error: 'You do not have access to this workspace.' }, { status: 403, headers: NO_STORE });
+    }
+
+    const membership = {
+      tenant,
+      role: memberships.find((item) => item.tenant_id === tenant.id)?.role || 'member',
+    };
+
     if (!subscriptionAllowsAccess(membership.tenant.subscription_status)) {
       return NextResponse.json({ error: 'This workspace is not active.' }, { status: 402, headers: NO_STORE });
     }
 
-    const db = auth.db;
     const [projectsResult, tasksResult, knowledgeResult, filesResult] = await Promise.all([
       db.from('customer_projects').select('name,description,status').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(12),
       db.from('customer_tasks').select('title,owner,priority,status').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(20),
