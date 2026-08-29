@@ -24,7 +24,7 @@ const VOICES: Record<string, { voice: string; language: string }> = {
 };
 
 function secret() {
-  return (process.env.PHONE_CALL_SIGNING_SECRET || process.env.TWILIO_AUTH_TOKEN || '').trim();
+  return (process.env.PHONE_CALL_SIGNING_SECRET || '').trim();
 }
 
 function base64url(input: string | Buffer) {
