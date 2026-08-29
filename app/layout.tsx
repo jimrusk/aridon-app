@@ -6,7 +6,7 @@ import AridonRadarTabs from './components/AridonRadarTabs';
 import CustomerSessionControls from './components/CustomerSessionControls';
 import SalesTeamIntentRedirect from './components/SalesTeamIntentRedirect';
 import PublicInstallPromo from './components/PublicInstallPromo';
-import GlobalLanguageLayer from './components/GlobalLanguageLayer';
+import ConditionalGlobalLanguageLayer from './components/ConditionalGlobalLanguageLayer';
 
 export const metadata: Metadata = {
   title: 'Aridon Executive Operating System',
@@ -35,7 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <AridonRadarTabs />
         <InternalLaunchers />
-        <GlobalLanguageLayer />
+        <ConditionalGlobalLanguageLayer />
       </body>
     </html>
   );
