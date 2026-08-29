@@ -62,17 +62,34 @@ export async function customerTenantForUser(userId: string, slug?: string) {
   if (!memberships?.length) return null;
 
   const tenantIds = memberships.map((membership) => membership.tenant_id);
+  const tenantFields = 'id,slug,business_name,owner_name,industry,tagline,primary_color,accent_color,plan,status,subscription_status,stripe_customer_id';
+
   let tenantQuery = db
     .from('customer_tenants')
-    .select('id,slug,business_name,owner_name,industry,tagline,primary_color,accent_color,plan,status,subscription_status,stripe_customer_id')
+    .select(tenantFields)
     .in('id', tenantIds);
 
   if (slug) tenantQuery = tenantQuery.eq('slug', slug);
   const { data: tenants, error: tenantError } = await tenantQuery.limit(1);
   if (tenantError) throw tenantError;
-  if (!tenants?.length) return null;
 
-  const tenant = tenants[0] as CustomerTenantSummary;
+  let tenant = tenants?.[0] as CustomerTenantSummary | undefined;
+
+  // A single-workspace account may arrive through an older saved Aridon URL.
+  // Canonicalize that stale slug to the only workspace the user actually owns.
+  // Never guess when the account belongs to multiple workspaces.
+  if (!tenant && slug && tenantIds.length === 1) {
+    const { data: canonicalTenants, error: canonicalError } = await db
+      .from('customer_tenants')
+      .select(tenantFields)
+      .eq('id', tenantIds[0])
+      .limit(1);
+    if (canonicalError) throw canonicalError;
+    tenant = canonicalTenants?.[0] as CustomerTenantSummary | undefined;
+  }
+
+  if (!tenant) return null;
+
   const membership = memberships.find((item) => item.tenant_id === tenant.id);
   return { tenant, role: membership?.role || 'member' };
 }
