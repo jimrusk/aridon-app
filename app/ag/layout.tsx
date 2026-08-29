@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Aridon Ag | AI Farm Operating System',
-  description: 'Boost sales, improve crops, control payroll and strengthen water resilience with Aridon Ag.',
+  title: 'Aridon Ag | AI Back Office for Ranches',
+  description: 'Find margin leaks, weekly priorities and funding opportunities for your ranch. Start with a free two-minute Aridon Operation Snapshot.',
   applicationName: 'Aridon Ag',
   appleWebApp: {
     capable: true,
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0A533E',
+  themeColor: '#163D2A',
 };
 
 export default function AgLayout({ children }: { children: React.ReactNode }) {
