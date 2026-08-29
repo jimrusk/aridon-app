@@ -23,7 +23,7 @@ export default function AridonAgPage() {
       </div>
     </header>
 
-    <section style={{ maxWidth: 1120, margin: 'auto', padding: '58px 18px 42px', display: 'grid', gridTemplateColumns: 'minmax(0,1.25fr) minmax(280px,.75fr)', gap: 30, alignItems: 'center' }}>
+    <section style={{ maxWidth: 1120, margin: 'auto', padding: '58px 18px 42px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,300px),1fr))', gap: 30, alignItems: 'center' }}>
       <div>
         <div style={{ color: '#356943', fontWeight: 950, fontSize: 13, letterSpacing: .8 }}>THE AI BACK OFFICE FOR YOUR RANCH</div>
         <h1 style={{ fontSize: 'clamp(48px,8vw,84px)', lineHeight: .94, letterSpacing: -3, margin: '12px 0 20px' }}>Know where your money is going. Know what to do next.</h1>
