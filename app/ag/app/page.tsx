@@ -1,47 +1,30 @@
 import Link from 'next/link';
-import { Bot, CheckCircle2, ClipboardList, Landmark, MessageSquareText, ShieldCheck } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ClipboardList, Landmark, MessageSquareText, Search, ShieldCheck, Users } from 'lucide-react';
 
-const actions = [
-  ['1', 'Review winter feed exposure', 'Feed and hay remain the largest controllable cost in this sample operation.', '$18K–$31K worth reviewing'],
-  ['2', 'Map the highest-risk water points', 'Screen wells, storage, pipelines and solar pumping before the next dry period.', 'Funding may offset cost'],
-  ['3', 'Sort keep / watch / cull cows', 'Use pregnancy, age, calf performance and feed requirement before the next major cost period.', 'Protect herd margin'],
+const priorities = [
+  { n:'1', title:'Review winter feed exposure', changed:'Feed and hay remain the largest controllable cost in this sample operation.', matters:'A small cost change compounds across the herd through winter.', decision:'Compare current feed plan with two lower-cost scenarios.', help:'Nutritionist or extension specialist', tag:'Margin' },
+  { n:'2', title:'Map the highest-risk water points', changed:'Dry-period exposure is concentrated around wells, storage and pipelines.', matters:'A weak water point can become an animal-health and hauling-cost problem quickly.', decision:'Rank the three water assets most worth inspecting before the next dry period.', help:'Water specialist or conservation district', tag:'Water' },
+  { n:'3', title:'Sort keep / watch / cull cows', changed:'Pregnancy, age, calf performance and feed requirement create different carrying costs.', matters:'Keeping low-return animals through the next major cost period can quietly erode margin.', decision:'Build a review list before the next feed commitment.', help:'Veterinarian or herd adviser', tag:'Herd' },
 ];
 
-const doors = [
-  ['My 3 Priorities', 'The short list above. No dashboard archaeology required.', CheckCircle2],
-  ['Ask Aridon', 'Ask about feed, cattle markets, weather, water, financing or the ranch business in plain English.', Bot],
-  ['Money & Funding', 'Connect a ranch problem or project to grants, loans, rebates and cost-share programs.', Landmark],
-  ['Paperwork', 'Keep invoices, receipts, records and program documents in one operating trail.', ClipboardList],
-  ['Owner Approval', 'Aridon prepares the work. The ranch owner approves anything that gets sent or committed.', ShieldCheck],
-];
+const steps = ['Understand','Compare options','Request help','Apply for funding','Buy or hire','Close the loop'];
 
 export default function AgApp() {
-  return <main style={{ minHeight: '100vh', background: '#f4f1e8', color: '#18251d', fontFamily: 'Arial,sans-serif', paddingBottom: 60 }}>
-    <header style={{ background: '#163d2a', color: '#fff', padding: '17px 18px', position: 'sticky', top: 0, zIndex: 10 }}>
-      <div style={{ maxWidth: 1080, margin: 'auto', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div><div style={{ color: '#c5e2aa', fontSize: 12, fontWeight: 950, letterSpacing: 1 }}>ARIDON AG</div><strong style={{ fontSize: 22 }}>Your ranch back office</strong></div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}><Link href="/ag" style={{ color: '#fff', textDecoration: 'none', fontWeight: 850 }}>Home</Link><Link href="/ag/snapshot" style={{ color: '#c5e2aa', textDecoration: 'none', fontWeight: 950 }}>Operation Snapshot</Link></div>
-      </div>
-    </header>
+  return <main style={{ minHeight:'100vh', background:'#f4f1e8', color:'#18251d', fontFamily:'Arial,sans-serif', paddingBottom:60 }}>
+    <header style={{ background:'#163d2a', color:'#fff', padding:'17px 18px', position:'sticky', top:0, zIndex:10 }}><div style={{ maxWidth:1080, margin:'auto', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}><div><div style={{ color:'#c5e2aa', fontSize:12, fontWeight:950, letterSpacing:1 }}>ARIDON AG</div><strong style={{ fontSize:22 }}>My 3 Priorities</strong></div><div style={{ display:'flex', gap:12, flexWrap:'wrap' }}><Link href="/ag" style={{ color:'#fff', textDecoration:'none', fontWeight:850 }}>Home</Link><Link href="/ag/snapshot" style={{ color:'#c5e2aa', textDecoration:'none', fontWeight:950 }}>Operation Snapshot</Link></div></div></header>
 
-    <section style={{ maxWidth: 1080, margin: 'auto', padding: '28px 16px' }}>
-      <div style={{ background: '#fff', border: '1px solid #d8e1d5', borderRadius: 20, padding: 22 }}>
-        <div style={{ color: '#356943', fontSize: 12, fontWeight: 950 }}>THIS WEEK</div>
-        <h1 style={{ fontSize: 'clamp(36px,6vw,58px)', lineHeight: 1, margin: '8px 0 12px' }}>Three things worth your attention.</h1>
-        <p style={{ margin: 0, color: '#5a675f', fontSize: 17, lineHeight: 1.5 }}>Sample ranch view. Production accounts will use the operation's own records, market context, weather and approved integrations.</p>
-        <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>{actions.map(([n, title, text, money]) => <article key={title} style={{ display: 'grid', gridTemplateColumns: '42px minmax(0,1fr) auto', gap: 12, alignItems: 'center', padding: 14, borderRadius: 14, background: '#f4f1e8' }}><div style={{ width: 38, height: 38, borderRadius: 99, display: 'grid', placeItems: 'center', background: '#dfe9da', color: '#356943', fontWeight: 950 }}>{n}</div><div><strong style={{ fontSize: 18 }}>{title}</strong><div style={{ color: '#5e695f', marginTop: 3, lineHeight: 1.4 }}>{text}</div></div><div style={{ color: '#356943', fontSize: 12, fontWeight: 950, textAlign: 'right' }}>{money}</div></article>)}</div>
+    <section style={{ maxWidth:1080, margin:'auto', padding:'28px 16px' }}>
+      <div style={{ background:'#fff', border:'1px solid #d8e1d5', borderRadius:20, padding:22 }}><div style={{ color:'#356943', fontSize:12, fontWeight:950 }}>THIS WEEK</div><h1 style={{ fontSize:'clamp(36px,6vw,58px)', lineHeight:1, margin:'8px 0 12px' }}>Three decisions worth your attention.</h1><p style={{ margin:0, color:'#5a675f', fontSize:17, lineHeight:1.5 }}>Ask Aridon, Money & Funding and Paperwork feed this list. Nothing gets shared with another person unless the owner approves it at the action.</p>
+        <div style={{ display:'grid', gap:12, marginTop:18 }}>{priorities.map((p)=><article key={p.title} style={{ padding:17, borderRadius:16, background:'#f8f7f2', border:'1px solid #dfe5dc' }}><div style={{ display:'flex', gap:12, alignItems:'flex-start' }}><div style={{ width:38, height:38, borderRadius:99, display:'grid', placeItems:'center', background:'#dfe9da', color:'#356943', fontWeight:950, flex:'0 0 auto' }}>{p.n}</div><div style={{ flex:1 }}><div style={{ color:'#356943', fontSize:11, fontWeight:950 }}>{p.tag}</div><h2 style={{ margin:'3px 0 10px', fontSize:23 }}>{p.title}</h2><div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))', gap:8, fontSize:14, lineHeight:1.45 }}><div><strong>What changed</strong><br/>{p.changed}</div><div><strong>Why it matters</strong><br/>{p.matters}</div><div><strong>Decision available</strong><br/>{p.decision}</div></div><div style={{ display:'flex', gap:9, flexWrap:'wrap', marginTop:13 }}><button style={{ border:'1px solid #356943', background:'#fff', color:'#285336', padding:'10px 12px', borderRadius:10, fontWeight:900 }}><Search size={15} style={{ verticalAlign:'middle', marginRight:5 }}/>Compare options</button><Link href="/ag/need-card" style={{ background:'#163d2a', color:'#fff', padding:'10px 12px', borderRadius:10, fontWeight:900, textDecoration:'none' }}><Users size={15} style={{ verticalAlign:'middle', marginRight:5 }}/>Find someone</Link></div><div style={{ color:'#667169', fontSize:12, marginTop:8 }}>Possible help category: {p.help}. The private operational signal is not revealed to a provider.</div></div></div></article>)}</div>
       </div>
 
-      <section style={{ marginTop: 16, background: '#163d2a', color: '#fff', borderRadius: 20, padding: 22 }}>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', color: '#c5e2aa', fontSize: 12, fontWeight: 950 }}><MessageSquareText size={21} /> MONDAY RANCH BRIEF</div>
-        <h2 style={{ fontSize: 32, margin: '8px 0' }}>One useful message instead of another dashboard to check.</h2>
-        <p style={{ margin: 0, color: '#dbe8df', lineHeight: 1.6 }}>Market movement, weather risk, input pressure, funding worth checking and the number-one action for the week. Email first, plus Sent.dm text updates when the owner opts in.</p>
-      </section>
+      <section style={{ marginTop:16, background:'#163d2a', color:'#fff', borderRadius:20, padding:22 }}><div style={{ display:'flex', gap:10, alignItems:'center', color:'#c5e2aa', fontSize:12, fontWeight:950 }}><MessageSquareText size={21}/> MONDAY RANCH BRIEF</div><h2 style={{ fontSize:32, margin:'8px 0' }}>What changed. Why it matters. What decision is available.</h2><p style={{ margin:0, color:'#dbe8df', lineHeight:1.6 }}>Each brief ends with an optional “who could help?” path. Matching stays off until the owner approves the need card and disclosure preview.</p></section>
 
-      <h2 style={{ fontSize: 30, margin: '28px 0 12px' }}>The whole product</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 12 }}>{doors.map(([title, text, Icon]: any) => <article key={title} style={{ background: '#fff', border: '1px solid #d8e1d5', borderRadius: 17, padding: 19 }}><Icon size={26} color="#356943" /><h3 style={{ fontSize: 22, margin: '10px 0 6px' }}>{title}</h3><p style={{ margin: 0, color: '#5a675f', lineHeight: 1.5 }}>{text}</p>{title === 'Money & Funding' && <Link href="/ag/funding" style={{ display: 'inline-block', marginTop: 12, color: '#356943', fontWeight: 950, textDecoration: 'none' }}>Open funding tools →</Link>}</article>)}</div>
+      <section style={{ marginTop:18, background:'#fff', border:'1px solid #d8e1d5', borderRadius:20, padding:22 }}><div style={{ color:'#356943', fontSize:12, fontWeight:950 }}>ONE ACTION PATH</div><h2 style={{ fontSize:30, margin:'7px 0 14px' }}>Every problem moves through the same simple path.</h2><div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(145px,1fr))', gap:8 }}>{steps.map((s,i)=><div key={s} style={{ background:'#f4f1e8', borderRadius:12, padding:13 }}><strong>{i+1}. {s}</strong></div>)}</div></section>
 
-      <section style={{ marginTop: 18, border: '1px solid #d8e1d5', background: '#e7ede2', borderRadius: 18, padding: 20 }}><strong>Founding Ranch Plan:</strong> $149/month or $1,490/year. One plan until Aridon has ten paying ranch customers and real usage data to justify more tiers.</section>
+      <section style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:12, marginTop:18 }}><article style={{ background:'#fff', border:'1px solid #d8e1d5', borderRadius:17, padding:19 }}><Landmark size={26} color="#356943"/><h3>Money & Funding</h3><p style={{ color:'#5a675f', lineHeight:1.5 }}>Eligibility → missing evidence → likely program/lender → owner approval → preparation → submission approval → status.</p><Link href="/ag/funding" style={{ color:'#356943', fontWeight:950, textDecoration:'none' }}>Open funding workflow →</Link></article><article style={{ background:'#fff', border:'1px solid #d8e1d5', borderRadius:17, padding:19 }}><ClipboardList size={26} color="#356943"/><h3>Paperwork Inbox</h3><p style={{ color:'#5a675f', lineHeight:1.5 }}>Keep invoices, receipts, records and program evidence together so each priority knows what proof is missing.</p></article><article style={{ background:'#fff', border:'1px solid #d8e1d5', borderRadius:17, padding:19 }}><ShieldCheck size={26} color="#356943"/><h3>Owner Approval</h3><p style={{ color:'#5a675f', lineHeight:1.5 }}>Matching, limited context, introductions, direct contact and follow-up are separate permissions beside the action, not buried in settings.</p></article></section>
+
+      <section style={{ marginTop:18, border:'1px solid #d8e1d5', background:'#e7ede2', borderRadius:18, padding:20 }}><strong>Founding learning cohort:</strong> $149/month or $1,490/year. First ten paying ranches validate four deep workflows: water, funding, equipment and agronomic decisions. Primary success measure: completed owner-approved actions, not registrations or raw match counts.</section>
     </section>
   </main>;
 }
