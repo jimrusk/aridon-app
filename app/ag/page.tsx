@@ -1,28 +1,90 @@
 import Link from 'next/link';
-import { ArrowRight, BarChart3, Bot, CheckCircle2, Droplets, Package, Smartphone, Sprout, Tractor, Users, Landmark } from 'lucide-react';
-import AgProfitCheck from './AgProfitCheck';
-import AgAcreCalculator from './AgAcreCalculator';
+import { ArrowRight, CheckCircle2, ClipboardList, Landmark, MessageSquareText, ShieldCheck, Smartphone } from 'lucide-react';
 
-const PHONE='505-360-9529';
-const cards=[
-  {title:'Sales & Buyers',text:'Track buyers, contracts, repeat orders, quotes and follow-up.',icon:BarChart3},
-  {title:'Crop Profitability',text:'See field, crop and per-acre economics so weak margins do not hide.',icon:Sprout},
-  {title:'Greenhouse Growing',text:'Track climate, root zone, irrigation, crop work, scouting, harvest and yield by bay or growing zone.',icon:Sprout},
-  {title:'Payroll & Labor',text:'Monitor labor %, overtime, scheduling pressure and crew efficiency.',icon:Users},
-  {title:'Inputs & Inventory',text:'Track feed, seed, fertilizer, fuel, parts and working capital.',icon:Package},
-  {title:'Water Intelligence',text:'Bring irrigation cost, drought exposure and resilience into the same operating view.',icon:Droplets},
-  {title:'Equipment',text:'Stay ahead of maintenance, work orders, downtime and repair-cost patterns.',icon:Tractor},
-  {title:'Ag Funding',text:'Match farm and ranch projects to grants, loans and cost-share programs, then build the evidence and application plan.',icon:Landmark},
+const PHONE = '505-360-9529';
+
+const outcomes = [
+  ['My 3 Priorities', 'A short weekly list of what is most worth doing next to protect margin.'],
+  ['Ask Aridon', 'Ask plain-English questions about feed, markets, weather, water, costs and the ranch business.'],
+  ['Money & Funding', 'See margin opportunities and screen ranch projects for grants, loans, rebates and cost share.'],
+  ['Paperwork', 'Bring invoices, receipts and program records into one place so deadlines and exceptions do not hide.'],
+  ['Owner Approval', 'Aridon can prepare the work, but the owner stays in control of anything that gets sent or committed.'],
 ];
 
-export default function AridonAgPage(){return <main style={{minHeight:'100vh',background:'#f4f7f4',color:'#183b4e',fontFamily:'Arial,sans-serif'}}>
-<section style={{background:'linear-gradient(135deg,#062a46,#0a533e 70%,#2d6b43)',color:'#fff',padding:'28px 7% 76px'}}><div style={{maxWidth:1180,margin:'auto'}}>
-<nav style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><strong style={{letterSpacing:2,color:'#b9ee91'}}>ARIDON AG</strong><div style={{display:'flex',gap:10,flexWrap:'wrap'}}><a href="#profit-check" style={{color:'#fff',textDecoration:'none',fontWeight:850}}>Free Profit Check</a><a href="#acre-calculator" style={{color:'#fff',textDecoration:'none',fontWeight:850}}>Planting Calculator</a><Link href="/ag/funding" style={{color:'#b9ee91',textDecoration:'none',fontWeight:950}}>Loans & Grants</Link><Link href="/ag/greenhouse" style={{color:'#b9ee91',textDecoration:'none',fontWeight:950}}>Greenhouse OS</Link><a href="tel:+15053609529" style={{color:'#b9ee91',textDecoration:'none',fontWeight:950}}>Call Jim: {PHONE}</a><Link href="/ag/app" style={{color:'#fff',textDecoration:'none',fontWeight:850}}>Farm App</Link><Link href="/ag/install" style={{background:'#b9ee91',color:'#153427',textDecoration:'none',padding:'10px 13px',borderRadius:10,fontWeight:950}}>Install on Phone</Link></div></nav>
-<div style={{paddingTop:64,maxWidth:930}}><div style={{fontWeight:950,letterSpacing:1,color:'#b9ee91',fontSize:12}}>THE AI OPERATING SYSTEM FOR THE BUSINESS OF AGRICULTURE</div><h1 style={{fontSize:'clamp(48px,8vw,86px)',lineHeight:.95,letterSpacing:-3,margin:'15px 0 20px'}}>Boost Sales.<br/>Improve Crops.<br/>Control Payroll.<br/><span style={{color:'#b9ee91'}}>Protect Your Water.</span></h1><p style={{fontSize:21,maxWidth:850,lineHeight:1.6,color:'#d8ebe4'}}>Aridon Ag helps farmers, ranchers and controlled-environment growers see where money is being made, where margin is leaking and what to do next across buyers, crops, labor, inputs, equipment, water and funding.</p><div style={{display:'flex',gap:12,flexWrap:'wrap',marginTop:28}}><a href="#profit-check" style={{background:'#b9ee91',color:'#123428',padding:'14px 18px',borderRadius:11,fontWeight:950,textDecoration:'none'}}>Run My Free Farm Profit Check <ArrowRight size={16} style={{verticalAlign:'middle'}}/></a><Link href="/ag/funding" style={{background:'#fff',color:'#0a533e',padding:'14px 18px',borderRadius:11,fontWeight:950,textDecoration:'none'}}>Find Loans & Grants</Link><Link href="/ag/app" style={{border:'1px solid #a9d8c7',color:'#fff',padding:'14px 18px',borderRadius:11,fontWeight:900,textDecoration:'none'}}>See the Farm Command Center</Link></div></div>
-</div></section>
-<section style={{maxWidth:1180,margin:'-34px auto 0',padding:'0 20px'}}><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:12}}>{cards.map(({title,text,icon:Icon})=><div key={title} style={{background:'#fff',padding:20,borderRadius:17,border:'1px solid #dce8df',boxShadow:'0 10px 35px #173b2a12'}}><Icon size={25} color="#2e7d32"/><h3 style={{margin:'10px 0 6px'}}>{title}</h3><p style={{margin:0,color:'#607284',lineHeight:1.5,fontSize:14}}>{text}</p>{title==='Greenhouse Growing'&&<Link href="/ag/greenhouse" style={{display:'inline-block',marginTop:10,color:'#0a533e',fontWeight:950,textDecoration:'none'}}>Open greenhouse →</Link>}{title==='Ag Funding'&&<Link href="/ag/funding" style={{display:'inline-block',marginTop:10,color:'#0a533e',fontWeight:950,textDecoration:'none'}}>Open funding →</Link>}</div>)}</div></section>
-<section style={{maxWidth:1180,margin:'58px auto',padding:'0 20px'}}><AgProfitCheck/></section>
-<section style={{maxWidth:1180,margin:'58px auto',padding:'0 20px'}}><AgAcreCalculator/></section>
-<section style={{maxWidth:1180,margin:'64px auto',padding:'0 20px',display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:14}}><div style={{background:'#0d314c',color:'#fff',borderRadius:20,padding:28}}><Bot size={34} color="#b9ee91"/><div style={{fontSize:12,fontWeight:950,color:'#b9ee91',marginTop:12}}>ARIDON AI FARM ADVISOR</div><h2 style={{fontSize:34,margin:'7px 0 10px'}}>What should I do Monday morning?</h2><p style={{lineHeight:1.65,color:'#d7e5ee'}}>Aridon turns operating data into a short priority list: buyers to call, fields to review, overtime to fix, inventory to watch, equipment to service, water risks to address and funding opportunities worth checking.</p><Link href="/ag/app" style={{display:'inline-block',background:'#b9ee91',color:'#153427',textDecoration:'none',padding:'12px 14px',borderRadius:10,fontWeight:950}}>Open Demo Dashboard</Link></div><div style={{background:'#fff',border:'1px solid #dce8df',borderRadius:20,padding:28}}><Smartphone size={34} color="#2e7d32"/><div style={{fontSize:12,fontWeight:950,color:'#2e7d32',marginTop:12}}>FARM APP</div><h2 style={{fontSize:34,margin:'7px 0 10px'}}>Aridon Ag goes to the field.</h2><p style={{lineHeight:1.65,color:'#607284'}}>Install Aridon Ag on supported phones, tablets and computers as a Progressive Web App while keeping the same account available in a browser.</p><Link href="/ag/install" style={{display:'inline-block',background:'#0a533e',color:'#fff',textDecoration:'none',padding:'12px 14px',borderRadius:10,fontWeight:950}}>Install Aridon Ag</Link></div></section>
-<section style={{background:'#e5f0e3',padding:'64px 20px'}}><div style={{maxWidth:1080,margin:'auto'}}><div style={{fontSize:12,fontWeight:950,color:'#2e7d32'}}>FOUNDING FARM PROGRAM</div><h2 style={{fontSize:'clamp(38px,5vw,58px)',margin:'8px 0 14px'}}>Prove the value before asking a grower to commit.</h2><p style={{fontSize:18,lineHeight:1.65,maxWidth:900,color:'#52677a'}}>Participating farms establish baseline metrics and document useful opportunities in sales, crop economics, labor, inputs, equipment, water and funding. Results are reported only where supported by farm data and permission.</p><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(230px,1fr))',gap:10,marginTop:22}}>{['Free Farm Profit Check','Seeds & profit-per-acre calculator','Loans, grants & cost-share matching','Guided onboarding','30-day action priorities','Mobile farm command center','AI Farm Advisor','ROI and opportunity tracking'].map(x=><div key={x} style={{background:'#fff',padding:15,borderRadius:12,fontWeight:850,display:'flex',gap:8,alignItems:'center'}}><CheckCircle2 size={18} color="#2e7d32"/>{x}</div>)}</div></div></section>
-</main>}
+export default function AridonAgPage() {
+  return <main style={{ minHeight: '100vh', background: '#f4f1e8', color: '#18251d', fontFamily: 'Arial,sans-serif' }}>
+    <header style={{ background: '#163d2a', color: '#fff', padding: '16px 18px' }}>
+      <div style={{ maxWidth: 1120, margin: 'auto', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <strong style={{ letterSpacing: 1.5 }}>ARIDON AG</strong>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ color: '#dbe8db', fontSize: 13 }}>Built first for cow-calf ranchers</span>
+          <a href={`tel:+1${PHONE.replace(/\D/g, '')}`} style={{ color: '#fff', textDecoration: 'none', fontWeight: 900 }}>{PHONE}</a>
+        </div>
+      </div>
+    </header>
+
+    <section style={{ maxWidth: 1120, margin: 'auto', padding: '58px 18px 42px', display: 'grid', gridTemplateColumns: 'minmax(0,1.25fr) minmax(280px,.75fr)', gap: 30, alignItems: 'center' }}>
+      <div>
+        <div style={{ color: '#356943', fontWeight: 950, fontSize: 13, letterSpacing: .8 }}>THE AI BACK OFFICE FOR YOUR RANCH</div>
+        <h1 style={{ fontSize: 'clamp(48px,8vw,84px)', lineHeight: .94, letterSpacing: -3, margin: '12px 0 20px' }}>Know where your money is going. Know what to do next.</h1>
+        <p style={{ maxWidth: 760, fontSize: 21, lineHeight: 1.55, color: '#526058' }}>Aridon watches the business side of the ranch so you can spend less time hunting through numbers, paperwork and programs. Start with a free 2-minute Operation Snapshot.</p>
+        <Link href="/ag/snapshot" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 22, background: '#163d2a', color: '#fff', padding: '16px 19px', borderRadius: 13, fontWeight: 950, textDecoration: 'none', fontSize: 18 }}>Get My Free Operation Snapshot <ArrowRight size={20} /></Link>
+        <div style={{ marginTop: 12, color: '#667169', fontSize: 13 }}>No credit card. Eight questions. One-page margin report.</div>
+      </div>
+
+      <aside style={{ background: '#fff', border: '1px solid #d8e1d5', borderRadius: 20, padding: 22 }}>
+        <div style={{ color: '#356943', fontSize: 12, fontWeight: 950 }}>WHAT YOU GET FIRST</div>
+        <h2 style={{ fontSize: 30, margin: '7px 0 14px' }}>Your ranch in one page.</h2>
+        <div style={{ display: 'grid', gap: 12 }}>{['Top 3 margin leaks worth investigating', 'Directional dollar impact range', 'Three actions for this week', 'Funding opportunities connected to the problem'].map((text) => <div key={text} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', lineHeight: 1.45 }}><CheckCircle2 size={20} color="#356943" style={{ flex: '0 0 auto', marginTop: 1 }} /><span>{text}</span></div>)}</div>
+      </aside>
+    </section>
+
+    <section style={{ background: '#fff', borderTop: '1px solid #d8e1d5', borderBottom: '1px solid #d8e1d5', padding: '54px 18px' }}>
+      <div style={{ maxWidth: 1120, margin: 'auto' }}>
+        <div style={{ color: '#356943', fontSize: 12, fontWeight: 950 }}>ARIDON DOES NOT NEED TO FEEL LIKE SOFTWARE</div>
+        <h2 style={{ fontSize: 'clamp(34px,5vw,54px)', margin: '8px 0 22px' }}>Five things. That is the product.</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12 }}>{outcomes.map(([title, text], index) => <article key={title} style={{ border: '1px solid #d8e1d5', borderRadius: 16, padding: 18, background: '#faf9f4' }}><div style={{ width: 34, height: 34, borderRadius: 99, display: 'grid', placeItems: 'center', background: '#e4eddf', color: '#356943', fontWeight: 950 }}>{index + 1}</div><h3 style={{ margin: '12px 0 6px', fontSize: 22 }}>{title}</h3><p style={{ margin: 0, color: '#5a675f', lineHeight: 1.5 }}>{text}</p></article>)}</div>
+      </div>
+    </section>
+
+    <section style={{ maxWidth: 1120, margin: 'auto', padding: '58px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 16 }}>
+      <article style={{ background: '#163d2a', color: '#fff', borderRadius: 20, padding: 24 }}>
+        <MessageSquareText size={30} color="#c8e2ac" />
+        <div style={{ color: '#c8e2ac', fontSize: 12, fontWeight: 950, marginTop: 12 }}>MONDAY RANCH BRIEF</div>
+        <h2 style={{ fontSize: 34, margin: '7px 0 10px' }}>The three things worth your attention this week.</h2>
+        <p style={{ color: '#dbe8df', lineHeight: 1.6 }}>Market movement, weather risk, input pressure, ranch-specific funding and one practical action. Delivered by email and, with permission, text.</p>
+      </article>
+
+      <article style={{ background: '#fff', border: '1px solid #d8e1d5', borderRadius: 20, padding: 24 }}>
+        <Landmark size={30} color="#356943" />
+        <div style={{ color: '#356943', fontSize: 12, fontWeight: 950, marginTop: 12 }}>MONEY & FUNDING</div>
+        <h2 style={{ fontSize: 34, margin: '7px 0 10px' }}>If Aridon finds a problem, it also looks for ways to pay for the fix.</h2>
+        <p style={{ color: '#5a675f', lineHeight: 1.6 }}>Water, drought, grazing, equipment, energy and conservation projects can be screened against grants, loans, rebates and cost-share programs.</p>
+      </article>
+
+      <article style={{ background: '#fff', border: '1px solid #d8e1d5', borderRadius: 20, padding: 24 }}>
+        <ClipboardList size={30} color="#356943" />
+        <div style={{ color: '#356943', fontSize: 12, fontWeight: 950, marginTop: 12 }}>PAPERWORK COPILOT</div>
+        <h2 style={{ fontSize: 34, margin: '7px 0 10px' }}>One inbox for the paper pile.</h2>
+        <p style={{ color: '#5a675f', lineHeight: 1.6 }}>Invoices, receipts, records and program documents go into one operating trail so exceptions and deadlines stop disappearing.</p>
+      </article>
+    </section>
+
+    <section style={{ background: '#e6ecdf', padding: '58px 18px' }}>
+      <div style={{ maxWidth: 920, margin: 'auto', textAlign: 'center' }}>
+        <ShieldCheck size={34} color="#356943" />
+        <div style={{ color: '#356943', fontSize: 12, fontWeight: 950, marginTop: 10 }}>FOUNDING RANCH PLAN</div>
+        <h2 style={{ fontSize: 'clamp(38px,6vw,58px)', margin: '8px 0 10px' }}>$149/month or $1,490/year.</h2>
+        <p style={{ fontSize: 18, color: '#526058', lineHeight: 1.6, maxWidth: 720, margin: '0 auto' }}>One plan until we have ten paying ranches and enough real usage to justify anything more complicated. Large-operation implementation is quoted only when the setup actually requires it.</p>
+        <Link href="/ag/snapshot" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 20, background: '#163d2a', color: '#fff', padding: '15px 18px', borderRadius: 12, fontWeight: 950, textDecoration: 'none' }}>Start With the Free Snapshot <ArrowRight size={19} /></Link>
+      </div>
+    </section>
+
+    <footer style={{ padding: '26px 18px 40px' }}>
+      <div style={{ maxWidth: 1120, margin: 'auto', display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', color: '#657069', fontSize: 13 }}>
+        <div>Aridon Ag · New Mexico launch · Arizona next</div>
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}><Link href="/ag/funding" style={{ color: '#356943', textDecoration: 'none', fontWeight: 850 }}>Funding tools</Link><Link href="/ag/app" style={{ color: '#356943', textDecoration: 'none', fontWeight: 850 }}>Ranch workspace</Link><Link href="/ag/install" style={{ color: '#356943', textDecoration: 'none', fontWeight: 850 }}><Smartphone size={14} style={{ verticalAlign: 'middle' }} /> Install</Link></div>
+      </div>
+    </footer>
+  </main>;
+}
