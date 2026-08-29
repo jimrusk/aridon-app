@@ -65,9 +65,10 @@ function numberInRange(value: unknown, min: number, max: number) {
 }
 
 export function normalizeAgSnapshotInput(body: any): AgOperationSnapshotInput {
-  const topCosts = Array.isArray(body?.topCosts)
-    ? [...new Set(body.topCosts.map((value: unknown) => clean(value, 30)).filter(Boolean))].slice(0, 3)
+  const cleanedCosts: string[] = Array.isArray(body?.topCosts)
+    ? body.topCosts.map((value: unknown) => clean(value, 30)).filter((value: string) => Boolean(value))
     : [];
+  const topCosts: string[] = Array.from(new Set<string>(cleanedCosts)).slice(0, 3);
 
   return {
     state: clean(body?.state, 40),
