@@ -1,12 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { EVA_AVATAR } from '../../lib/evaIdentity';
+import { getBrowserClient } from '../../lib/supabase';
 
 type Message = { role: 'user' | 'assistant'; content: string };
+type Account = { tenant: { slug: string; business_name: string } };
 
 export default function EvaChatPage() {
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -15,10 +19,37 @@ export default function EvaChatPage() {
   ]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [token, setToken] = useState('');
+  const [account, setAccount] = useState<Account | null>(null);
+  const [accessError, setAccessError] = useState('');
+
+  useEffect(() => {
+    const db = getBrowserClient();
+    db.auth.getSession().then(async ({ data }) => {
+      const accessToken = data.session?.access_token;
+      if (!accessToken) {
+        router.replace('/customer/login?next=/eva-chat');
+        return;
+      }
+
+      const response = await fetch('/api/customer/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: 'no-store',
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.tenant?.slug) {
+        setAccessError(result.error || 'Your Aridon workspace could not be opened.');
+        return;
+      }
+
+      setToken(accessToken);
+      setAccount(result as Account);
+    });
+  }, [router]);
 
   async function send() {
     const text = input.trim();
-    if (!text || busy) return;
+    if (!text || busy || !token || !account) return;
 
     const next = [...messages, { role: 'user' as const, content: text }];
     setMessages(next);
@@ -26,12 +57,20 @@ export default function EvaChatPage() {
     setBusy(true);
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch('/api/customer/assistant', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ executive: 'Eva', messages: next }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          slug: account.tenant.slug,
+          executive: 'Eva',
+          researchWeb: false,
+          messages: next.slice(-20),
+        }),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.error || 'Eva chat could not complete the request.');
       setMessages([...next, { role: 'assistant', content: data.reply || 'I am here.' }]);
     } catch (error) {
@@ -47,6 +86,22 @@ export default function EvaChatPage() {
     }
   }
 
+  if (accessError) {
+    return (
+      <main style={{ minHeight: '100vh', background: '#090b12', color: '#F5F7FB', display: 'grid', placeItems: 'center', padding: '24px', fontFamily: 'Inter,ui-sans-serif,system-ui,Segoe UI,Arial' }}>
+        <div style={{ maxWidth: '540px', textAlign: 'center' }}>
+          <h1>Eva could not open your Aridon workspace.</h1>
+          <p style={{ color: '#AAB6CA', lineHeight: 1.6 }}>{accessError}</p>
+          <Link href="/customer/login?next=/eva-chat" style={{ color: '#101421', background: '#9EF0CF', borderRadius: '999px', padding: '10px 14px', fontWeight: 900, textDecoration: 'none', display: 'inline-block' }}>Sign in again</Link>
+        </div>
+      </main>
+    );
+  }
+
+  if (!account || !token) {
+    return <main style={{ minHeight: '100vh', background: '#090b12', color: '#F5F7FB', display: 'grid', placeItems: 'center', padding: '24px', fontFamily: 'Inter,ui-sans-serif,system-ui,Segoe UI,Arial' }}>Opening Eva with your Aridon owner access…</main>;
+  }
+
   return (
     <main style={{ minHeight: '100vh', background: 'radial-gradient(circle at 50% 0%,#2a1a22 0,#090b12 42%,#05060a 100%)', color: '#F5F7FB', padding: '24px', fontFamily: 'Inter,ui-sans-serif,system-ui,Segoe UI,Arial' }}>
       <div style={{ maxWidth: '980px', margin: '0 auto' }}>
@@ -54,14 +109,14 @@ export default function EvaChatPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <img src={EVA_AVATAR} alt="Eva" style={{ width: '72px', height: '72px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #D45A2A', boxShadow: '0 0 30px rgba(212,90,42,.35)' }} />
             <div>
-              <div style={{ fontSize: '13px', letterSpacing: '.14em', color: '#F0A27A', fontWeight: 900 }}>EVA</div>
+              <div style={{ fontSize: '13px', letterSpacing: '.14em', color: '#F0A27A', fontWeight: 900 }}>EVA · {account.tenant.business_name.toUpperCase()}</div>
               <h1 style={{ margin: '2px 0 4px', fontSize: '34px' }}>Command Advisor Chat</h1>
-              <div style={{ color: '#9BA8C6' }}>AI Command Advisor &amp; Chief of Staff</div>
+              <div style={{ color: '#9BA8C6' }}>Authenticated to your private Aridon workspace</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '9px', flexWrap: 'wrap' }}>
-            <Link href="/eva-core" style={{ color: '#101421', background: '#9EF0CF', borderRadius: '999px', padding: '10px 14px', fontWeight: 900, textDecoration: 'none' }}>Eva Core</Link>
-            <Link href="/" style={{ color: '#F5F7FB', border: '1px solid #39415B', borderRadius: '999px', padding: '10px 14px', fontWeight: 800, textDecoration: 'none' }}>Command Center</Link>
+            <Link href="/customer/start" style={{ color: '#101421', background: '#9EF0CF', borderRadius: '999px', padding: '10px 14px', fontWeight: 900, textDecoration: 'none' }}>Main Room</Link>
+            <Link href={`/workspace/${account.tenant.slug}`} style={{ color: '#F5F7FB', border: '1px solid #39415B', borderRadius: '999px', padding: '10px 14px', fontWeight: 800, textDecoration: 'none' }}>Company Home</Link>
           </div>
         </header>
 
