@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { getServerClient } from './supabase';
+import { getServerClient, getUserScopedClient } from './supabase';
 import { businessFeatureAllowed, upgradeMessage, type AridonFeature } from './planEntitlements';
 
 export type CustomerTenantSummary = {
@@ -26,8 +26,11 @@ export async function authenticatedCustomer(request: NextRequest) {
   const token = authorization.slice(7).trim();
   if (!token) return { ok: false as const, status: 401, error: 'Customer login required.' };
 
-  const db = getServerClient();
-  const { data, error } = await db.auth.getUser(token);
+  // Validate the supplied customer token against Supabase. The service client is used
+  // only for token verification here. Tenant authorization below is deliberately done
+  // with the signed-in user's own token so Row Level Security remains the final guard.
+  const serverDb = getServerClient();
+  const { data, error } = await serverDb.auth.getUser(token);
   if (error || !data.user) {
     return { ok: false as const, status: 401, error: 'Your customer session has expired.' };
   }
@@ -42,17 +45,20 @@ export async function authenticatedCustomer(request: NextRequest) {
   }
 
   if (requiredFeature) {
-    const membership = await customerTenantForUser(data.user.id);
+    const membership = await customerTenantForUser(data.user.id, undefined, token);
     if (membership && !businessFeatureAllowed(membership.tenant.plan, requiredFeature)) {
       return { ok: false as const, status: 402, error: upgradeMessage(requiredFeature), upgradeRequired: true as const, feature: requiredFeature };
     }
   }
 
-  return { ok: true as const, db, user: data.user };
+  return { ok: true as const, db: getUserScopedClient(token), user: data.user, token };
 }
 
-export async function customerTenantForUser(userId: string, slug?: string) {
-  const db = getServerClient();
+export async function customerTenantForUser(userId: string, slug?: string, accessToken?: string) {
+  // Customer-request paths should always pass accessToken. That makes authorization
+  // use the signed-in identity plus RLS instead of trusting a separate server-side
+  // database role. Server-only callers can still omit it when appropriate.
+  const db = accessToken ? getUserScopedClient(accessToken) : getServerClient();
   const { data: memberships, error: membershipError } = await db
     .from('customer_memberships')
     .select('tenant_id,role')
