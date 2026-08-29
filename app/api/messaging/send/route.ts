@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Confirm that these recipients have consented to receive this message.' }, { status: 400, headers: NO_STORE });
     }
 
-    const membership = await customerTenantForUser(auth.user.id, slug);
+    const membership = await customerTenantForUser(auth.user.id, slug, auth.token);
     if (!membership) return NextResponse.json({ error: 'You do not have access to this workspace.' }, { status: 403, headers: NO_STORE });
     if (!subscriptionAllowsAccess(membership.tenant.subscription_status)) {
       return NextResponse.json({ error: 'This workspace is not active.' }, { status: 402, headers: NO_STORE });
