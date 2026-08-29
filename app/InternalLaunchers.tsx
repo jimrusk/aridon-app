@@ -22,6 +22,7 @@ export default function InternalLaunchers() {
   if (
     pathname === '/' ||
     pathname === '/sales' ||
+    pathname.startsWith('/ag') ||
     pathname.startsWith('/install') ||
     pathname.startsWith('/business-os') ||
     pathname.startsWith('/impact-os') ||
