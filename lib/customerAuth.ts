@@ -69,27 +69,16 @@ export async function customerTenantForUser(userId: string, slug?: string) {
     .select(tenantFields)
     .in('id', tenantIds);
 
-  if (slug) tenantQuery = tenantQuery.eq('slug', slug);
+  // If the user belongs to exactly one workspace, that authenticated membership is
+  // the source of truth. Old bookmarks or stale client slugs must not lock the owner
+  // out of their only workspace. For multi-workspace accounts, require an exact slug.
+  if (slug && tenantIds.length > 1) tenantQuery = tenantQuery.eq('slug', slug);
+
   const { data: tenants, error: tenantError } = await tenantQuery.limit(1);
   if (tenantError) throw tenantError;
+  if (!tenants?.length) return null;
 
-  let tenant = tenants?.[0] as CustomerTenantSummary | undefined;
-
-  // A single-workspace account may arrive through an older saved Aridon URL.
-  // Canonicalize that stale slug to the only workspace the user actually owns.
-  // Never guess when the account belongs to multiple workspaces.
-  if (!tenant && slug && tenantIds.length === 1) {
-    const { data: canonicalTenants, error: canonicalError } = await db
-      .from('customer_tenants')
-      .select(tenantFields)
-      .eq('id', tenantIds[0])
-      .limit(1);
-    if (canonicalError) throw canonicalError;
-    tenant = canonicalTenants?.[0] as CustomerTenantSummary | undefined;
-  }
-
-  if (!tenant) return null;
-
+  const tenant = tenants[0] as CustomerTenantSummary;
   const membership = memberships.find((item) => item.tenant_id === tenant.id);
   return { tenant, role: membership?.role || 'member' };
 }
