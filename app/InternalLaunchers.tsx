@@ -34,6 +34,7 @@ export default function InternalLaunchers() {
     pathname.startsWith('/property-intelligence') ||
     pathname.startsWith('/analyze-business') ||
     pathname.startsWith('/site-indexing') ||
+    pathname.startsWith('/ai-visibility') ||
     pathname.startsWith('/sales-team') ||
     pathname.startsWith('/presentation-studio') ||
     pathname.startsWith('/facebook-launch') ||
@@ -99,6 +100,7 @@ export default function InternalLaunchers() {
       <Link href="/model-router" aria-label="Open Aridon model router" style={{ ...launcherStyle, background: '#C9A7FF' }}>⌘ Models</Link>
       <Link href="/impact-os" aria-label="Open Aridon Impact OS" style={{ ...launcherStyle, background: '#C9A7FF' }}>✦ Impact</Link>
       <Link href="/sales-team" aria-label="Build an AI sales team from a company website" style={{ ...launcherStyle, background: '#9EF0CF' }}>⚡ Sales AI</Link>
+      <Link href="/ai-visibility" aria-label="Open Aridon AI Visibility Center" style={{ ...launcherStyle, background: '#C5B8FF' }}>◉ AI Visible</Link>
       <Link href="/site-indexing" aria-label="Open Aridon Index Engine" style={{ ...launcherStyle, background: '#B9CFFF' }}>⌁ Index</Link>
       <Link href="/analyze-business" aria-label="Analyze any business website" style={{ ...launcherStyle, background: '#F4D06F' }}>◎ Analyze</Link>
       <Link href="/business-os/growth-command" aria-label="Open Aridon Growth Command" style={{ ...launcherStyle, background: '#9EF0CF' }}>↗ Growth</Link>
