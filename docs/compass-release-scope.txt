@@ -1,0 +1,1 @@
+Release scope is limited to the web screening interface and navigation until persistence and phone integration are implemented.
