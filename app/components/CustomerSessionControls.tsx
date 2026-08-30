@@ -10,6 +10,7 @@ export default function CustomerSessionControls() {
     pathname === '/' ||
     pathname === '/sales' ||
     pathname.startsWith('/ag') ||
+    pathname.startsWith('/ai-visibility') ||
     pathname.startsWith('/install') ||
     pathname.startsWith('/mobile-app') ||
     pathname.startsWith('/analyze-business') ||
