@@ -7,7 +7,8 @@ export default function PropertyIntelligenceLayout({ children }: { children: Rea
         <div style={{ maxWidth: 1180, margin: '0 auto', display: 'flex', gap: 8, alignItems: 'center', overflowX: 'auto' }}>
           <strong style={{ color: '#9EF0CF', fontSize: 11, whiteSpace: 'nowrap', marginRight: 4 }}>ARIDON PROPERTY</strong>
           <Link href="/property-intelligence" style={link}>Property Hunter</Link>
-          <Link href="/property-intelligence/land" style={{ ...link, background: '#BFE79F', color: '#10271C', borderColor: '#BFE79F' }}>Land Intelligence</Link>
+          <Link href="/property-intelligence/market" style={{ ...link, background: '#9EF0CF', color: '#07130F', borderColor: '#9EF0CF' }}>Market Radar</Link>
+          <Link href="/property-intelligence/land" style={link}>Land Intelligence</Link>
           <Link href="/property-intelligence/sources" style={link}>Public Sources</Link>
           <Link href="/ag" style={link}>Aridon Ag</Link>
         </div>
