@@ -33,6 +33,7 @@ export default function InternalLaunchers() {
     pathname.startsWith('/opportunity-intelligence') ||
     pathname.startsWith('/property-intelligence') ||
     pathname.startsWith('/analyze-business') ||
+    pathname.startsWith('/growth-audit') ||
     pathname.startsWith('/site-indexing') ||
     pathname.startsWith('/ai-visibility') ||
     pathname.startsWith('/sales-team') ||
@@ -103,6 +104,7 @@ export default function InternalLaunchers() {
       <Link href="/ai-visibility" aria-label="Open Aridon AI Visibility Center" style={{ ...launcherStyle, background: '#C5B8FF' }}>◉ AI Visible</Link>
       <Link href="/site-indexing" aria-label="Open Aridon Index Engine" style={{ ...launcherStyle, background: '#B9CFFF' }}>⌁ Index</Link>
       <Link href="/analyze-business" aria-label="Analyze any business website" style={{ ...launcherStyle, background: '#F4D06F' }}>◎ Analyze</Link>
+      <Link href="/growth-audit" aria-label="Audit owned media, offers, audience capture and AI growth" style={{ ...launcherStyle, background: '#FFD5A8' }}>✦ Growth Audit</Link>
       <Link href="/business-os/growth-command" aria-label="Open Aridon Growth Command" style={{ ...launcherStyle, background: '#9EF0CF' }}>↗ Growth</Link>
       <Link href="/marketing-autopilot" aria-label="Open Aridon Marketing Autopilot" style={{ ...launcherStyle, background: '#8FE2C2' }}>⟳ Autopilot</Link>
       <Link href="/eva-core" aria-label="Open Eva Core inner-world lab" style={{ ...launcherStyle, background: '#9EF0CF' }}>◉ Eva Core</Link>
