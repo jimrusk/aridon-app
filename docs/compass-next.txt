@@ -1,0 +1,1 @@
+Next milestone: persist Compass answers in tenant-scoped storage and let the executive phone conversation read/write the same structured profile after confirmation.
