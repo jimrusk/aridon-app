@@ -1,0 +1,74 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { codieModule, codieModules, codiePublicCorpusSummary, codieSources } from '../../../../../lib/codieCurriculum';
+
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+const NO_STORE = { 'Cache-Control': 'no-store' };
+const RESPONSES_URL = 'https://api.openai.com/v1/responses';
+
+type Message = { role: 'user' | 'assistant'; content: string };
+
+type ResponsesPayload = {
+  output_text?: string;
+  output?: Array<{ content?: Array<{ type?: string; text?: string }> }>;
+  error?: { message?: string };
+};
+
+function cleanMessages(value: unknown): Message[] | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 16) return null;
+  let total = 0;
+  const messages: Message[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') return null;
+    const role = 'role' in item ? item.role : undefined;
+    const content = 'content' in item ? item.content : undefined;
+    if ((role !== 'user' && role !== 'assistant') || typeof content !== 'string') return null;
+    const cleaned = content.trim();
+    if (!cleaned || cleaned.length > 5000) return null;
+    total += cleaned.length;
+    if (total > 24000) return null;
+    messages.push({ role, content: cleaned });
+  }
+  return messages;
+}
+
+function extractText(data: ResponsesPayload) {
+  if (typeof data.output_text === 'string' && data.output_text.trim()) return data.output_text.trim();
+  return (data.output || []).flatMap((item) => item.content || []).filter((item) => item.type === 'output_text' && item.text).map((item) => item.text || '').join('\n\n').trim();
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    if (!request.headers.get('content-type')?.includes('application/json')) return NextResponse.json({ error: 'Content-Type must be application/json.' }, { status: 415, headers: NO_STORE });
+    const body = await request.json();
+    const messages = cleanMessages(body?.messages);
+    const moduleId = typeof body?.moduleId === 'string' ? body.moduleId.slice(0, 80) : codieModules[0].id;
+    if (!messages) return NextResponse.json({ error: 'A valid lesson conversation is required.' }, { status: 400, headers: NO_STORE });
+
+    const module = codieModule(moduleId);
+    const sourceSet = codieSources.filter((source) => module.sourceIds.includes(source.id));
+    const sourceText = sourceSet.map((source) => `${source.title}: ${source.url} — ${source.note}`).join('\n');
+    const conversation = messages.map((message) => `${message.role.toUpperCase()}: ${message.content}`).join('\n\n');
+
+    const systemPrompt = `You are the Aridon Contrarian Curriculum Tutor, a clearly disclosed AI teaching assistant built for a proposed Codie Sanchez / Contrarian Thinking partnership demo. You are NOT Codie Sanchez. Never claim to be her, never imitate her private knowledge, and never claim endorsement or affiliation. Teach only from the source-grounded public curriculum and clearly mark Aridon extensions as Aridon analysis.\n\nCURRENT MODULE: ${module.title}\nPROMISE: ${module.promise}\nSOURCE-GROUNDED LESSONS:\n${module.lessons.map((lesson, index) => `${index + 1}. ${lesson}`).join('\n')}\n\nARIDON EXTENSION:\n${module.aridonExtension}\n\nCURRENT MODULE SOURCES:\n${sourceText}\n\nBROADER PUBLIC CORPUS SUMMARY:\n${codiePublicCorpusSummary}\n\nTEACHING RULES:\n- Teach interactively and practically. Ask the learner to apply the idea to a real or hypothetical business.\n- Keep source-grounded ideas distinct from Aridon-added underwriting, automation, analytics and operating-system features.\n- Do not reproduce long passages from source material. Summarize and synthesize.\n- Never promise investment returns or tell someone a deal is safe solely from limited data.\n- For a real acquisition, recommend verification of bank statements, tax returns, contracts, payroll, working capital, legal documents and lender terms as appropriate.\n- Aridon is decision support, not a substitute for legal, tax, accounting or lender review.\n- If the learner asks what Codie would personally say about something not established by the source set, say the public sources do not establish that and answer as the Aridon tutor instead.\n- When useful, finish with a short exercise, quiz question or next step.\n- If asked for source basis, name the relevant source title and URL from the supplied source set.\n\nCONVERSATION:\n${conversation}`;
+
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
+    if (!apiKey) return NextResponse.json({ error: 'The AI teaching service is not configured on this deployment.' }, { status: 503, headers: NO_STORE });
+
+    const response = await fetch(RESPONSES_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: process.env.CUSTOMER_ASSISTANT_MODEL?.trim() || 'gpt-5.6', input: systemPrompt, max_output_tokens: 1200, store: false }),
+      cache: 'no-store',
+    });
+    const data = (await response.json()) as ResponsesPayload;
+    if (!response.ok) throw new Error(data.error?.message || `AI service returned ${response.status}.`);
+    const reply = extractText(data);
+    if (!reply) throw new Error('The tutor returned no readable lesson.');
+
+    return NextResponse.json({ reply, module: { id: module.id, title: module.title }, sources: sourceSet.map(({ title, url }) => ({ title, url })) }, { headers: NO_STORE });
+  } catch (error) {
+    console.error('Codie curriculum tutor error', error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'The teaching studio is temporarily unavailable.' }, { status: 500, headers: NO_STORE });
+  }
+}
