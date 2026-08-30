@@ -6,9 +6,7 @@ export type DidPublicConfig = {
   clientKey: string | null;
 };
 
-export function didPublicConfig(): DidPublicConfig {
-  const agentId = process.env.DID_AGENT_ID?.trim() || '';
-  const clientKey = process.env.DID_CLIENT_KEY?.trim() || '';
+function configured(agentId: string, clientKey: string): DidPublicConfig {
   return {
     configured: Boolean(agentId && clientKey),
     provider: 'D-ID',
@@ -16,6 +14,29 @@ export function didPublicConfig(): DidPublicConfig {
     agentId: agentId || null,
     clientKey: clientKey || null,
   };
+}
+
+export function didPublicConfig(): DidPublicConfig {
+  const agentId = process.env.DID_AGENT_ID?.trim() || '';
+  const clientKey = process.env.DID_CLIENT_KEY?.trim() || '';
+  return configured(agentId, clientKey);
+}
+
+export function didCreatorPublicConfig(creatorSlug: string): DidPublicConfig {
+  const slug = creatorSlug.trim().toLowerCase();
+  let agentId = '';
+  let clientKey = '';
+
+  if (slug === 'codie-sanchez') {
+    agentId = process.env.DID_CODIE_AGENT_ID?.trim() || '';
+    clientKey = process.env.DID_CODIE_CLIENT_KEY?.trim() || '';
+  } else if (slug === 'maria-wendt') {
+    agentId = process.env.DID_MARIA_AGENT_ID?.trim() || '';
+    clientKey = process.env.DID_MARIA_CLIENT_KEY?.trim() || '';
+  }
+
+  if (agentId && clientKey) return configured(agentId, clientKey);
+  return didPublicConfig();
 }
 
 export function didServerStatus() {
@@ -31,6 +52,11 @@ export const didUseCases = [
     id: 'executive-avatar',
     name: 'Live Executive Avatar',
     description: 'Give Eva, Heather, Atlas and the executive team real-time visual presence inside the Executive OS.',
+  },
+  {
+    id: 'creator-teacher',
+    name: 'Creator Teaching Avatar',
+    description: 'Turn approved creator knowledge into an interactive teacher that can listen, answer, explain and speak through a live digital human.',
   },
   {
     id: 'sales-agent',
