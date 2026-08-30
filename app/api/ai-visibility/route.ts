@@ -9,7 +9,7 @@ export const maxDuration = 60;
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
 
-function cleanUrl(value: unknown) {
+function cleanUrl(value: unknown): string {
   return typeof value === 'string' ? value.trim().slice(0, 500) : '';
 }
 
@@ -21,16 +21,17 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json().catch(() => ({}));
     const website = cleanUrl(body?.website);
-    const competitors = Array.isArray(body?.competitors)
-      ? [...new Set(body.competitors.map(cleanUrl).filter(Boolean))].slice(0, 3)
+    const competitorCandidates: string[] = Array.isArray(body?.competitors)
+      ? body.competitors.map((item: unknown) => cleanUrl(item)).filter((item: string) => Boolean(item))
       : [];
+    const competitors: string[] = Array.from(new Set<string>(competitorCandidates)).slice(0, 3);
 
     if (!website) {
       return NextResponse.json({ error: 'Enter a public business website to scan.' }, { status: 400, headers: NO_STORE });
     }
 
     const primary = await ingestPublicWebsite(website);
-    const competitorSettled = await Promise.allSettled(competitors.map((url) => ingestPublicWebsite(url)));
+    const competitorSettled = await Promise.allSettled(competitors.map((url: string) => ingestPublicWebsite(url)));
     const competitorInputs = competitorSettled.flatMap((item) => item.status === 'fulfilled' ? [item.value] : []);
     const competitorErrors = competitorSettled.flatMap((item, index) => item.status === 'rejected'
       ? [{ website: competitors[index], error: item.reason instanceof Error ? item.reason.message : 'Competitor scan failed.' }]
