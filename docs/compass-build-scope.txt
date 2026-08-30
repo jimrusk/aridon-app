@@ -1,0 +1,1 @@
+Scope delivered on branch: Alternative Housing Compass page plus workspace navigation. Scope not yet delivered: database persistence, deal ingestion, multilingual speech detection, telephone data entry, production deployment.
