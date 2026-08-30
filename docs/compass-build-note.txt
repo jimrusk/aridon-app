@@ -1,0 +1,1 @@
+Aridon Compass feature branch includes an Alternative Housing module inspired by the owner-provided investment framework. It does not embed or redistribute the source infographic. The implementation converts the four categories into Aridon-original screening and diligence content with conservative, evidence-first language.
