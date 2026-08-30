@@ -6,6 +6,7 @@ export default function CreatorStudioLayout({ children }: { children: React.Reac
       {children}
       <div style={{ position: 'fixed', left: 18, bottom: 18, zIndex: 1500, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <Link href="/customer/creator" style={pillStyle}>✦ Create</Link>
+        <Link href="/customer/creator/product-studio" style={{ ...pillStyle, background: '#B8F3DE' }}>🧠 Knowledge → Product</Link>
         <Link href="/customer/creator/library" style={{ ...pillStyle, background: '#79E0BC' }}>▦ AI Master Library</Link>
         <Link href="/customer/creator/business-builder" style={{ ...pillStyle, background: '#F4D88B' }}>◆ AI Business Builder</Link>
         <Link href="/growth-desk" style={{ ...pillStyle, background: '#FFD68A' }}>$ Growth Desk</Link>
