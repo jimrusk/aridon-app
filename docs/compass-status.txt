@@ -1,0 +1,1 @@
+Branch feature/aridon-compass-v2 now contains the first working Alternative Housing Compass UI and a discoverable workspace-home link. Persistence, live deal ingestion and voice-to-record saving remain subsequent implementation work.
