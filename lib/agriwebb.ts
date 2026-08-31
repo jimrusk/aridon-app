@@ -4,6 +4,7 @@ import { getServerClient } from './supabase';
 export const AGRIWEBB_STAGING_AUTH = 'https://auth.staging.agriwebb.com';
 export const AGRIWEBB_STAGING_API = 'https://api.staging.agriwebb.com';
 export const AGRIWEBB_STAGING_CLIENT_ID = '101c6176-5deb-4ddd-b9da-a3b3d799f707';
+export const AGRIWEBB_STAGING_PUBLIC_ORIGIN = 'https://aridon-v02.vercel.app';
 
 export const AGRIWEBB_READ_SCOPES = [
   'read:farms',
@@ -55,9 +56,8 @@ async function agriWebbClientSecret() {
 }
 
 export function agriWebbRedirectUri() {
-  if (process.env.AGRIWEBB_REDIRECT_URI) return process.env.AGRIWEBB_REDIRECT_URI;
-  const branchUrl = process.env.VERCEL_BRANCH_URL || process.env.VERCEL_URL;
-  if (branchUrl) return `https://${branchUrl}/api/integrations/agriwebb/oauth/callback`;
+  if (process.env.AGRIWEBB_REDIRECT_URI?.trim()) return process.env.AGRIWEBB_REDIRECT_URI.trim();
+  if (process.env.VERCEL) return `${AGRIWEBB_STAGING_PUBLIC_ORIGIN}/api/integrations/agriwebb/oauth/callback`;
   return 'http://localhost:3000/api/integrations/agriwebb/oauth/callback';
 }
 
