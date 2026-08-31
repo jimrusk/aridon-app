@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import {
-  Activity,
   ArrowRight,
   BatteryCharging,
   Beaker,
@@ -10,7 +9,6 @@ import {
   Factory,
   FlaskConical,
   Gauge,
-  Leaf,
   Network,
   PiggyBank,
   RadioTower,
@@ -18,8 +16,8 @@ import {
   Sprout,
   SunMedium,
   ThermometerSun,
-  Tractor,
   Waves,
+  type LucideIcon,
 } from 'lucide-react';
 import PilotScenario from './PilotScenario';
 
@@ -27,7 +25,7 @@ type Module = {
   number: string;
   name: string;
   subtitle: string;
-  icon: React.ComponentType<{ size?: number; color?: string }>;
+  icon: LucideIcon;
   stage: string;
   problem: string;
   design: string[];
@@ -143,7 +141,7 @@ const core: Module[] = [
   },
 ];
 
-const expansion = [
+const expansion: Array<{ name: string; icon: LucideIcon; idea: string; proof: string }> = [
   {
     name: 'Soil Water Battery', icon: Waves,
     idea: 'Research porous mineral or ceramic root-zone structures that temporarily hold irrigation water and release it as surrounding soil dries.',
@@ -171,7 +169,7 @@ const expansion = [
   },
 ];
 
-const layers = [
+const layers: Array<[string, string, LucideIcon]> = [
   ['Water', 'AWG, wells, rain, recycled water, treatment, storage', Droplets],
   ['Root zone', 'Soil moisture, tension, crop stage and irrigation control', Sprout],
   ['Energy', 'Grid, solar, battery, pumps and thermal resources', SunMedium],
@@ -223,10 +221,10 @@ export default function AridonAgRDPage() {
           <h2 style={{ fontSize: 'clamp(34px,5vw,52px)', margin: '8px 0 22px' }}>Five layers share one evidence trail.</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 10 }}>
             {layers.map(([name, text, Icon]) => (
-              <article key={String(name)} style={{ border: '1px solid #d8e1d5', background: '#faf9f4', borderRadius: 17, padding: 17 }}>
+              <article key={name} style={{ border: '1px solid #d8e1d5', background: '#faf9f4', borderRadius: 17, padding: 17 }}>
                 <Icon size={27} color="#356943" />
-                <h3 style={{ fontSize: 21, margin: '11px 0 6px' }}>{String(name)}</h3>
-                <p style={{ margin: 0, color: '#5a675f', lineHeight: 1.5, fontSize: 14 }}>{String(text)}</p>
+                <h3 style={{ fontSize: 21, margin: '11px 0 6px' }}>{name}</h3>
+                <p style={{ margin: 0, color: '#5a675f', lineHeight: 1.5, fontSize: 14 }}>{text}</p>
               </article>
             ))}
           </div>
@@ -243,31 +241,29 @@ export default function AridonAgRDPage() {
             const Icon = module.icon;
             return (
               <article key={module.number} style={{ background: '#fff', border: '1px solid #d8e1d5', borderRadius: 22, overflow: 'hidden' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 0 }}>
-                  <div style={{ padding: 22 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-                      <div style={{ display: 'flex', gap: 13, alignItems: 'center' }}>
-                        <div style={{ width: 48, height: 48, borderRadius: 15, display: 'grid', placeItems: 'center', background: '#e6efdf' }}><Icon size={27} color="#356943" /></div>
-                        <div>
-                          <div style={{ color: '#356943', fontSize: 11, fontWeight: 950 }}>{module.number} · {module.stage}</div>
-                          <h3 style={{ fontSize: 29, margin: '3px 0 3px' }}>{module.name}</h3>
-                          <div style={{ color: '#657169', fontWeight: 750 }}>{module.subtitle}</div>
-                        </div>
+                <div style={{ padding: 22 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 13, alignItems: 'center' }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 15, display: 'grid', placeItems: 'center', background: '#e6efdf' }}><Icon size={27} color="#356943" /></div>
+                      <div>
+                        <div style={{ color: '#356943', fontSize: 11, fontWeight: 950 }}>{module.number} · {module.stage}</div>
+                        <h3 style={{ fontSize: 29, margin: '3px 0 3px' }}>{module.name}</h3>
+                        <div style={{ color: '#657169', fontWeight: 750 }}>{module.subtitle}</div>
                       </div>
                     </div>
-                    <p style={{ color: '#506057', lineHeight: 1.6, fontSize: 16, margin: '17px 0 18px' }}>{module.problem}</p>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(250px,1fr))', gap: 14 }}>
-                      <div style={{ background: '#faf9f4', borderRadius: 15, padding: 16 }}>
-                        <div style={{ fontSize: 11, color: '#356943', fontWeight: 950, letterSpacing: .6 }}>PROTOTYPE ARCHITECTURE</div>
-                        <ul style={{ paddingLeft: 18, margin: '10px 0 0', color: '#526058', lineHeight: 1.55 }}>{module.design.map((item) => <li key={item} style={{ marginBottom: 7 }}>{item}</li>)}</ul>
-                      </div>
-                      <div style={{ background: '#eef3e9', borderRadius: 15, padding: 16 }}>
-                        <div style={{ fontSize: 11, color: '#356943', fontWeight: 950, letterSpacing: .6 }}>R&D QUESTIONS</div>
-                        <ul style={{ paddingLeft: 18, margin: '10px 0 0', color: '#526058', lineHeight: 1.55 }}>{module.research.map((item) => <li key={item} style={{ marginBottom: 7 }}>{item}</li>)}</ul>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 15 }}>{module.metrics.map((metric) => <Badge key={metric}>{metric}</Badge>)}</div>
                   </div>
+                  <p style={{ color: '#506057', lineHeight: 1.6, fontSize: 16, margin: '17px 0 18px' }}>{module.problem}</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(250px,1fr))', gap: 14 }}>
+                    <div style={{ background: '#faf9f4', borderRadius: 15, padding: 16 }}>
+                      <div style={{ fontSize: 11, color: '#356943', fontWeight: 950, letterSpacing: .6 }}>PROTOTYPE ARCHITECTURE</div>
+                      <ul style={{ paddingLeft: 18, margin: '10px 0 0', color: '#526058', lineHeight: 1.55 }}>{module.design.map((item) => <li key={item} style={{ marginBottom: 7 }}>{item}</li>)}</ul>
+                    </div>
+                    <div style={{ background: '#eef3e9', borderRadius: 15, padding: 16 }}>
+                      <div style={{ fontSize: 11, color: '#356943', fontWeight: 950, letterSpacing: .6 }}>R&D QUESTIONS</div>
+                      <ul style={{ paddingLeft: 18, margin: '10px 0 0', color: '#526058', lineHeight: 1.55 }}>{module.research.map((item) => <li key={item} style={{ marginBottom: 7 }}>{item}</li>)}</ul>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 15 }}>{module.metrics.map((metric) => <Badge key={metric}>{metric}</Badge>)}</div>
                 </div>
               </article>
             );
