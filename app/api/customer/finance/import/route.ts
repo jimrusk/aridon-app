@@ -18,6 +18,34 @@ function sourceName(value: unknown) {
   return source || 'manual';
 }
 
+function suppliedExternalId(raw: any, generatedPrefix: 'row' | 'invoice') {
+  const value = cleanFinanceText(raw?.externalId ?? raw?.external_id ?? raw?.id, 180);
+  if (!value || new RegExp(`^${generatedPrefix}-\\d+$`, 'i').test(value)) return '';
+  return value;
+}
+
+async function markManualConnection(auth: any, tenantId: string, userId: string, provider: 'payroll' | 'invoicing' | 'csv', source: string, filename: string | null) {
+  const label = provider === 'payroll' ? 'Payroll' : provider === 'invoicing' ? 'Invoices & Receivables' : 'Bank / Accounting CSV';
+  const capabilities = provider === 'payroll'
+    ? ['payroll journals', 'tax withholdings', 'benefits', 'contractor payments']
+    : provider === 'invoicing'
+      ? ['invoices', 'due dates', 'customer balances', 'payment matching']
+      : ['historical import', 'transaction normalization', 'reconciliation'];
+  const { error } = await auth.db.from('customer_finance_connections').upsert({
+    tenant_id: tenantId,
+    provider,
+    label,
+    status: 'connected',
+    capabilities,
+    metadata: { last_source: source, last_filename: filename },
+    last_sync_at: new Date().toISOString(),
+    last_error: null,
+    created_by: userId,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'tenant_id,provider' });
+  if (error) throw error;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const auth = await authenticatedCustomer(request);
@@ -54,7 +82,7 @@ export async function POST(request: NextRequest) {
         const issueDate = validDate(raw?.issueDate ?? raw?.issue_date ?? raw?.date) || null;
         const dueDate = validDate(raw?.dueDate ?? raw?.due_date) || null;
         if (!total && !balance && !invoiceNumber) return [];
-        const externalId = cleanFinanceText(raw?.externalId ?? raw?.external_id ?? raw?.id, 180) || stableHash([filename, index, invoiceNumber, customerName, issueDate, total]);
+        const externalId = suppliedExternalId(raw, 'invoice') || stableHash([filename, index, invoiceNumber, customerName, issueDate, dueDate, total, balance]);
         const status = cleanFinanceText(raw?.status, 40).toLowerCase() || (balance <= 0 ? 'paid' : 'open');
         return [{
           tenant_id: tenantId,
@@ -77,6 +105,7 @@ export async function POST(request: NextRequest) {
       if (error) throw error;
       const imported = data?.length || 0;
       await auth.db.from('customer_finance_imports').update({ status: 'completed', imported_count: imported, duplicate_count: Math.max(0, normalized.length - imported) }).eq('id', importRow.id);
+      await markManualConnection(auth, tenantId, auth.user.id, 'invoicing', source, filename);
       return NextResponse.json({ ok: true, kind, imported, duplicates: Math.max(0, normalized.length - imported), importId: importRow.id }, { headers: NO_STORE });
     }
 
@@ -104,7 +133,7 @@ export async function POST(request: NextRequest) {
       const category = cleanFinanceText(raw?.category, 140) || null;
       const taxCategory = cleanFinanceText(raw?.taxCategory ?? raw?.tax_category, 140) || null;
       const reference = cleanFinanceText(raw?.reference ?? raw?.checkNumber ?? raw?.check_number, 140) || null;
-      const externalId = cleanFinanceText(raw?.externalId ?? raw?.external_id ?? raw?.id, 180) || stableHash([filename, index, postedAt, description, amount, direction, reference]);
+      const externalId = suppliedExternalId(raw, 'row') || stableHash([filename, index, postedAt, description, amount, direction, reference]);
       return [{
         tenant_id: tenantId,
         import_id: importRow.id,
@@ -132,20 +161,8 @@ export async function POST(request: NextRequest) {
     const imported = data?.length || 0;
     await auth.db.from('customer_finance_imports').update({ status: 'completed', imported_count: imported, duplicate_count: Math.max(0, normalized.length - imported) }).eq('id', importRow.id);
 
-    const connectorKey = source.includes('payroll') ? 'payroll' : source.includes('invoice') ? 'invoicing' : 'csv';
-    const catalogLabel = connectorKey === 'payroll' ? 'Payroll' : connectorKey === 'invoicing' ? 'Invoices & Receivables' : 'Bank / Accounting CSV';
-    await auth.db.from('customer_finance_connections').upsert({
-      tenant_id: tenantId,
-      provider: connectorKey,
-      label: catalogLabel,
-      status: 'connected',
-      capabilities: connectorKey === 'payroll' ? ['payroll journals', 'tax withholdings', 'benefits', 'contractor payments'] : connectorKey === 'invoicing' ? ['invoices', 'due dates', 'customer balances', 'payment matching'] : ['historical import', 'transaction normalization', 'reconciliation'],
-      metadata: { last_source: source, last_filename: filename },
-      last_sync_at: new Date().toISOString(),
-      last_error: null,
-      created_by: auth.user.id,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'tenant_id,provider' });
+    const connectorKey: 'payroll' | 'invoicing' | 'csv' = source.includes('payroll') ? 'payroll' : source.includes('invoice') ? 'invoicing' : 'csv';
+    await markManualConnection(auth, tenantId, auth.user.id, connectorKey, source, filename);
 
     return NextResponse.json({ ok: true, kind, imported, duplicates: Math.max(0, normalized.length - imported), importId: importRow.id }, { headers: NO_STORE });
   } catch (error) {
