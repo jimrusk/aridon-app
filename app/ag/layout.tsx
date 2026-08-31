@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from 'next';
+import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: 'Aridon Ag | AI Back Office for Ranches',
-  description: 'Find margin leaks, weekly priorities and funding opportunities for your ranch. Start with a free two-minute Aridon Operation Snapshot.',
+  description: 'Find margin leaks, weekly priorities, finance visibility and funding opportunities for your ranch. Start with a free two-minute Aridon Operation Snapshot.',
   applicationName: 'Aridon Ag',
   appleWebApp: {
     capable: true,
@@ -20,5 +21,14 @@ export const viewport: Viewport = {
 };
 
 export default function AgLayout({ children }: { children: React.ReactNode }) {
-  return <><link rel="manifest" href="/ag/manifest.webmanifest" />{children}</>;
+  return <>
+    <link rel="manifest" href="/ag/manifest.webmanifest" />
+    <div style={{ background: '#102d25', color: '#fff', padding: '9px 16px', fontFamily: 'Arial, sans-serif' }}>
+      <div style={{ maxWidth: 1120, margin: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 13 }}><strong>ARIDON AG FINANCE OS</strong> · Books, tax workflow, ranch CFO and Financial Sentinel.</span>
+        <Link href="/ag/finance" style={{ color: '#C8E2AC', fontWeight: 900, textDecoration: 'none', fontSize: 13 }}>Open Ag Finance →</Link>
+      </div>
+    </div>
+    {children}
+  </>;
 }
