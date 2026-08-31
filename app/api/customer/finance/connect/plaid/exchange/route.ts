@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       status: 'connected',
       external_account_id: data.item_id,
       company_name: institutionName,
-      capabilities: ['accounts', 'balances', 'transactions', 'continuous sync'],
+      capabilities: ['accounts', 'balances', 'transactions', 'incremental sync'],
       metadata: { cursor: null, institutionName },
       last_error: null,
       created_by: auth.user.id,
