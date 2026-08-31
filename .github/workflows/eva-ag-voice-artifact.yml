@@ -10,11 +10,10 @@ on:
 permissions:
   contents: read
 
-timeout-minutes: 10
-
 jobs:
   render-eva-voice:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Fetch Eva studio narration
         run: |
