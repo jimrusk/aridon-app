@@ -24,13 +24,15 @@ export async function POST(request: NextRequest) {
 
     const { data: connection, error: connectionError } = await auth.db.from('customer_finance_connections').select('*').eq('tenant_id', tenantId).eq('provider', 'plaid').maybeSingle();
     if (connectionError) throw connectionError;
-    let cursor = typeof connection?.metadata?.cursor === 'string' ? connection.metadata.cursor : null;
-    const added: any[] = [];
-    const modified: any[] = [];
-    const removed: any[] = [];
-    const accounts = new Map<string, any>();
+    const savedCursor = typeof connection?.metadata?.cursor === 'string' ? connection.metadata.cursor : null;
+    let cursor = savedCursor;
+    let added: any[] = [];
+    let modified: any[] = [];
+    let removed: any[] = [];
+    let accounts = new Map<string, any>();
     let hasMore = true;
     let pages = 0;
+    let restarts = 0;
 
     while (hasMore && pages < 20) {
       const response = await fetch(`${plaidBaseUrl()}/transactions/sync`, {
@@ -47,7 +49,20 @@ export async function POST(request: NextRequest) {
         cache: 'no-store',
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data?.error_message || 'Plaid transaction sync failed.');
+      if (!response.ok) {
+        if (data?.error_code === 'TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION' && restarts < 2) {
+          cursor = savedCursor;
+          added = [];
+          modified = [];
+          removed = [];
+          accounts = new Map<string, any>();
+          hasMore = true;
+          pages = 0;
+          restarts += 1;
+          continue;
+        }
+        throw new Error(data?.error_message || 'Plaid transaction sync failed.');
+      }
       for (const account of data.accounts || []) accounts.set(account.account_id, account);
       added.push(...(data.added || []));
       modified.push(...(data.modified || []));
@@ -56,6 +71,7 @@ export async function POST(request: NextRequest) {
       hasMore = Boolean(data.has_more);
       pages += 1;
     }
+    if (hasMore) throw new Error('Bank sync returned more pages than the safe per-run limit. Run sync again to continue.');
 
     const accountRows = Array.from(accounts.values()).map((account) => ({
       tenant_id: tenantId,
@@ -121,7 +137,7 @@ export async function POST(request: NextRequest) {
       if (error) throw error;
     }
 
-    const metadata = { ...(connection?.metadata || {}), cursor, lastPageCount: pages };
+    const metadata = { ...(connection?.metadata || {}), cursor, lastPageCount: pages, lastRestartCount: restarts };
     const { error: updateError } = await auth.db.from('customer_finance_connections').upsert({
       tenant_id: tenantId,
       provider: 'plaid',
@@ -129,7 +145,7 @@ export async function POST(request: NextRequest) {
       status: 'connected',
       external_account_id: secret.itemId,
       company_name: connection?.company_name || null,
-      capabilities: ['accounts', 'balances', 'transactions', 'continuous sync'],
+      capabilities: ['accounts', 'balances', 'transactions', 'incremental sync'],
       metadata,
       last_sync_at: new Date().toISOString(),
       last_error: null,
@@ -138,7 +154,7 @@ export async function POST(request: NextRequest) {
     }, { onConflict: 'tenant_id,provider' });
     if (updateError) throw updateError;
 
-    return NextResponse.json({ ok: true, added: added.length, modified: modified.length, removed: removedIds.length, accounts: accountRows.length, pages }, { headers: NO_STORE });
+    return NextResponse.json({ ok: true, added: added.length, modified: modified.length, removed: removedIds.length, accounts: accountRows.length, pages, restarts }, { headers: NO_STORE });
   } catch (error) {
     console.error('Plaid sync error', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Bank sync failed.' }, { status: 500, headers: NO_STORE });
