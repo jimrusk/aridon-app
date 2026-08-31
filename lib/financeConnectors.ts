@@ -12,7 +12,7 @@ export const financeProviderCatalog: Array<{
   capabilities: string[];
   connectionMode: 'oauth' | 'plaid-link' | 'manual';
 }> = [
-  { key: 'plaid', label: 'Bank & Card Feeds', category: 'banking', capabilities: ['accounts', 'balances', 'transactions', 'continuous sync'], connectionMode: 'plaid-link' },
+  { key: 'plaid', label: 'Bank & Card Feeds', category: 'banking', capabilities: ['accounts', 'balances', 'transactions', 'incremental sync'], connectionMode: 'plaid-link' },
   { key: 'quickbooks', label: 'QuickBooks Online', category: 'accounting', capabilities: ['chart of accounts', 'purchases', 'deposits', 'invoices', 'payments'], connectionMode: 'oauth' },
   { key: 'stripe-connect', label: 'Stripe Payments', category: 'payments', capabilities: ['charges', 'fees', 'refunds', 'payout economics'], connectionMode: 'oauth' },
   { key: 'payroll', label: 'Payroll', category: 'payroll', capabilities: ['payroll journals', 'tax withholdings', 'benefits', 'contractor payments'], connectionMode: 'manual' },
