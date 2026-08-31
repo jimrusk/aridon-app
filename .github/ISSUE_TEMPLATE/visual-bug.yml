@@ -1,0 +1,76 @@
+name: Visual bug
+
+description: Report an Aridon UI problem with Appshot or screenshot evidence
+
+title: "[Visual] "
+
+labels:
+  - bug
+
+body:
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Production
+        - Vercel preview
+        - Local development
+    validations:
+      required: true
+
+  - type: input
+    id: route
+    attributes:
+      label: Route or screen
+      placeholder: /customer/login
+    validations:
+      required: true
+
+  - type: input
+    id: viewport
+    attributes:
+      label: Device / viewport
+      placeholder: Android phone, 412x915 or desktop 1440x900
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What is happening?
+      description: Describe the visible problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Tap ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Appshot / screenshot evidence
+      description: Attach the Appshot or screenshot here. Remove or redact secrets and unnecessary sensitive information first.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: The attached image does not expose passwords, API keys, tokens, private financial data, or other unnecessary sensitive information.
+          required: true
