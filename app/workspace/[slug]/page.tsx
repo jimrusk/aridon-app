@@ -83,6 +83,7 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
           <nav style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <Link href="/customer/start" style={navLink}>Main Room</Link>
             <Link href="/customer/assistant" style={{ ...navLink, background: accent, color: '#07130F', borderColor: accent }}>Ask Eva</Link>
+            <Link href={`/workspace/${tenant.slug}/compass`} style={{ ...navLink, borderColor: '#F4C84A', color: '#F4C84A' }}>Compass</Link>
             <Link href="/customer/creator" style={navLink}>Creator Studio</Link>
             <Link href="/customer/sales" style={navLink}>Find Customers</Link>
             {isBeta && <Link href="/customer/upgrade" style={{ ...navLink, background: '#F4D88B', color: '#241C08', borderColor: '#F4D88B' }}>Keep My Business OS</Link>}
@@ -95,7 +96,7 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
         <section style={{ background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)', borderRadius: '22px', padding: '24px' }}>
           <div style={{ color: accent, fontSize: '12px', fontWeight: 950 }}>TODAY</div>
           <h1 style={{ fontSize: 'clamp(38px,7vw,62px)', lineHeight: 1, margin: '9px 0 12px' }}>{tenant.tagline || `What does ${tenant.business_name} need next?`}</h1>
-          <p style={{ color: '#C8D0DE', maxWidth: '800px', lineHeight: 1.65, fontSize: '17px' }}>Use the Main Room for the executive team, Creator Studio to turn one idea into finished marketing drafts, Scout to find customers, and Opportunity Intelligence to find growth paths. Your work and company information stay inside your private company space.</p>
+          <p style={{ color: '#C8D0DE', maxWidth: '800px', lineHeight: 1.65, fontSize: '17px' }}>Use the Main Room for the executive team, Compass to evaluate opportunities, Creator Studio to turn one idea into finished marketing drafts, Scout to find customers, and Opportunity Intelligence to find growth paths. Your work and company information stay inside your private company space.</p>
         </section>
 
         {isBeta && (
@@ -111,6 +112,7 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
             <h2 style={{ margin: '7px 0 8px' }}>Start with one of these. You cannot break anything.</h2>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               <Link href="/customer/start" style={darkAction}>Talk to the executive team</Link>
+              <Link href={`/workspace/${tenant.slug}/compass`} style={darkAction}>Open Compass</Link>
               <Link href="/customer/creator" style={darkAction}>Create a campaign</Link>
               <Link href="/customer/sales" style={darkAction}>Find possible customers</Link>
               <Link href="/customer/start" style={outlineAction}>Show me how this works</Link>
@@ -120,6 +122,7 @@ export default function CustomerWorkspace({ params }: { params: { slug: string }
 
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: '12px', marginTop: '16px' }}>
           <HomeCard accent={accent} title="Executive Main Room" text="Talk hands-free with Eva, Heather, Oracle, Scout, Ethos, Nova, Atlas or Ledger without changing rooms." href="/customer/start" button="Enter Main Room" />
+          <HomeCard accent="#F4C84A" title="Aridon Compass" text="Compare opportunities, capture your preferences and build an evidence-first diligence path." href={`/workspace/${tenant.slug}/compass`} button="Open Compass" />
           <HomeCard accent={accent} title="Creator Studio" text="Save your Brand Brain, upload company source files, and turn one idea into a reviewed multi-channel campaign." href="/customer/creator" button="Create Marketing" />
           <HomeCard accent={accent} title="Find Customers" text="Teach Scout what you sell and research companies that may be a good fit." href="/customer/sales" button="Open Sales" />
           <HomeCard accent={accent} title="My Work" text={`${data.projects.length} project${data.projects.length === 1 ? '' : 's'} and ${activeTasks.length} open task${activeTasks.length === 1 ? '' : 's'} are currently here.`} href="#my-work" button="See My Work" />
