@@ -4,6 +4,7 @@ import {
   GMAIL_REFRESH_COOKIE,
   refreshGoogleAccessToken,
 } from '../../../../lib/gmail';
+import { auditExecutiveAction, connectedExecutiveActor, recommendExecutive } from '../../../../lib/executiveOps';
 
 export const runtime = 'nodejs';
 
@@ -13,7 +14,8 @@ const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me';
 type GmailHeader = { name?: string; value?: string };
 type GmailPart = {
   mimeType?: string;
-  body?: { data?: string };
+  filename?: string;
+  body?: { data?: string; attachmentId?: string; size?: number };
   parts?: GmailPart[];
 };
 type GmailMessage = {
@@ -25,6 +27,8 @@ type GmailMessage = {
   payload?: GmailPart & { headers?: GmailHeader[] };
   error?: { message?: string };
 };
+
+type Attachment = { attachmentId: string; filename: string; mimeType: string; size: number };
 
 function decodeBase64Url(value = ''): string {
   if (!value) return '';
@@ -68,6 +72,21 @@ function collectBody(part?: GmailPart): { plain: string[]; html: string[] } {
   return result;
 }
 
+function collectAttachments(part?: GmailPart): Attachment[] {
+  const out: Attachment[] = [];
+  if (!part) return out;
+  if (part.filename && part.body?.attachmentId) {
+    out.push({
+      attachmentId: part.body.attachmentId,
+      filename: part.filename,
+      mimeType: part.mimeType || 'application/octet-stream',
+      size: Number(part.body.size || 0),
+    });
+  }
+  for (const child of part.parts || []) out.push(...collectAttachments(child));
+  return out;
+}
+
 function header(headers: GmailHeader[] | undefined, name: string): string {
   return headers?.find((item) => item.name?.toLowerCase() === name.toLowerCase())?.value || '';
 }
@@ -89,17 +108,24 @@ function messageSummary(message: GmailMessage, includeBody = false) {
   const body = includeBody
     ? (bodies.plain.join('\n\n') || htmlToText(bodies.html.join('\n\n'))).replace(/\r/g, '').trim().slice(0, 50_000)
     : '';
+  const from = header(headers, 'From');
+  const subject = header(headers, 'Subject') || '(No subject)';
+  const snippet = message.snippet || body.slice(0, 280);
+  const attachments = collectAttachments(message.payload);
+  const routing = recommendExecutive({ from, subject, body: body || snippet, filename: attachments.map((item) => item.filename).join(' ') });
 
   return {
     id: message.id || '',
     threadId: message.threadId || '',
-    from: header(headers, 'From'),
+    from,
     to: header(headers, 'To'),
-    subject: header(headers, 'Subject') || '(No subject)',
+    subject,
     date: timestamp ? new Date(timestamp).toISOString() : header(headers, 'Date'),
-    snippet: message.snippet || body.slice(0, 280),
+    snippet,
     unread: Boolean(message.labelIds?.includes('UNREAD')),
     body,
+    attachments,
+    recommendedExecutive: routing,
   };
 }
 
@@ -115,14 +141,17 @@ export async function GET(request: NextRequest) {
 
     const accessToken = await refreshGoogleAccessToken(decryptToken(encryptedRefreshToken));
     const messageId = request.nextUrl.searchParams.get('messageId')?.trim();
+    const actor = connectedExecutiveActor(request);
 
     if (messageId) {
       const message = await gmailJson<GmailMessage>(
         `${GMAIL_API}/messages/${encodeURIComponent(messageId)}?format=full`,
         accessToken,
       );
+      const summary = messageSummary(message, true);
+      await auditExecutiveAction({ actorEmail: actor.email, executive: summary.recommendedExecutive.executive, action: 'email_read', channel: 'gmail', target: summary.subject, metadata: { messageId, attachments: summary.attachments.length } });
       return NextResponse.json(
-        { connected: true, message: messageSummary(message, true) },
+        { connected: true, message: summary },
         { headers: NO_STORE_HEADERS },
       );
     }
@@ -144,9 +173,11 @@ export async function GET(request: NextRequest) {
         ),
       ),
     );
+    const summarized = messages.map((message) => messageSummary(message, false));
+    await auditExecutiveAction({ actorEmail: actor.email, action: 'inbox_search', channel: 'gmail', metadata: { query, count: summarized.length } });
 
     return NextResponse.json(
-      { connected: true, query, messages: messages.map((message) => messageSummary(message, false)) },
+      { connected: true, query, messages: summarized },
       { headers: NO_STORE_HEADERS },
     );
   } catch (error) {

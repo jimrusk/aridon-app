@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { smsOwnerTokenFromCookie, smsRpc } from '../../../../lib/smsRpc';
+import { auditExecutiveAction, connectedExecutiveActor, externalActionsEnabled } from '../../../../lib/executiveOps';
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
-const SENDERS = new Set(['Heather', 'Nova', 'Scout', 'Atlas', 'Oracle', 'Ethos', 'Ledger', 'Eva', 'Jim']);
+const SENDERS = new Set(['Heather', 'Nova', 'Scout', 'Atlas', 'Oracle', 'Ethos', 'Ledger', 'Sierra Bennett', 'Maya Torres', 'Claire Morgan', 'Eva', 'Jim']);
 
 function clean(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -24,6 +25,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Phone, message, or sender is invalid.' }, { status: 400, headers: NO_STORE });
     }
 
+    const actor = connectedExecutiveActor(req);
+    if (actor.connected && !(await externalActionsEnabled(req))) {
+      await auditExecutiveAction({ actorEmail: actor.email, executive, action: 'sms_send_blocked_emergency_stop', channel: 'sms', target: phone, approved: true });
+      return NextResponse.json({ error: 'Executive Operations emergency stop is active. SMS sending is disabled.' }, { status: 423, headers: NO_STORE });
+    }
+
     const result = await smsRpc<{ ok?: boolean; error?: string }>('sms_owner_send', {
       p_owner_token: ownerToken,
       p_phone_e164: phone,
@@ -36,6 +43,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: result?.error || 'SMS was not sent.' }, { status: 400, headers: NO_STORE });
     }
 
+    await auditExecutiveAction({ actorEmail: actor.email, executive, action: 'sms_sent', channel: 'sms', target: phone, approved: true, metadata: { consentConfirmed: Boolean(body?.confirmConsent) } });
     return NextResponse.json({ ok: true }, { headers: NO_STORE });
   } catch (error) {
     console.error('SMS send error', error);

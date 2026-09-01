@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticatedCustomer, customerTenantForUser, subscriptionAllowsAccess } from '../../../../lib/customerAuth';
 import { executiveByName, publicOrigin, signPhoneToken } from '../../../../lib/executivePhone';
+import { auditExecutiveAction, connectedExecutiveActor, externalActionsEnabled } from '../../../../lib/executiveOps';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -31,6 +32,12 @@ export async function POST(request: NextRequest) {
     if (!membership) return NextResponse.json({ error: 'You do not have access to this workspace.' }, { status: 403, headers: NO_STORE });
     if (!subscriptionAllowsAccess(membership.tenant.subscription_status)) {
       return NextResponse.json({ error: 'This workspace is not active.' }, { status: 402, headers: NO_STORE });
+    }
+
+    const actor = connectedExecutiveActor(request);
+    if (actor.connected && !(await externalActionsEnabled(request))) {
+      await auditExecutiveAction({ actorEmail: actor.email, executive: requestedExecutive, action: 'phone_call_blocked_emergency_stop', channel: 'phone', target: phoneNumber, approved: true, metadata: { workspace: membership.tenant.slug } });
+      return NextResponse.json({ error: 'Executive Operations emergency stop is active. Outbound phone calls are disabled.' }, { status: 423, headers: NO_STORE });
     }
 
     const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim();
@@ -64,6 +71,7 @@ export async function POST(request: NextRequest) {
     const data = await response.json().catch(() => ({})) as { sid?: string; status?: string; message?: string };
     if (!response.ok || !data.sid) throw new Error(data.message || `Telephony provider returned ${response.status}.`);
 
+    await auditExecutiveAction({ actorEmail: actor.email || auth.user.email || '', executive: executive.name, action: 'phone_call_started', channel: 'phone', target: phoneNumber, approved: true, metadata: { callSid: data.sid, workspace: membership.tenant.slug } });
     return NextResponse.json({ ok: true, callSid: data.sid, status: data.status || 'queued', executive: executive.name }, { headers: NO_STORE });
   } catch (error) {
     console.error('Executive call initiation error', error);
