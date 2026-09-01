@@ -4,6 +4,11 @@ import {
   GMAIL_REFRESH_COOKIE,
   refreshGoogleAccessToken,
 } from '../../../../lib/gmail';
+import {
+  auditExecutiveAction,
+  connectedExecutiveActor,
+  externalActionsEnabled,
+} from '../../../../lib/executiveOps';
 
 export const runtime = 'nodejs';
 
@@ -58,25 +63,23 @@ export async function GET(request: NextRequest) {
     };
     if (!response.ok) throw new Error(data.error?.message || 'Google Calendar request failed.');
 
-    return NextResponse.json(
-      {
-        connected: true,
-        events: (data.items || []).map((event) => ({
-          id: event.id || '',
-          summary: event.summary || '(Untitled event)',
-          description: event.description || '',
-          location: event.location || '',
-          link: event.htmlLink || '',
-          status: event.status || '',
-          start: event.start?.dateTime || event.start?.date || '',
-          end: event.end?.dateTime || event.end?.date || '',
-          timeZone: event.start?.timeZone || event.end?.timeZone || '',
-          attendees: event.attendees || [],
-          organizer: event.organizer || null,
-        })),
-      },
-      { headers: NO_STORE_HEADERS },
-    );
+    const events = (data.items || []).map((event) => ({
+      id: event.id || '',
+      summary: event.summary || '(Untitled event)',
+      description: event.description || '',
+      location: event.location || '',
+      link: event.htmlLink || '',
+      status: event.status || '',
+      start: event.start?.dateTime || event.start?.date || '',
+      end: event.end?.dateTime || event.end?.date || '',
+      timeZone: event.start?.timeZone || event.end?.timeZone || '',
+      attendees: event.attendees || [],
+      organizer: event.organizer || null,
+    }));
+    const actor = connectedExecutiveActor(request);
+    await auditExecutiveAction({ actorEmail: actor.email, action: 'calendar_read', channel: 'google_calendar', metadata: { count: events.length, days } });
+
+    return NextResponse.json({ connected: true, events }, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error('Aridon Google Calendar read error', error);
     const message = error instanceof Error ? error.message : 'Unable to load Google Calendar.';
@@ -96,6 +99,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Owner approval is required before Aridon creates or commits a calendar event.' },
         { status: 403, headers: NO_STORE_HEADERS },
+      );
+    }
+
+    const actor = connectedExecutiveActor(request);
+    if (!(await externalActionsEnabled(request))) {
+      await auditExecutiveAction({ actorEmail: actor.email, executive: text(body?.executive, 120), action: 'calendar_create_blocked_emergency_stop', channel: 'google_calendar', target: text(body?.summary, 500), approved: true });
+      return NextResponse.json(
+        { error: 'Executive Operations emergency stop is active. Calendar writes are disabled.' },
+        { status: 423, headers: NO_STORE_HEADERS },
       );
     }
 
@@ -139,8 +151,19 @@ export async function POST(request: NextRequest) {
     const data = (await response.json()) as { id?: string; htmlLink?: string; error?: { message?: string } };
     if (!response.ok || !data.id) throw new Error(data.error?.message || 'Google Calendar rejected the event.');
 
+    const createdAt = new Date().toISOString();
+    await auditExecutiveAction({
+      actorEmail: actor.email,
+      executive: text(body?.executive, 120),
+      action: 'calendar_event_created',
+      channel: 'google_calendar',
+      target: summary,
+      approved: true,
+      metadata: { eventId: data.id, attendees, start, end, location },
+    });
+
     return NextResponse.json(
-      { created: true, eventId: data.id, link: data.htmlLink || '', createdAt: new Date().toISOString() },
+      { created: true, eventId: data.id, link: data.htmlLink || '', createdAt },
       { headers: NO_STORE_HEADERS },
     );
   } catch (error) {
