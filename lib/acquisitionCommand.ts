@@ -54,7 +54,8 @@ export const activeAcquisitions: AcquisitionDeal[] = [
 
 export const acquisitionWorkflow = [
   'Source opportunity',
-  'Normalize cash flow and verify seller claims',
+  'Normalize ARR/run-rate claims, revenue, cash flow and seller add-backs before valuation',
+  'Verify trailing financials and reconcile seller claims to bank, tax and accounting evidence',
   'Score downside, lease, equipment, customer concentration and operating risk',
   'Route to capital sources',
   'Build senior debt + seller financing + equity alternatives',
