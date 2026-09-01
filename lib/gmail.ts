@@ -4,6 +4,7 @@ import type { NextRequest, NextResponse } from 'next/server';
 export const GMAIL_REFRESH_COOKIE = 'aridon_gmail_refresh';
 export const GMAIL_EMAIL_COOKIE = 'aridon_gmail_email';
 export const GMAIL_STATE_COOKIE = 'aridon_gmail_state';
+export const GMAIL_RETURN_COOKIE = 'aridon_gmail_return';
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -169,6 +170,13 @@ export function clearGmailCookies(response: NextResponse) {
   response.cookies.set(GMAIL_REFRESH_COOKIE, '', cookieOptions(0));
   response.cookies.set(GMAIL_EMAIL_COOKIE, '', cookieOptions(0));
   response.cookies.set(GMAIL_STATE_COOKIE, '', cookieOptions(0));
+  response.cookies.set(GMAIL_RETURN_COOKIE, '', cookieOptions(0));
+}
+
+export function safeReturnPath(value: string | null | undefined, fallback = '/email') {
+  const path = (value || '').trim();
+  if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) return fallback;
+  return path.slice(0, 1000);
 }
 
 export function safeHeader(value: string, maxLength: number): string {
