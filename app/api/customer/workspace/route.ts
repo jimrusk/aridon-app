@@ -16,7 +16,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Workspace slug is required.' }, { status: 400, headers: NO_STORE });
     }
 
-    const membership = await customerTenantForUser(auth.user.id, slug);
+    // Reuse the already-verified user token for tenant authorization. This keeps the
+    // workspace lookup in the same RLS identity as the login/session check and avoids
+    // a false 403 from a separate server-client authorization context.
+    const membership = await customerTenantForUser(auth.user.id, slug, auth.token);
     if (!membership) {
       return NextResponse.json({ error: 'You do not have access to this workspace.' }, { status: 403, headers: NO_STORE });
     }
