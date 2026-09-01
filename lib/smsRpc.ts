@@ -1,19 +1,8 @@
 import 'server-only';
-import { createClient } from '@supabase/supabase-js';
-
-const SUPABASE_URL = 'https://pkshvdobcsoowlkoolmt.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_qypop4kssE-5lAhUDAO_yQ_wNHXuOdS';
-
-const smsDb = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-    detectSessionInUrl: false,
-  },
-});
+import { getServerClient } from './supabase';
 
 export async function smsRpc<T = any>(fn: string, args: Record<string, unknown> = {}) {
-  const { data, error } = await smsDb.rpc(fn, args);
+  const { data, error } = await getServerClient().rpc(fn, args);
   if (error) throw new Error(error.message);
   return data as T;
 }
