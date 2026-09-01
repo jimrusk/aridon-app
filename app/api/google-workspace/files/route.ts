@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleJson, googleWorkspaceAccessToken, listDriveFiles, readWorkspaceFile, type DriveFile } from '../../../../../lib/googleWorkspace';
-import { auditExecutiveAction, connectedExecutiveActor, recommendExecutive } from '../../../../../lib/executiveOps';
+import { googleJson, googleWorkspaceAccessToken, listDriveFiles, readWorkspaceFile, type DriveFile } from '../../../../lib/googleWorkspace';
+import { auditExecutiveAction, connectedExecutiveActor, recommendExecutive } from '../../../../lib/executiveOps';
 
 export const runtime = 'nodejs';
 const NO_STORE = { 'Cache-Control': 'no-store' };
