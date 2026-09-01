@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { googleWorkspaceAccessToken, recentMeetingArtifacts, readWorkspaceFile, upcomingCalendarEvents } from '../../../../../lib/googleWorkspace';
-import { auditExecutiveAction, connectedExecutiveActor, recommendExecutive } from '../../../../../lib/executiveOps';
+import { googleWorkspaceAccessToken, recentMeetingArtifacts, readWorkspaceFile, upcomingCalendarEvents } from '../../../../lib/googleWorkspace';
+import { auditExecutiveAction, connectedExecutiveActor, recommendExecutive } from '../../../../lib/executiveOps';
 
 export const runtime = 'nodejs';
 const NO_STORE = { 'Cache-Control': 'no-store' };
