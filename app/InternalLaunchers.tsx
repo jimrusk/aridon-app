@@ -41,6 +41,7 @@ export default function InternalLaunchers() {
     pathname.startsWith('/facebook-launch') ||
     pathname.startsWith('/model-router') ||
     pathname.startsWith('/agent-supervisor') ||
+    pathname.startsWith('/executive-ops') ||
     pathname.startsWith('/eva-chat')
   ) return null;
 
@@ -117,6 +118,7 @@ export default function InternalLaunchers() {
       <Link href="/intelligence" aria-label="Open Aridon Intelligence Center" style={{ ...launcherStyle, background: '#FFB454' }}>◉ Intel</Link>
       <Link href="/execution/doe-test" aria-label="Open DOE execution test portfolio" style={{ ...launcherStyle, background: '#42D392' }}>✓ DOE</Link>
       <Link href="/execution" aria-label="Open Execution Replacement Layer" style={{ ...launcherStyle, background: '#65B7FF' }}>⚙ Execute</Link>
+      <Link href="/executive-ops" aria-label="Open Executive Operations Google Workspace center" style={{ ...launcherStyle, background: '#A8D8FF' }}>⚡ Exec Ops</Link>
       <Link href="/email" aria-label="Open Email Command Center" style={{ ...launcherStyle, background: '#E87722' }}>✉ Email</Link>
     </div>
   );
