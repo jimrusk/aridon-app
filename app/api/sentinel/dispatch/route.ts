@@ -19,6 +19,12 @@ function bearerToken(request: NextRequest) {
   return authorization.toLowerCase().startsWith('bearer ') ? authorization.slice(7).trim() : '';
 }
 
+function companyHoldActive(policy: Record<string, unknown> | null) {
+  if (!policy?.authority_hold) return false;
+  const until = typeof policy.authority_hold_until === 'string' ? Date.parse(policy.authority_hold_until) : Number.NaN;
+  return !Number.isFinite(until) || until > Date.now();
+}
+
 async function sendGmailMessage(request: NextRequest, to: string, subject: string, body: string) {
   const encryptedRefreshToken = request.cookies.get(GMAIL_REFRESH_COOKIE)?.value;
   if (!encryptedRefreshToken) throw new Error('Gmail is not connected. Connect Gmail before sending an authority report.');
@@ -63,6 +69,32 @@ export async function POST(request: NextRequest) {
     const userDb = getUserScopedClient(accessToken);
     const { data: report, error } = await userDb.from('sentinel_authority_reports').select('*').eq('id', body.reportId).maybeSingle();
     if (error || !report) return NextResponse.json({ error: 'Authority report not found or not accessible.' }, { status: 404, headers: NO_STORE_HEADERS });
+
+    if (report.status === 'sent') {
+      return NextResponse.json({ error: 'This authority report was already sent.' }, { status: 409, headers: NO_STORE_HEADERS });
+    }
+    if (report.status === 'cancelled') {
+      return NextResponse.json({ error: 'This report was cancelled by a company override or false-positive finding.' }, { status: 409, headers: NO_STORE_HEADERS });
+    }
+
+    const [{ data: policy }, { data: incident }] = await Promise.all([
+      userDb.from('sentinel_security_policies').select('authority_hold,authority_hold_until,authority_hold_reason').eq('tenant_id', report.tenant_id).maybeSingle(),
+      userDb.from('sentinel_incidents').select('status,authority_escalation_status').eq('id', report.incident_id).maybeSingle(),
+    ]);
+
+    if (companyHoldActive((policy || null) as Record<string, unknown> | null)) {
+      return NextResponse.json({
+        error: `Authority reporting is currently paused by the company security override${policy?.authority_hold_reason ? `: ${policy.authority_hold_reason}` : '.'}`,
+        held: true,
+      }, { status: 409, headers: NO_STORE_HEADERS });
+    }
+
+    if (report.status === 'held' || incident?.authority_escalation_status === 'held_by_override') {
+      return NextResponse.json({ error: 'This incident is on review hold. Resume it before sending any authority report.', held: true }, { status: 409, headers: NO_STORE_HEADERS });
+    }
+    if (incident?.status === 'false_positive' || incident?.authority_escalation_status === 'cancelled') {
+      return NextResponse.json({ error: 'This incident is marked false positive/cancelled and cannot be sent.' }, { status: 409, headers: NO_STORE_HEADERS });
+    }
 
     const payload = (report.report_payload || {}) as { subject?: string; body?: string };
     if (report.delivery_method === 'portal') {
