@@ -41,8 +41,11 @@ export default function BusinessOSLayout({ children }: { children: React.ReactNo
     <SalesTeamPromo />
     <div style={{ background: '#10211c', color: '#fff', padding: '9px 16px', fontFamily: 'Arial, sans-serif' }}>
       <div style={{ maxWidth: 1180, margin: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 13 }}><strong>NEW · ARIDON FINANCE OS</strong> · Books, tax workflow, CFO planning and Financial Sentinel.</span>
-        <Link href="/business-os/finance" style={{ color: '#9EF0CF', fontWeight: 900, textDecoration: 'none', fontSize: 13 }}>Open Finance OS →</Link>
+        <span style={{ fontSize: 13 }}><strong>ARIDON OPERATING LAYER</strong> · Finance OS + Sentinel Enterprise security.</span>
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+          <Link href="/business-os/finance" style={{ color: '#9EF0CF', fontWeight: 900, textDecoration: 'none', fontSize: 13 }}>Finance OS →</Link>
+          <Link href="/business-os/sentinel" style={{ color: '#9EF0CF', fontWeight: 900, textDecoration: 'none', fontSize: 13 }}>Sentinel Enterprise →</Link>
+        </div>
       </div>
     </div>
     {children}
