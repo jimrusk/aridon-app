@@ -2,6 +2,7 @@ import 'server-only';
 import type { NextRequest } from 'next/server';
 import { getServerClient } from './supabase';
 import { GMAIL_EMAIL_COOKIE, GMAIL_REFRESH_COOKIE } from './gmail';
+import { MS_EMAIL_COOKIE, MS_REFRESH_COOKIE } from './microsoft365';
 
 export const EXECUTIVE_NAMES = [
   'Heather', 'Nova', 'Scout', 'Atlas', 'Oracle', 'Ethos', 'Ledger',
@@ -37,9 +38,15 @@ export function recommendExecutive(input: RouteInput): { executive: ExecutiveNam
 }
 
 export function connectedExecutiveActor(request: NextRequest) {
-  const hasToken = Boolean(request.cookies.get(GMAIL_REFRESH_COOKIE)?.value);
-  const email = (request.cookies.get(GMAIL_EMAIL_COOKIE)?.value || '').trim().toLowerCase();
-  return { email: hasToken ? email : '', connected: hasToken && Boolean(email) };
+  const googleToken = Boolean(request.cookies.get(GMAIL_REFRESH_COOKIE)?.value);
+  const googleEmail = (request.cookies.get(GMAIL_EMAIL_COOKIE)?.value || '').trim().toLowerCase();
+  if (googleToken && googleEmail) return { email: googleEmail, connected: true, provider: 'google' as const };
+
+  const microsoftToken = Boolean(request.cookies.get(MS_REFRESH_COOKIE)?.value);
+  const microsoftEmail = (request.cookies.get(MS_EMAIL_COOKIE)?.value || '').trim().toLowerCase();
+  if (microsoftToken && microsoftEmail) return { email: microsoftEmail, connected: true, provider: 'microsoft' as const };
+
+  return { email: '', connected: false, provider: null };
 }
 
 export async function externalActionsEnabled(request: NextRequest): Promise<boolean> {
