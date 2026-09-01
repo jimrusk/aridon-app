@@ -12,6 +12,8 @@ const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo';
 const GMAIL_SEND_SCOPE = 'https://www.googleapis.com/auth/gmail.send';
 const GMAIL_READ_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
 const CALENDAR_EVENTS_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+const CONTACTS_READ_SCOPE = 'https://www.googleapis.com/auth/contacts.readonly';
+const DRIVE_READ_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 const USERINFO_SCOPE = 'https://www.googleapis.com/auth/userinfo.email';
 
 function required(name: string): string {
@@ -49,7 +51,7 @@ export function buildGoogleAuthorizationUrl(request: NextRequest, state: string)
   url.searchParams.set('include_granted_scopes', 'true');
   url.searchParams.set(
     'scope',
-    `openid ${USERINFO_SCOPE} ${GMAIL_SEND_SCOPE} ${GMAIL_READ_SCOPE} ${CALENDAR_EVENTS_SCOPE}`,
+    `openid ${USERINFO_SCOPE} ${GMAIL_SEND_SCOPE} ${GMAIL_READ_SCOPE} ${CALENDAR_EVENTS_SCOPE} ${CONTACTS_READ_SCOPE} ${DRIVE_READ_SCOPE}`,
   );
   url.searchParams.set('state', state);
   return url.toString();
