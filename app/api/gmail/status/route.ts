@@ -19,7 +19,14 @@ export async function GET(request: NextRequest) {
       connected,
       email: connected ? email : '',
       approvalRequired: true,
-      mode: 'gmail-send-and-briefing-read',
+      mode: 'google-workspace-executive-ops',
+      permissions: {
+        gmailRead: true,
+        gmailSend: 'owner-approval',
+        calendarRead: true,
+        calendarWrite: 'owner-approval',
+        delete: false,
+      },
     },
     { headers: { 'Cache-Control': 'no-store' } },
   );
