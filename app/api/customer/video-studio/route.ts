@@ -18,7 +18,11 @@ function clean(value: unknown, max = 8000) {
 async function resolveMembership(request: NextRequest, slug: string) {
   const auth = await authenticatedCustomer(request);
   if (!auth.ok) return { error: auth.error, status: auth.status } as const;
-  const membership = await customerTenantForUser(auth.user.id, slug);
+
+  // Keep the second authorization check in the same signed-in user context as the
+  // first one. Passing the verified access token makes the membership/tenant lookup
+  // run through the user's RLS policies instead of a separate server-client context.
+  const membership = await customerTenantForUser(auth.user.id, slug, auth.token);
   if (!membership) return { error: 'You do not have access to this workspace.', status: 403 } as const;
   if (!subscriptionAllowsAccess(membership.tenant.subscription_status)) return { error: 'This workspace is not active.', status: 402 } as const;
   return { auth, membership } as const;
