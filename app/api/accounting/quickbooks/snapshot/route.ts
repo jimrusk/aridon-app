@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auditExecutiveAction } from '../../../../../lib/executiveOps';
-import { QB_REALM_COOKIE, quickBooksConnection, quickBooksJson, setQuickBooksCookies } from '../../../../../lib/quickbooks';
+import { auditExecutiveAction, connectedExecutiveActor } from '../../../../../lib/executiveOps';
+import { quickBooksConnection, quickBooksJson, setQuickBooksCookies } from '../../../../../lib/quickbooks';
 
 export const runtime = 'nodejs';
 const NO_STORE = { 'Cache-Control': 'no-store' };
@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
       quickBooksJson<any>(`/v3/company/${realm}/reports/CashFlow?minorversion=75`, connection.accessToken).catch(() => null),
     ]);
 
-    await auditExecutiveAction({ actorEmail: `quickbooks:${request.cookies.get(QB_REALM_COOKIE)?.value || connection.realmId}`, executive: 'Nova', action: 'accounting_snapshot_read', channel: 'quickbooks', metadata: { realmId: connection.realmId } });
+    const actor = connectedExecutiveActor(request);
+    await auditExecutiveAction({ actorEmail: actor.email || `quickbooks:${connection.realmId}`, executive: 'Nova', action: 'accounting_snapshot_read', channel: 'quickbooks', metadata: { realmId: connection.realmId } });
     const response = NextResponse.json({
       connected: true,
       mode: 'read-only-in-aridon',
