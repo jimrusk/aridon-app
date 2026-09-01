@@ -25,7 +25,11 @@ async function resolveMembership(request: NextRequest, slug: string) {
 }
 
 function apiKey() {
-  return process.env.GEMINI_API_KEY?.trim() || process.env.GOOGLE_AI_API_KEY?.trim() || '';
+  return process.env.GEMINI_API_KEY?.trim()
+    || process.env.GOOGLE_AI_API_KEY?.trim()
+    || process.env.GOOGLE_GENAI_API_KEY?.trim()
+    || process.env.GOOGLE_API_KEY?.trim()
+    || '';
 }
 
 function extractVideoUri(data: any) {
@@ -53,7 +57,7 @@ export async function POST(request: NextRequest) {
     const aspectRatio = ASPECTS.has(body?.aspectRatio) ? body.aspectRatio : '16:9';
     const resolution = RESOLUTIONS.has(body?.resolution) ? body.resolution : '360p';
     const previousInteractionId = clean(body?.previousInteractionId, 180);
-    const mediaData = clean(body?.mediaData, 12_000_000);
+    const mediaData = clean(body?.mediaData, 3_000_000);
     const mediaMime = clean(body?.mediaMime, 120);
 
     if (!slug || !prompt) return NextResponse.json({ error: 'Workspace and video instructions are required.' }, { status: 400, headers: NO_STORE });
@@ -64,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     const key = apiKey();
     if (!key) return NextResponse.json({
-      error: 'Gemini Omni is installed in Aridon, but the server is missing GEMINI_API_KEY.',
+      error: 'Gemini Omni is installed in Aridon, but the server is missing a Google Gemini API key.',
       configured: false,
       model: MODEL,
     }, { status: 503, headers: NO_STORE });
@@ -115,13 +119,7 @@ export async function POST(request: NextRequest) {
       event_data: { model: MODEL, mode, aspect_ratio: aspectRatio, resolution },
     });
 
-    return NextResponse.json({
-      ok: true,
-      model: MODEL,
-      interactionId,
-      fileId,
-      status: 'PROCESSING',
-    }, { status: 201, headers: NO_STORE });
+    return NextResponse.json({ ok: true, model: MODEL, interactionId, fileId, status: 'PROCESSING' }, { status: 201, headers: NO_STORE });
   } catch (error) {
     console.error('Video Studio generation error', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Aridon Video Studio could not generate the video.' }, { status: 500, headers: NO_STORE });
@@ -138,7 +136,7 @@ export async function GET(request: NextRequest) {
     const resolved = await resolveMembership(request, slug);
     if ('error' in resolved) return NextResponse.json({ error: resolved.error }, { status: resolved.status, headers: NO_STORE });
     const key = apiKey();
-    if (!key) return NextResponse.json({ error: 'GEMINI_API_KEY is not configured.' }, { status: 503, headers: NO_STORE });
+    if (!key) return NextResponse.json({ error: 'A Google Gemini API key is not configured.' }, { status: 503, headers: NO_STORE });
 
     if (download) {
       const response = await fetch(`${GOOGLE_API}/files/${fileId}:download?alt=media&key=${encodeURIComponent(key)}`, { cache: 'no-store' });
