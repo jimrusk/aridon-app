@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleWorkspaceAccessToken, listGoogleContacts } from '../../../../../lib/googleWorkspace';
-import { auditExecutiveAction, connectedExecutiveActor } from '../../../../../lib/executiveOps';
+import { googleWorkspaceAccessToken, listGoogleContacts } from '../../../../lib/googleWorkspace';
+import { auditExecutiveAction, connectedExecutiveActor } from '../../../../lib/executiveOps';
 
 export const runtime = 'nodejs';
 const NO_STORE = { 'Cache-Control': 'no-store' };
