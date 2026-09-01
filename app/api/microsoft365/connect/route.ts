@@ -1,13 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookieOptions } from '../../../../lib/gmail';
-import { microsoftAuthorizationUrl, microsoftConfiguration, MS_RETURN_COOKIE, MS_STATE_COOKIE } from '../../../../lib/microsoft365';
+import { microsoftAuthorizationUrl, microsoftConfiguration, MS_RETURN_COOKIE, MS_STATE_COOKIE, safeReturnPath } from '../../../../lib/microsoft365';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   const config = microsoftConfiguration();
-  const returnTo = request.nextUrl.searchParams.get('returnTo') || '/executive-ops/control-center';
+  const returnTo = safeReturnPath(request.nextUrl.searchParams.get('returnTo'), '/executive-ops/control-center');
   if (!config.configured) {
     return NextResponse.redirect(new URL(`${returnTo}?microsoft=missing&vars=${encodeURIComponent(config.missing.join(','))}`, request.url));
   }
