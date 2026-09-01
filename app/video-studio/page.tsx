@@ -60,8 +60,8 @@ export default function VideoStudioPage() {
     if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
       setMessage('Use an image or a short video file.'); return;
     }
-    if (file.size > 8 * 1024 * 1024) {
-      setMessage('Keep reference files under 8 MB for this first Video Studio build.'); return;
+    if (file.size > 2 * 1024 * 1024) {
+      setMessage('Keep direct reference uploads under 2 MB. Generated videos can still be edited and extended without re-uploading them.'); return;
     }
     const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -181,7 +181,7 @@ export default function VideoStudioPage() {
 
             <div style={{ marginTop: 16, border: '1px dashed #9eb7ad', borderRadius: 14, padding: 14, background: '#f7fbf9' }}>
               <div style={{ fontWeight: 900, marginBottom: 6 }}>Optional reference image or short video</div>
-              <p style={{ margin: '0 0 10px', color: '#63736d', fontSize: 13 }}>Reference images can drive image-to-video. Short source videos can be edited. Current first-build upload limit: 8 MB.</p>
+              <p style={{ margin: '0 0 10px', color: '#63736d', fontSize: 13 }}>Reference images can drive image-to-video. Direct reference uploads are capped at 2 MB in this build to stay inside Vercel's function payload limit. Videos generated here can be edited and extended conversationally without re-uploading.</p>
               <input type="file" accept="image/*,video/mp4,video/webm" onChange={pickMedia} />
               {mediaName && <div style={{ marginTop: 8, fontWeight: 800, fontSize: 13 }}>{mediaName} · {mediaMime}</div>}
             </div>
