@@ -46,6 +46,12 @@ function policyFromRow(row: Record<string, unknown> | null): SentinelPolicy {
   };
 }
 
+function authorityHoldActive(row: Record<string, unknown> | null) {
+  if (!row?.authority_hold) return false;
+  const until = typeof row.authority_hold_until === 'string' ? Date.parse(row.authority_hold_until) : Number.NaN;
+  return !Number.isFinite(until) || until > Date.now();
+}
+
 async function sendGmailMessage(request: NextRequest, to: string, subject: string, body: string) {
   const encryptedRefreshToken = request.cookies.get(GMAIL_REFRESH_COOKIE)?.value;
   if (!encryptedRefreshToken) return { sent: false, error: 'Gmail is not connected for automatic dispatch.' };
@@ -101,7 +107,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'You do not have access to this company workspace.' }, { status: 403, headers: NO_STORE_HEADERS });
     }
 
-    const policy = policyFromRow((policyRow || null) as Record<string, unknown> | null);
+    const rawPolicy = (policyRow || null) as Record<string, unknown> | null;
+    const policy = policyFromRow(rawPolicy);
+    const companyHoldActive = authorityHoldActive(rawPolicy);
     const confidence = Math.max(0, Math.min(100, Math.round(Number(draft.confidence ?? 80))));
     const { riskScore, severity } = scoreSentinelIncident(draft.signals || {});
     const containmentActions = containmentPlan(draft.signals || {});
@@ -118,11 +126,17 @@ export async function POST(request: NextRequest) {
       simulation: Boolean(draft.simulation),
     };
     const evidenceSha256 = createHash('sha256').update(JSON.stringify(evidenceEnvelope)).digest('hex');
-    const automaticEligible = isAutomaticEscalationEligible(policy, severity, riskScore, confidence, Boolean(draft.simulation));
+    const automaticEligible = !companyHoldActive && isAutomaticEscalationEligible(policy, severity, riskScore, confidence, Boolean(draft.simulation));
     const escalationStatus = draft.simulation
       ? 'not_required'
       : severity === 'high' || severity === 'critical'
-        ? automaticEligible ? 'dispatching' : policy.escalationMode === 'prepare_only' ? 'prepared' : 'approval_required'
+        ? companyHoldActive
+          ? 'held_by_override'
+          : automaticEligible
+            ? 'dispatching'
+            : policy.escalationMode === 'prepare_only'
+              ? 'prepared'
+              : 'approval_required'
         : 'not_required';
 
     const serverDb = getServerClient();
@@ -151,7 +165,13 @@ export async function POST(request: NextRequest) {
     if (incidentError || !incident) throw new Error(incidentError?.message || 'Unable to store the Sentinel incident.');
 
     if (draft.simulation || (severity !== 'high' && severity !== 'critical')) {
-      return NextResponse.json({ incident, authorityReports: [], automaticEligible: false, simulation: Boolean(draft.simulation) }, { headers: NO_STORE_HEADERS });
+      return NextResponse.json({
+        incident,
+        authorityReports: [],
+        automaticEligible: false,
+        simulation: Boolean(draft.simulation),
+        companyHoldActive,
+      }, { headers: NO_STORE_HEADERS });
     }
 
     const reportText = buildAuthorityReport({
@@ -180,12 +200,15 @@ export async function POST(request: NextRequest) {
     const authorityReports: Array<Record<string, unknown>> = [];
     let sentCount = 0;
     for (const candidate of candidates) {
-      let status: 'prepared' | 'approval_required' | 'dispatching' | 'sent' | 'failed' =
-        policy.escalationMode === 'prepare_only' ? 'prepared' : 'approval_required';
+      let status: 'prepared' | 'approval_required' | 'dispatching' | 'sent' | 'failed' | 'held' = companyHoldActive
+        ? 'held'
+        : policy.escalationMode === 'prepare_only'
+          ? 'prepared'
+          : 'approval_required';
       let externalReference = '';
       let errorMessage = '';
 
-      if (automaticEligible && candidate.canAutoSend) {
+      if (!companyHoldActive && automaticEligible && candidate.canAutoSend) {
         status = 'dispatching';
         const sent = await sendGmailMessage(
           request,
@@ -214,6 +237,7 @@ export async function POST(request: NextRequest) {
           body: reportText,
           attribution_status: 'suspected_unverified',
           automatic_eligible: automaticEligible,
+          company_override_hold: companyHoldActive,
         },
         external_reference: externalReference || null,
         submitted_at: status === 'sent' ? new Date().toISOString() : null,
@@ -222,7 +246,13 @@ export async function POST(request: NextRequest) {
       if (!authorityError && authorityReport) authorityReports.push(authorityReport);
     }
 
-    const finalEscalationStatus = sentCount > 0 ? 'reported' : automaticEligible ? 'failed' : escalationStatus;
+    const finalEscalationStatus = companyHoldActive
+      ? 'held_by_override'
+      : sentCount > 0
+        ? 'reported'
+        : automaticEligible
+          ? 'failed'
+          : escalationStatus;
     await serverDb.from('sentinel_incidents').update({
       authority_escalation_status: finalEscalationStatus,
       status: sentCount > 0 ? 'reported' : 'detected',
@@ -235,6 +265,7 @@ export async function POST(request: NextRequest) {
       automaticEligible,
       automaticDispatchCount: sentCount,
       fbiRequiresHumanCertification: policy.notifyFbi,
+      companyHoldActive,
     }, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error('Aridon Sentinel incident error', error);
