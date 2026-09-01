@@ -3,7 +3,7 @@ import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: 'Aridon Ag | AI Back Office for Ranches',
-  description: 'Find margin leaks, weekly priorities, finance visibility, regenerative transition economics and funding opportunities for your ranch. Start with a free two-minute Aridon Operation Snapshot.',
+  description: 'Find margin leaks, weekly priorities, finance visibility, regenerative transition economics, underwriting readiness and funding opportunities for your ranch. Start with a free two-minute Aridon Operation Snapshot.',
   applicationName: 'Aridon Ag',
   appleWebApp: {
     capable: true,
@@ -31,6 +31,7 @@ export default function AgLayout({ children }: { children: React.ReactNode }) {
           <Link href="/ag/rd" style={{ color: '#C8E2AC', fontWeight: 900, textDecoration: 'none', fontSize: 13 }}>R&amp;D Portfolio →</Link>
           <Link href="/ag/rd/fslc" style={{ color: '#C8E2AC', fontWeight: 900, textDecoration: 'none', fontSize: 13 }}>FSLC Proposal →</Link>
           <Link href="/ag/regenerative" style={{ color: '#C8E2AC', fontWeight: 900, textDecoration: 'none', fontSize: 13 }}>Regenerative + Finance →</Link>
+          <Link href="/ag/regenerative/underwriting" style={{ color: '#C8E2AC', fontWeight: 900, textDecoration: 'none', fontSize: 13 }}>Risk + Underwriting →</Link>
           <Link href="/ag/finance" style={{ color: '#fff', fontWeight: 850, textDecoration: 'none', fontSize: 13 }}>Open Ag Finance →</Link>
         </div>
       </div>
