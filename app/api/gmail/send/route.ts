@@ -7,6 +7,11 @@ import {
   refreshGmailAccessToken,
   safeHeader,
 } from '../../../../lib/gmail';
+import {
+  auditExecutiveAction,
+  connectedExecutiveActor,
+  externalActionsEnabled,
+} from '../../../../lib/executiveOps';
 
 export const runtime = 'nodejs';
 
@@ -28,8 +33,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     if (body?.approved !== true) {
       return NextResponse.json(
-        { error: 'Jim must approve this email before it can be sent.' },
+        { error: 'The owner must approve this email before it can be sent.' },
         { status: 403, headers: NO_STORE_HEADERS },
+      );
+    }
+
+    const actor = connectedExecutiveActor(request);
+    if (!(await externalActionsEnabled(request))) {
+      await auditExecutiveAction({ actorEmail: actor.email, executive: text(body?.executive, 120), action: 'email_send_blocked_emergency_stop', channel: 'gmail', target: text(body?.to, 254), approved: true });
+      return NextResponse.json(
+        { error: 'Executive Operations emergency stop is active. Reading and drafting still work, but external sends are disabled.' },
+        { status: 423, headers: NO_STORE_HEADERS },
       );
     }
 
@@ -87,12 +101,23 @@ export async function POST(request: NextRequest) {
       throw new Error(data.error?.message || 'Gmail rejected the message.');
     }
 
+    const sentAt = new Date().toISOString();
+    await auditExecutiveAction({
+      actorEmail: connectedEmail || actor.email,
+      executive: text(body?.executive, 120),
+      action: 'email_sent',
+      channel: 'gmail',
+      target: to,
+      approved: true,
+      metadata: { subject, messageId: data.id, threadId: data.threadId || '' },
+    });
+
     return NextResponse.json(
       {
         sent: true,
         messageId: data.id,
         threadId: data.threadId || '',
-        sentAt: new Date().toISOString(),
+        sentAt,
       },
       { headers: NO_STORE_HEADERS },
     );
