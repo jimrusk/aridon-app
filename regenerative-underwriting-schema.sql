@@ -1,0 +1,11 @@
+-- Aridon Ag regenerative agriculture capital coordination + underwriting schema
+-- Production migration applied to Supabase project pkshvdobcsoowlkoolmt.
+-- Tables:
+--   regenerative_projects
+--   regenerative_capital_stack
+--   regenerative_measurements
+--   regenerative_risk_assessments
+--   regenerative_disclosures
+--
+-- RLS is enabled on every table. Each policy restricts reads/writes to auth.uid() = user_id.
+-- The live workspace is /ag/regenerative/underwriting.
