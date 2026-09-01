@@ -45,6 +45,7 @@ export default function BusinessOSLayout({ children }: { children: React.ReactNo
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
           <Link href="/business-os/finance" style={{ color: '#9EF0CF', fontWeight: 900, textDecoration: 'none', fontSize: 13 }}>Finance OS →</Link>
           <Link href="/business-os/sentinel" style={{ color: '#9EF0CF', fontWeight: 900, textDecoration: 'none', fontSize: 13 }}>Sentinel Enterprise →</Link>
+          <Link href="/business-os/sentinel/override" style={{ color: '#FFD8BD', fontWeight: 900, textDecoration: 'none', fontSize: 13 }}>Security Override →</Link>
         </div>
       </div>
     </div>
