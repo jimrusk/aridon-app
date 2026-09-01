@@ -38,6 +38,7 @@ export default function InternalLaunchers() {
     pathname.startsWith('/ai-visibility') ||
     pathname.startsWith('/sales-team') ||
     pathname.startsWith('/presentation-studio') ||
+    pathname.startsWith('/video-studio') ||
     pathname.startsWith('/facebook-launch') ||
     pathname.startsWith('/model-router') ||
     pathname.startsWith('/agent-supervisor') ||
@@ -98,6 +99,7 @@ export default function InternalLaunchers() {
       <Link href="/property-intelligence" aria-label="Open nationwide property intelligence hunter" style={{ ...launcherStyle, background: '#FFE1A8' }}>⌂ Property</Link>
       <Link href="/agent-supervisor" aria-label="Open Aridon Agent Supervisor" style={{ ...launcherStyle, background: '#9EF0CF' }}>◎ Agents</Link>
       <Link href="/presentation-studio" aria-label="Open Aridon Presentation Studio" style={{ ...launcherStyle, background: '#FFD5A8' }}>▣ Present</Link>
+      <Link href="/video-studio" aria-label="Open Aridon Gemini Omni Video Studio" style={{ ...launcherStyle, background: '#FFB6D9' }}>▶ Video</Link>
       <Link href="/facebook-launch" aria-label="Open Aridon Facebook Page Launch Center" style={{ ...launcherStyle, background: '#A8C7FF' }}>f Facebook</Link>
       <Link href="/model-router" aria-label="Open Aridon model router" style={{ ...launcherStyle, background: '#C9A7FF' }}>⌘ Models</Link>
       <Link href="/impact-os" aria-label="Open Aridon Impact OS" style={{ ...launcherStyle, background: '#C9A7FF' }}>✦ Impact</Link>
