@@ -1,5 +1,12 @@
+import { convertAnnualizedRevenue, type AnnualizedRevenueBasis } from './arrReality';
+
 export type UnderwritingInputs = {
   thesis_fit?: number;
+  annualized_revenue_rate?: number;
+  annualized_revenue_basis?: AnnualizedRevenueBasis;
+  arr_reality_factor_pct?: number;
+  verified_ttm_revenue?: number;
+  valuation_uses_arr?: boolean;
   revenue_verified_pct?: number;
   bank_reconciliation_pct?: number;
   tax_return_reconciliation_pct?: number;
@@ -63,6 +70,15 @@ export type UnderwritingResults = {
   evidence_confidence_score: number;
   survivability_score: number;
   underwriting_score: number;
+  reported_arr_r: number | null;
+  arr_c: number | null;
+  arr_reality_factor_pct: number | null;
+  arr_discount_pct: number | null;
+  arr_basis_label: string | null;
+  verified_ttm_revenue: number | null;
+  verified_to_arr_r_pct: number | null;
+  valuation_revenue: number | null;
+  valuation_revenue_basis: 'verified_ttm' | 'arr_c' | 'arr_r' | 'none';
   dscr: number | null;
   working_capital_adjustment: number;
   implied_value_low: number | null;
@@ -88,11 +104,11 @@ const n = (value: unknown, fallback = 0) => {
 };
 const pct = (value: unknown, fallback = 0) => clamp(n(value, fallback));
 const inverse = (risk: unknown) => 100 - pct(risk);
-const avg = (...values: number[]) => values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
 const weighted = (pairs: Array<[number, number]>) => {
   const denom = pairs.reduce((sum, [, weight]) => sum + weight, 0);
   return denom ? pairs.reduce((sum, [value, weight]) => sum + clamp(value) * weight, 0) / denom : 0;
 };
+const usd = (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
 export function evidenceConfidence(items: EvidenceItem[]) {
   if (!items.length) return 20;
@@ -114,13 +130,28 @@ export function evidenceConfidence(items: EvidenceItem[]) {
 
 export function underwriteAcquisition(input: UnderwritingInputs, normalizedEbitda = 0, evidence: EvidenceItem[] = []): UnderwritingResults {
   const thesis = pct(input.thesis_fit, 60);
+  const revenueReality = convertAnnualizedRevenue({
+    reportedArr: input.annualized_revenue_rate,
+    basis: input.annualized_revenue_basis,
+    factorPct: input.arr_reality_factor_pct,
+    verifiedTtmRevenue: input.verified_ttm_revenue,
+  });
+
+  let revenueRealityScore = 100;
+  if (revenueReality.reportedArrR) {
+    revenueRealityScore = revenueReality.verifiedTtmRevenue && revenueReality.verifiedToReportedPct != null
+      ? clamp(revenueReality.verifiedToReportedPct, 25, 100)
+      : clamp(revenueReality.factorPct ?? 75, 25, 100);
+  }
+
   const qoe = weighted([
-    [pct(input.revenue_verified_pct, 35), 0.20],
-    [pct(input.bank_reconciliation_pct, 25), 0.22],
-    [pct(input.tax_return_reconciliation_pct, 25), 0.18],
-    [pct(input.addbacks_verified_pct, 30), 0.18],
-    [pct(input.recurring_revenue_pct, 40), 0.12],
-    [pct(input.gross_margin_stability, 55), 0.10],
+    [pct(input.revenue_verified_pct, 35), 0.17],
+    [pct(input.bank_reconciliation_pct, 25), 0.20],
+    [pct(input.tax_return_reconciliation_pct, 25), 0.17],
+    [pct(input.addbacks_verified_pct, 30), 0.17],
+    [pct(input.recurring_revenue_pct, 40), 0.10],
+    [pct(input.gross_margin_stability, 55), 0.09],
+    [revenueRealityScore, 0.10],
   ]);
 
   const transitionMonths = Math.min(12, Math.max(0, n(input.seller_transition_months, 0)));
@@ -238,6 +269,20 @@ export function underwriteAcquisition(input: UnderwritingInputs, normalizedEbitd
   if (dscr != null && dscr < 1.1) kill.push(`Debt-service coverage is ${dscr.toFixed(2)}x, below a prudent underwriting floor.`);
   if (transferability < 35) kill.push('The business appears too dependent on the seller to transfer safely without major conditions.');
   if (customer < 35) kill.push('Customer concentration/correlation risk is severe.');
+
+  if (revenueReality.reportedArrR && !revenueReality.verifiedTtmRevenue) {
+    conditions.push(`Reported ARR-R is a run-rate claim, not earned trailing revenue. Use ARR-C of ${usd(revenueReality.convertedArrC ?? 0)} for screening until trailing-12-month revenue is verified.`);
+  }
+  if (input.valuation_uses_arr && revenueReality.reportedArrR && !revenueReality.verifiedTtmRevenue) {
+    conditions.push('Do not price the business, calculate acquisition multiples, or size debt directly from reported ARR-R. Use ARR-C until verified TTM revenue is available.');
+  }
+  if ((revenueReality.factorPct ?? 100) <= 60 && revenueReality.reportedArrR) {
+    conditions.push('The annualized revenue claim is based on an unusually short or promotional period. Treat it as high-risk until month-by-month revenue supports the run rate.');
+  }
+  if ((revenueReality.verifiedToReportedPct ?? 100) < 75 && revenueReality.verifiedTtmRevenue) {
+    conditions.push(`Verified TTM revenue is only ${revenueReality.verifiedToReportedPct?.toFixed(1)}% of reported ARR-R. Rebase valuation and financing on verified revenue.`);
+  }
+
   if (evidenceScore < 30) conditions.push('Do not rely on seller/broker claims until bank, tax, accounting, contract, and payroll evidence is reconciled.');
   if (qoe < 70) conditions.push('Complete a Quality of Earnings bridge and reject unsupported add-backs before final pricing.');
   if (transferability < 70) conditions.push('Document SOPs, transfer key relationships, and define a seller transition covenant before closing.');
@@ -254,13 +299,20 @@ export function underwriteAcquisition(input: UnderwritingInputs, normalizedEbitd
   if (n(input.cyber_risk, 55) > 60) advisors.push('Cybersecurity/technology diligence specialist review recommended.');
 
   narrative.push(`Quality of Earnings: ${Math.round(qoe)}/100. Transferability: ${Math.round(transferability)}/100. Post-acquisition survivability: ${Math.round(survivability)}/100.`);
+  if (revenueReality.reportedArrR) {
+    narrative.push(`ARR Reality Rule: reported ARR-R ${usd(revenueReality.reportedArrR)} (${revenueReality.basisLabel}) converts to ARR-C ${usd(revenueReality.convertedArrC ?? 0)} using a ${revenueReality.factorPct}% reality factor.`);
+  }
+  if (revenueReality.verifiedTtmRevenue) {
+    const comparison = revenueReality.verifiedToReportedPct != null ? `, equal to ${revenueReality.verifiedToReportedPct.toFixed(1)}% of ARR-R` : '';
+    narrative.push(`Verified trailing-12-month revenue is ${usd(revenueReality.verifiedTtmRevenue)}${comparison}. Verified TTM revenue is the preferred valuation basis.`);
+  }
   if (dscr != null) narrative.push(`Modeled DSCR is ${dscr.toFixed(2)}x based on entered normalized free cash flow and annual debt service.`);
-  if (workingCapitalAdjustment !== 0) narrative.push(`Entered closing working capital implies a ${workingCapitalAdjustment >= 0 ? 'positive' : 'negative'} ${Math.abs(workingCapitalAdjustment).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })} adjustment versus normalized working capital.`);
+  if (workingCapitalAdjustment !== 0) narrative.push(`Entered closing working capital implies a ${workingCapitalAdjustment >= 0 ? 'positive' : 'negative'} ${usd(Math.abs(workingCapitalAdjustment))} adjustment versus normalized working capital.`);
 
   const impliedLow = normalizedEbitda > 0 && low > 0 ? Math.round(normalizedEbitda * low) : null;
   const impliedMedian = normalizedEbitda > 0 && median > 0 ? Math.round(normalizedEbitda * median) : null;
   const impliedHigh = normalizedEbitda > 0 && high > 0 ? Math.round(normalizedEbitda * high) : null;
-  if (impliedMedian) narrative.push(`Entered market comps imply a median enterprise value near ${impliedMedian.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })}, subject to deal-specific adjustments.`);
+  if (impliedMedian) narrative.push(`Entered market comps imply a median enterprise value near ${usd(impliedMedian)}, subject to deal-specific adjustments.`);
 
   let decision: UnderwritingResults['decision'] = 'needs_data';
   if (kill.length) decision = 'pass';
@@ -286,6 +338,15 @@ export function underwriteAcquisition(input: UnderwritingInputs, normalizedEbitd
     evidence_confidence_score: Math.round(evidenceScore),
     survivability_score: Math.round(survivability),
     underwriting_score: Math.round(overall),
+    reported_arr_r: revenueReality.reportedArrR,
+    arr_c: revenueReality.convertedArrC,
+    arr_reality_factor_pct: revenueReality.factorPct,
+    arr_discount_pct: revenueReality.discountPct,
+    arr_basis_label: revenueReality.basisLabel,
+    verified_ttm_revenue: revenueReality.verifiedTtmRevenue,
+    verified_to_arr_r_pct: revenueReality.verifiedToReportedPct,
+    valuation_revenue: revenueReality.valuationRevenue,
+    valuation_revenue_basis: revenueReality.valuationBasis,
     dscr,
     working_capital_adjustment: workingCapitalAdjustment,
     implied_value_low: impliedLow,
@@ -309,6 +370,7 @@ export function build100DayPlan(results: UnderwritingResults) {
     { phase: 'day_100', due_day: 100, task: 'Approve the first value-creation plan only after the base business is stable and metrics are trusted.', owner: 'Board / Owner', rationale: 'Avoids breaking a working business before understanding it.' },
     { phase: 'year_1', due_day: 365, task: 'Re-underwrite the acquisition thesis, debt capacity, management bench, growth investments, and exit options.', owner: 'Board / Finance', rationale: 'Turns acquisition performance into a disciplined annual capital-allocation decision.' },
   ];
+  if (results.reported_arr_r && !results.verified_ttm_revenue) tasks.push({ phase: 'pre_close', due_day: 0, task: 'Reconcile monthly revenue for the trailing 12 months and replace ARR-R with verified TTM revenue before final valuation.', owner: 'Finance', rationale: 'Reported annualized revenue is a run-rate claim and has not yet been verified.' });
   if (results.transferability_score < 70) tasks.push({ phase: 'pre_close', due_day: 0, task: 'Complete seller knowledge-transfer map, SOP capture, and key-relationship introductions.', owner: 'Operations', rationale: 'Transferability is below target.' });
   if (results.people_retention_score < 70) tasks.push({ phase: 'pre_close', due_day: 0, task: 'Create written retention plans for critical employees and backup coverage for each key role.', owner: 'People / Owner', rationale: 'Key-person risk is elevated.' });
   if (results.customer_risk_score < 70) tasks.push({ phase: 'day_30', due_day: 30, task: 'Meet top customers, verify renewal/contract status, and build a concentration-reduction plan.', owner: 'Revenue', rationale: 'Customer concentration/correlation risk is elevated.' });
