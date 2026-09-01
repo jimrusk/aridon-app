@@ -1,7 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 let browserClient: SupabaseClient | null = null;
-let serverClient: SupabaseClient | null = null;
 
 // These are intentionally public client configuration values. Supabase project URLs
 // and publishable keys are designed to ship in browser bundles. Pinning the verified
@@ -43,18 +42,18 @@ export function getUserScopedClient(accessToken: string): SupabaseClient {
   });
 }
 
-// Service-role access stays server-only and is initialized lazily. The secret key
-// remains in Vercel and is never embedded in the browser bundle or repository.
+// Service-role access stays server-only. Return a fresh client for each server request
+// instead of sharing one mutable auth client across warm serverless invocations. This
+// prevents an auth operation performed for one user from influencing a later privileged
+// membership lookup in the same runtime process.
 export function getServerClient(): SupabaseClient {
-  if (!serverClient) {
-    const serviceRoleKey = requiredValue('SUPABASE_SERVICE_ROLE_KEY', process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const serviceRoleKey = requiredValue('SUPABASE_SERVICE_ROLE_KEY', process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-    serverClient = createClient(SUPABASE_URL, serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
-  }
-  return serverClient;
+  return createClient(SUPABASE_URL, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  });
 }
