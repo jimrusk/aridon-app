@@ -10,6 +10,7 @@ const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo';
 const GMAIL_SEND_SCOPE = 'https://www.googleapis.com/auth/gmail.send';
 const GMAIL_READ_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
+const CALENDAR_EVENTS_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
 const USERINFO_SCOPE = 'https://www.googleapis.com/auth/userinfo.email';
 
 function required(name: string): string {
@@ -45,7 +46,10 @@ export function buildGoogleAuthorizationUrl(request: NextRequest, state: string)
   url.searchParams.set('access_type', 'offline');
   url.searchParams.set('prompt', 'consent');
   url.searchParams.set('include_granted_scopes', 'true');
-  url.searchParams.set('scope', `openid ${USERINFO_SCOPE} ${GMAIL_SEND_SCOPE} ${GMAIL_READ_SCOPE}`);
+  url.searchParams.set(
+    'scope',
+    `openid ${USERINFO_SCOPE} ${GMAIL_SEND_SCOPE} ${GMAIL_READ_SCOPE} ${CALENDAR_EVENTS_SCOPE}`,
+  );
   url.searchParams.set('state', state);
   return url.toString();
 }
@@ -114,13 +118,13 @@ export async function exchangeAuthorizationCode(request: NextRequest, code: stri
   );
 
   if (!data.access_token || !data.refresh_token) {
-    throw new Error('Google did not return the required Gmail tokens. Reconnect and approve access.');
+    throw new Error('Google did not return the required Workspace tokens. Reconnect and approve access.');
   }
 
   return { accessToken: data.access_token, refreshToken: data.refresh_token };
 }
 
-export async function refreshGmailAccessToken(refreshToken: string): Promise<string> {
+export async function refreshGoogleAccessToken(refreshToken: string): Promise<string> {
   const data = await tokenRequest(
     new URLSearchParams({
       refresh_token: refreshToken,
@@ -130,8 +134,13 @@ export async function refreshGmailAccessToken(refreshToken: string): Promise<str
     }),
   );
 
-  if (!data.access_token) throw new Error('Google did not return a Gmail access token.');
+  if (!data.access_token) throw new Error('Google did not return an access token.');
   return data.access_token;
+}
+
+// Backward-compatible name for existing Gmail routes.
+export async function refreshGmailAccessToken(refreshToken: string): Promise<string> {
+  return refreshGoogleAccessToken(refreshToken);
 }
 
 export async function fetchGoogleEmail(accessToken: string): Promise<string> {
