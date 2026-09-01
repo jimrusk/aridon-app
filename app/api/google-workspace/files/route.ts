@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleWorkspaceAccessToken, listDriveFiles, readWorkspaceFile, type DriveFile } from '../../../../../lib/googleWorkspace';
+import { googleJson, googleWorkspaceAccessToken, listDriveFiles, readWorkspaceFile, type DriveFile } from '../../../../../lib/googleWorkspace';
 import { auditExecutiveAction, connectedExecutiveActor, recommendExecutive } from '../../../../../lib/executiveOps';
 
 export const runtime = 'nodejs';
@@ -12,10 +12,11 @@ export async function GET(request: NextRequest) {
     const actor = connectedExecutiveActor(request);
 
     if (fileId) {
-      const files = await listDriveFiles(accessToken, '', 100);
-      const file = files.find((item) => item.id === fileId);
-      if (!file) return NextResponse.json({ error: 'The requested Drive file was not found.' }, { status: 404, headers: NO_STORE });
-      const content = await readWorkspaceFile(accessToken, file as DriveFile);
+      const file = await googleJson<DriveFile>(
+        `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,name,mimeType,modifiedTime,createdTime,webViewLink,size`,
+        accessToken,
+      );
+      const content = await readWorkspaceFile(accessToken, file);
       const route = recommendExecutive({ filename: file.name, body: 'text' in content ? String(content.text || '') : JSON.stringify(content).slice(0, 12000) });
       await auditExecutiveAction({ actorEmail: actor.email, executive: route.executive, action: 'file_read', channel: 'google_drive', target: file.name, metadata: { fileId: file.id, mimeType: file.mimeType } });
       return NextResponse.json({ connected: true, file: content, recommendedExecutive: route }, { headers: NO_STORE });
