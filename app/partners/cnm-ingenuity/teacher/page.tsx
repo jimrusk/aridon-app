@@ -13,10 +13,10 @@ export default function CnmIngenuityTeachingStudio() {
       tutorName="Future Skills Guide"
       tutorVoiceId="Future Skills Guide"
       headline="Try the skill before you choose the program."
-      disclosure="This Aridon prototype turns public CNM Ingenuity program descriptions into short, interactive sample lessons for prospective learners. Pick a topic, ask questions by voice or text, practice a concept and get a quick knowledge check. It is a proposed partnership demo, not an official CNM Ingenuity course, instructor, assessment or endorsement."
+      disclosure="This Aridon prototype turns public CNM Ingenuity program descriptions into short, interactive sample lessons for prospective learners. Pick a topic, ask questions by voice or text, practice a concept and get a quick knowledge check. The photoreal instructor is a synthetic Aridon teaching persona, not a CNM employee or real instructor. It is a proposed partnership demo, not an official CNM Ingenuity course, assessment or endorsement."
       modules={cnmModules}
       apiPath="/api/partners/cnm-ingenuity/teacher"
-      fallbackPortrait="/executives/maya.svg"
+      fallbackPortrait="/executives/oracle.jpg"
       accent="#20A6D8"
       secondaryAccent="#8FE6C4"
       realWorldHref="/partners/cnm-ingenuity"
