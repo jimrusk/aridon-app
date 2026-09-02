@@ -7,6 +7,7 @@ const links=[
   ['/execution','Execution Engine','Move approved work into execution.'],
   ['/controls','Approval Center','Review actions that need owner approval.'],
   ['/avatars','Executive Voice Room','Talk with the Aridon executive team.'],
+  ['/investor-intelligence','Investment Intelligence','Screen startup and growth investments, expose diligence risks, generate management questions, and draft an investor memo.'],
   ['/acquisitions/pipeline','Acquisition Pipeline','Run Aridon 3 from lead capture through underwriting, LOI, diligence, close, and the first 100 days.'],
   ['/acquisitions/thesis','Acquisition Thesis','Define exactly what Aridon should buy and what it should automatically reject.'],
   ['/acquisitions','Acquisition Deal Engine','Score leverage, structure financing, and build a seller negotiation plan.'],
