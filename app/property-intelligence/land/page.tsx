@@ -2,253 +2,190 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { ComparableLandSale, LandRiskInputs, priceLand } from '../../../lib/landPricing';
 
-const uses = [
-  'Farm / ranch',
-  'Homestead',
-  'Greenhouse / controlled ag',
-  'Cabins / retreat',
-  'RV / campground',
-  'Recreation',
-  'Conservation / habitat',
-  'Solar / energy',
-  'Long-term investment',
-];
+type Mode = 'price' | 'analyze' | 'hunt';
 
-const markets = ['New Mexico', 'Arizona', 'Texas', 'Colorado', 'Utah', 'Nevada', 'California', 'Florida', 'Nationwide'];
+type CompDraft = ComparableLandSale & { priceText: string; acresText: string; monthsText: string; distanceText: string; similarityText: string };
 
-const fundingPaths = [
-  ['Seller financing', 'Search for owner-carry, contract-for-deed and negotiated low-down structures when the seller and deal support them.'],
-  ['USDA / FSA', 'Screen farm ownership, operating, beginning-farmer and rural programs when the buyer and intended use may qualify.'],
-  ['USDA Rural Development', 'Check eligible rural housing, business and community pathways where location and project type fit.'],
-  ['NRCS / conservation', 'Look for cost-share and conservation assistance that can reduce eligible water, soil, grazing or infrastructure costs after acquisition.'],
-  ['State + local programs', 'Match rural, housing, economic-development, water and agriculture programs by geography and project.'],
-  ['Specialty lenders', 'Identify lenders that understand land, farm, ranch, construction, manufactured housing or alternative collateral.'],
+const blankRisk: LandRiskInputs = {
+  access: 'unknown', water: 'unknown', utilities: 'unknown', zoning: 'unknown', flood: 'unknown', wetlands: 'unknown', slope: 'unknown',
+};
+
+function newComp(id: string): CompDraft {
+  return { id, price: 0, acres: 0, monthsAgo: 0, distanceMiles: 0, similarity: 80, priceText: '', acresText: '', monthsText: '', distanceText: '', similarityText: '80' };
+}
+
+const demoComps: CompDraft[] = [
+  { id: 'c1', price: 84000, acres: 20, monthsAgo: 4, distanceMiles: 7, similarity: 92, priceText: '84000', acresText: '20', monthsText: '4', distanceText: '7', similarityText: '92' },
+  { id: 'c2', price: 76000, acres: 18, monthsAgo: 9, distanceMiles: 12, similarity: 88, priceText: '76000', acresText: '18', monthsText: '9', distanceText: '12', similarityText: '88' },
+  { id: 'c3', price: 112000, acres: 25, monthsAgo: 13, distanceMiles: 18, similarity: 81, priceText: '112000', acresText: '25', monthsText: '13', distanceText: '18', similarityText: '81' },
+  { id: 'c4', price: 69000, acres: 16, monthsAgo: 6, distanceMiles: 22, similarity: 76, priceText: '69000', acresText: '16', monthsText: '6', distanceText: '22', similarityText: '76' },
 ];
 
 const dueDiligence = [
-  ['Parcel identity', 'County assessor / recorder', 'Confirm APN, legal description, owner and acreage.'],
-  ['Zoning + allowed use', 'Planning / zoning', 'Confirm the intended project is allowed and what permits or hearings are required.'],
-  ['Legal access', 'Recorder / title / roads', 'Confirm recorded access, easements and road maintenance obligations.'],
-  ['Water', 'State engineer / county / well records', 'Check wells, water rights, hauling, shared systems, surface water and restrictions.'],
-  ['Septic + soils', 'Environmental health / soil data', 'Check septic feasibility, soil limits, slopes and buildable area.'],
-  ['Flood / fire / environmental', 'FEMA + state / local data', 'Screen floodplain, wildfire, wetlands and other development constraints.'],
-  ['Taxes + liens', 'Treasurer / recorder / title', 'Check delinquency, liens, assessments and other encumbrances.'],
-  ['Utilities', 'Local providers', 'Estimate electric, gas, telecom and extension costs or off-grid alternatives.'],
+  ['Parcel + ownership', 'Assessor / recorder', 'APN, legal description, acreage, ownership, transfer history'],
+  ['Market evidence', 'Licensed comps + deeds', 'Recent sold land normalized by acres, distance, recency and similarity'],
+  ['Water', 'State + local records', 'Wells, rights, utility service, hauling, restrictions, drought reliability'],
+  ['Buildability', 'Planning + environmental', 'Zoning, legal access, slope, flood, wetlands, septic and usable acreage'],
+  ['Infrastructure', 'Providers + field estimates', 'Electric, gas, telecom, road and extension-cost exposure'],
+  ['Deal math', 'Aridon underwriting', 'Value range, max offer, spread, target margin and confidence'],
 ];
 
+const fmtMoney = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number.isFinite(value) ? value : 0);
+const fmtPct = (value: number | null) => value == null ? '—' : `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
+const numeric = (text: string) => Math.max(0, Number(text.replace(/[^0-9.]/g, '')) || 0);
+
 export default function AridonLandIntelligencePage() {
-  const [market, setMarket] = useState('New Mexico');
-  const [acres, setAcres] = useState('20');
-  const [projectUse, setProjectUse] = useState('Farm / ranch');
-  const [budget, setBudget] = useState('250000');
-  const [cash, setCash] = useState('25000');
+  const [mode, setMode] = useState<Mode>('price');
   const [propertyRef, setPropertyRef] = useState('');
-  const [water, setWater] = useState('Unknown');
-  const [access, setAccess] = useState('Unknown');
-  const [utilities, setUtilities] = useState('Unknown');
-  const [sellerFinancing, setSellerFinancing] = useState(true);
-  const [planGenerated, setPlanGenerated] = useState(false);
+  const [state, setState] = useState('Arizona');
+  const [acresText, setAcresText] = useState('20');
+  const [askingText, setAskingText] = useState('60000');
+  const [marginText, setMarginText] = useState('25');
+  const [reserveText, setReserveText] = useState('5000');
+  const [risks, setRisks] = useState<LandRiskInputs>(blankRisk);
+  const [comps, setComps] = useState<CompDraft[]>([newComp('c1'), newComp('c2'), newComp('c3')]);
+  const [searchBudget, setSearchBudget] = useState('50000');
+  const [minDiscount, setMinDiscount] = useState('30');
+  const [minAcres, setMinAcres] = useState('5');
+  const [maxAcres, setMaxAcres] = useState('100');
+  const [useCase, setUseCase] = useState('Investment / resale');
 
-  const analysis = useMemo(() => {
-    const purchase = Math.max(0, Number(budget.replace(/[^0-9.]/g, '')) || 0);
-    const availableCash = Math.max(0, Number(cash.replace(/[^0-9.]/g, '')) || 0);
-    const acreage = Math.max(0, Number(acres.replace(/[^0-9.]/g, '')) || 0);
-    const downPct = purchase ? Math.min(100, (availableCash / purchase) * 100) : 0;
-    const financingNeed = Math.max(0, purchase - availableCash);
+  const pricedComps = useMemo(() => comps.map((comp) => ({
+    ...comp,
+    price: numeric(comp.priceText),
+    acres: numeric(comp.acresText),
+    monthsAgo: numeric(comp.monthsText),
+    distanceMiles: numeric(comp.distanceText),
+    similarity: Math.min(100, numeric(comp.similarityText) || 80),
+  })), [comps]);
 
-    const waterScore = water === 'Well / verified source' ? 92 : water === 'Public / community water' ? 88 : water === 'Haul / storage plan' ? 66 : 48;
-    const accessScore = access === 'Recorded paved access' ? 92 : access === 'Recorded unpaved access' ? 78 : access === 'Private / easement' ? 64 : 46;
-    const utilityScore = utilities === 'At property' ? 90 : utilities === 'Nearby' ? 74 : utilities === 'Off-grid planned' ? 72 : 50;
+  const result = useMemo(() => priceLand({
+    acres: numeric(acresText),
+    askingPrice: numeric(askingText),
+    targetMarginPct: numeric(marginText) || 25,
+    reserve: numeric(reserveText),
+    comps: pricedComps,
+    risks,
+  }), [acresText, askingText, marginText, reserveText, pricedComps, risks]);
 
-    let fundingScore = sellerFinancing ? 84 : 62;
-    if (availableCash > 0) fundingScore += 4;
-    if (['Farm / ranch', 'Greenhouse / controlled ag', 'Conservation / habitat'].includes(projectUse)) fundingScore += 5;
-    if (downPct >= 20) fundingScore += 4;
-    fundingScore = Math.min(96, fundingScore);
+  function updateRisk<K extends keyof LandRiskInputs>(key: K, value: LandRiskInputs[K]) {
+    setRisks((current) => ({ ...current, [key]: value }));
+  }
 
-    let incomeScore = 64;
-    if (['Farm / ranch', 'Greenhouse / controlled ag', 'Cabins / retreat', 'RV / campground', 'Solar / energy'].includes(projectUse)) incomeScore += 12;
-    if (acreage >= 10) incomeScore += 5;
-    if (acreage >= 40) incomeScore += 3;
-    incomeScore = Math.min(94, incomeScore);
+  function updateComp(id: string, key: keyof CompDraft, value: string) {
+    setComps((current) => current.map((comp) => comp.id === id ? { ...comp, [key]: value } : comp));
+  }
 
-    const developmentEase = Math.round((waterScore + accessScore + utilityScore) / 3);
-    const opportunity = Math.round((waterScore * .22) + (accessScore * .16) + (utilityScore * .10) + (fundingScore * .27) + (incomeScore * .25));
-    const decision = opportunity >= 82 ? 'STRONG CANDIDATE' : opportunity >= 70 ? 'NEGOTIATE / VERIFY' : 'RESEARCH BEFORE OFFER';
+  function addComp() {
+    setComps((current) => [...current, newComp(`c${Date.now()}`)]);
+  }
 
-    const bestStructure = sellerFinancing && downPct < 20
-      ? 'Lead with seller financing, then stack eligible program or lender financing around the project.'
-      : downPct >= 20
-        ? 'Conventional or specialty land financing is more realistic; still compare seller-carry terms.'
-        : 'Preserve cash and search for owner-carry, low-down and program-supported structures rather than forcing a weak loan.';
+  function loadExample() {
+    setComps(demoComps);
+    setAcresText('20'); setAskingText('60000');
+    setRisks({ access: 'paved', water: 'well', utilities: 'nearby', zoning: 'confirmed', flood: 'low', wetlands: 'none', slope: 'rolling' });
+  }
 
-    const waterPlan = water === 'Unknown'
-      ? 'Water is the first gating item. Verify legal supply before treating the parcel as buildable or productive.'
-      : water === 'Haul / storage plan'
-        ? 'Model hauled-water cost and storage, then compare well feasibility, rain capture and supplemental AWG where climate and economics justify it.'
-        : 'Verify source capacity, legal rights and drought reliability, then size storage and any supplemental AWG strategy.';
-
-    return { purchase, availableCash, acreage, downPct, financingNeed, waterScore, accessScore, utilityScore, fundingScore, incomeScore, developmentEase, opportunity, decision, bestStructure, waterPlan };
-  }, [budget, cash, acres, water, access, utilities, sellerFinancing, projectUse]);
-
-  const money = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
+  const huntSentence = `Find ${state} land with ${minAcres || '0'}–${maxAcres || 'any'} acres, asking no more than ${fmtMoney(numeric(searchBudget))}, targeting at least ${minDiscount || '0'}% value gap, optimized for ${useCase.toLowerCase()}, then verify access, water, zoning, flood, wetlands and utilities before ranking.`;
 
   return (
     <main style={{ minHeight: '100vh', background: '#F2EFE6', color: '#171717', fontFamily: 'Arial, sans-serif' }}>
-      <header style={{ background: '#10271C', color: '#fff', padding: '26px 20px 58px' }}>
-        <div style={{ maxWidth: 1180, margin: '0 auto' }}>
+      <header style={{ background: '#07101D', color: '#F8FAFC', padding: '28px 20px 54px' }}>
+        <div style={{ maxWidth: 1220, margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ color: '#BFE79F', fontWeight: 950, fontSize: 12, letterSpacing: 1.1 }}>ARIDON · LAND INTELLIGENCE</div>
-            <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
-              <Link href="/property-intelligence" style={darkLink}>Property Hunter</Link>
-              <Link href="/property-intelligence/sources" style={darkLink}>Public Sources</Link>
-              <Link href="/ag" style={darkLink}>Aridon Ag</Link>
-            </div>
+            <div><div style={{ color: mint, fontSize: 11, fontWeight: 950, letterSpacing: 1.25 }}>ARIDON · LAND INTELLIGENCE 2.0</div><div style={{ color: '#91A2BA', fontSize: 12, marginTop: 5 }}>Land pricing + risk + acquisition underwriting</div></div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><Link href="/property-intelligence" style={darkLink}>Property Hunter</Link><Link href="/property-intelligence/market" style={darkLink}>Market Radar</Link><Link href="/property-intelligence/sources" style={darkLink}>Sources</Link><Link href="/ag" style={darkLink}>Ag</Link></div>
           </div>
-          <h1 style={{ fontSize: 'clamp(44px,7vw,78px)', lineHeight: .94, letterSpacing: -3, margin: '18px 0 18px', maxWidth: 1000 }}>Find the land. Verify it. Fund it. Build the deal.</h1>
-          <p style={{ color: '#D7E6DB', fontSize: 19, lineHeight: 1.65, maxWidth: 900 }}>
-            Aridon combines land search logic, parcel due diligence, water intelligence, project economics and financing paths into one acquisition workflow. It hunts for possibilities, but it does not promise zero-down financing or grant awards.
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 20 }}>
-            {['Listed + off-market', 'Land score', 'Water security', 'Funding paths', 'Due diligence', 'Income uses', 'Deal structure', 'Watchlists'].map((item) => <span key={item} style={chip}>{item}</span>)}
-          </div>
+          <h1 style={{ fontSize: 'clamp(46px,7vw,82px)', lineHeight: .92, letterSpacing: -3.5, margin: '22px 0 18px', maxWidth: 1080 }}>Price the dirt. Price the risk. Price the deal.</h1>
+          <p style={{ color: '#C0CCDC', fontSize: 19, lineHeight: 1.65, maxWidth: 950 }}>Aridon does more than estimate a number. It weights comparable land sales, adjusts for land-specific constraints, exposes confidence, calculates a maximum offer and tells you what could break the deal.</p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20 }}>{['Comp-weighted value', 'Price / acre', 'Confidence range', 'Water', 'Access', 'Flood + wetlands', 'Zoning', 'Max offer', 'Deal score'].map((item) => <span key={item} style={chip}>{item}</span>)}</div>
         </div>
       </header>
 
-      <section style={{ maxWidth: 1180, margin: '-26px auto 0', padding: '0 20px 10px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,350px),1fr))', gap: 14 }}>
-          <article style={card}>
-            <div style={eyebrow}>60-SECOND LAND PROFILE</div>
-            <h2 style={{ fontSize: 30, margin: '8px 0 16px' }}>What are you trying to buy?</h2>
-            <Field label="Market"><select style={input} value={market} onChange={(event) => setMarket(event.target.value)}>{markets.map((item) => <option key={item}>{item}</option>)}</select></Field>
-            <Field label="Target acres"><input style={input} value={acres} onChange={(event) => setAcres(event.target.value)} inputMode="decimal" /></Field>
-            <Field label="Intended use"><select style={input} value={projectUse} onChange={(event) => setProjectUse(event.target.value)}>{uses.map((item) => <option key={item}>{item}</option>)}</select></Field>
-            <Field label="Purchase budget"><input style={input} value={budget} onChange={(event) => setBudget(event.target.value)} inputMode="numeric" /></Field>
-            <Field label="Cash available for acquisition"><input style={input} value={cash} onChange={(event) => setCash(event.target.value)} inputMode="numeric" /></Field>
-            <button onClick={() => setSellerFinancing((value) => !value)} style={{ ...toggle, background: sellerFinancing ? '#E6F5DF' : '#F4F1EA', borderColor: sellerFinancing ? '#77A967' : '#D5CEC1' }}>{sellerFinancing ? '✓ Include seller-financing opportunities' : '+ Include seller-financing opportunities'}</button>
-          </article>
-
-          <article style={card}>
-            <div style={eyebrow}>PASTE A PROPERTY</div>
-            <h2 style={{ fontSize: 30, margin: '8px 0 12px' }}>Turn a listing into a research file.</h2>
-            <p style={{ color: '#625E55', lineHeight: 1.6, fontSize: 14 }}>Paste a listing URL, street address, APN or legal description. Aridon uses it as the anchor for parcel-specific due diligence and source-backed outreach questions.</p>
-            <textarea value={propertyRef} onChange={(event) => setPropertyRef(event.target.value)} placeholder="Listing URL, address, APN or legal description" style={{ ...input, minHeight: 104, resize: 'vertical' }} />
-            <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
-              <Field label="Water"><select style={input} value={water} onChange={(event) => setWater(event.target.value)}><option>Unknown</option><option>Well / verified source</option><option>Public / community water</option><option>Haul / storage plan</option></select></Field>
-              <Field label="Access"><select style={input} value={access} onChange={(event) => setAccess(event.target.value)}><option>Unknown</option><option>Recorded paved access</option><option>Recorded unpaved access</option><option>Private / easement</option></select></Field>
-              <Field label="Utilities"><select style={input} value={utilities} onChange={(event) => setUtilities(event.target.value)}><option>Unknown</option><option>At property</option><option>Nearby</option><option>Off-grid planned</option></select></Field>
-            </div>
-            <button onClick={() => setPlanGenerated(true)} style={primaryButton}>Build My Land Deal Plan →</button>
-            <div style={{ marginTop: 10, fontSize: 12, color: '#746E64', lineHeight: 1.45 }}>This first-pass score uses your inputs. Parcel facts still require source verification before an offer.</div>
-          </article>
+      <section style={{ maxWidth: 1220, margin: '-22px auto 0', padding: '0 20px 12px' }}>
+        <div style={{ ...card, padding: 8, display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+          <ModeButton active={mode === 'price'} onClick={() => setMode('price')}>$ Price It</ModeButton>
+          <ModeButton active={mode === 'analyze'} onClick={() => setMode('analyze')}>◎ Analyze Property</ModeButton>
+          <ModeButton active={mode === 'hunt'} onClick={() => setMode('hunt')}>⌕ Find Deals</ModeButton>
         </div>
       </section>
 
-      <section style={{ maxWidth: 1180, margin: '0 auto', padding: '34px 20px 8px' }}>
-        <div style={eyebrow}>ARIDON LAND SCORE</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(250px,.8fr) minmax(300px,1.6fr)', gap: 14, marginTop: 10 }}>
-          <article style={{ ...card, background: '#111A15', color: '#fff', borderColor: '#253A2D' }}>
-            <div style={{ color: '#BFE79F', fontSize: 12, fontWeight: 950 }}>{planGenerated ? 'CURRENT DEAL PLAN' : 'LIVE PREVIEW'}</div>
-            <div style={{ fontSize: 82, fontWeight: 950, lineHeight: 1, marginTop: 12 }}>{analysis.opportunity}</div>
-            <div style={{ color: '#BFE79F', fontWeight: 950, marginTop: 8 }}>{analysis.decision}</div>
-            <div style={{ marginTop: 18, color: '#C7D6CC', lineHeight: 1.6, fontSize: 14 }}>{market} · {analysis.acreage || '—'} acres · {projectUse}</div>
-            {propertyRef && <div style={{ marginTop: 12, padding: 11, background: '#18251D', borderRadius: 10, fontSize: 12, lineHeight: 1.45, wordBreak: 'break-word' }}><strong>Property anchor:</strong><br />{propertyRef}</div>}
+      {mode === 'price' && <section style={section}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(310px,.85fr) minmax(0,1.55fr)', gap: 14 }}>
+          <article style={card}>
+            <div style={eyebrow}>SUBJECT PROPERTY</div><h2 style={h2}>Start with the parcel.</h2>
+            <Field label="Address, listing URL or APN"><input value={propertyRef} onChange={(e) => setPropertyRef(e.target.value)} style={input} placeholder="Optional property reference" /></Field>
+            <div style={twoCol}><Field label="Acres"><input value={acresText} onChange={(e) => setAcresText(e.target.value)} style={input} inputMode="decimal" /></Field><Field label="Asking price"><input value={askingText} onChange={(e) => setAskingText(e.target.value)} style={input} inputMode="numeric" /></Field></div>
+            <div style={twoCol}><Field label="Target margin %"><input value={marginText} onChange={(e) => setMarginText(e.target.value)} style={input} inputMode="decimal" /></Field><Field label="DD / closing reserve"><input value={reserveText} onChange={(e) => setReserveText(e.target.value)} style={input} inputMode="numeric" /></Field></div>
+            <button onClick={loadExample} style={secondaryButton}>Load clearly labeled example data</button>
+            <p style={finePrint}>Example values are only for demonstrating the calculator. A real estimate should use verified sold comps and parcel facts.</p>
           </article>
 
           <article style={card}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(135px,1fr))', gap: 10 }}>
-              <Score label="Water security" value={analysis.waterScore} />
-              <Score label="Access" value={analysis.accessScore} />
-              <Score label="Utilities" value={analysis.utilityScore} />
-              <Score label="Funding fit" value={analysis.fundingScore} />
-              <Score label="Income potential" value={analysis.incomeScore} />
-              <Score label="Development ease" value={analysis.developmentEase} />
-            </div>
-            <div style={{ borderTop: '1px solid #E3DDD2', marginTop: 18, paddingTop: 16, display: 'grid', gap: 10 }}>
-              <Line label="Target price" value={money(analysis.purchase)} />
-              <Line label="Cash available" value={money(analysis.availableCash)} />
-              <Line label="Implied cash percentage" value={`${analysis.downPct.toFixed(1)}%`} />
-              <Line label="Financing / capital need" value={money(analysis.financingNeed)} />
-            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'end', flexWrap: 'wrap' }}><div><div style={eyebrow}>COMPARABLE SALES</div><h2 style={h2}>Weight the evidence, not just the average.</h2></div><button onClick={addComp} style={secondaryButton}>+ Add comp</button></div>
+            <div style={{ overflowX: 'auto', marginTop: 14 }}><table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}><thead><tr>{['Sale price', 'Acres', 'Months ago', 'Miles away', 'Similarity %', ''].map((head) => <th key={head} style={th}>{head}</th>)}</tr></thead><tbody>{comps.map((comp) => <tr key={comp.id}><Cell><input aria-label="Comparable sale price" style={cellInput} value={comp.priceText} onChange={(e) => updateComp(comp.id, 'priceText', e.target.value)} /></Cell><Cell><input aria-label="Comparable acres" style={cellInput} value={comp.acresText} onChange={(e) => updateComp(comp.id, 'acresText', e.target.value)} /></Cell><Cell><input aria-label="Comparable months ago" style={cellInput} value={comp.monthsText} onChange={(e) => updateComp(comp.id, 'monthsText', e.target.value)} /></Cell><Cell><input aria-label="Comparable miles away" style={cellInput} value={comp.distanceText} onChange={(e) => updateComp(comp.id, 'distanceText', e.target.value)} /></Cell><Cell><input aria-label="Comparable similarity" style={cellInput} value={comp.similarityText} onChange={(e) => updateComp(comp.id, 'similarityText', e.target.value)} /></Cell><Cell><button aria-label="Remove comparable" onClick={() => setComps((current) => current.filter((item) => item.id !== comp.id))} style={removeButton}>×</button></Cell></tr>)}</tbody></table></div>
           </article>
         </div>
-      </section>
 
-      <section style={{ maxWidth: 1180, margin: '0 auto', padding: '34px 20px 8px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 14 }}>
-          <article style={card}>
-            <div style={eyebrow}>BEST STRUCTURE</div>
-            <h2 style={{ fontSize: 28, margin: '8px 0 10px' }}>How Aridon would attack the financing.</h2>
-            <p style={{ color: '#5E5A51', lineHeight: 1.65 }}>{analysis.bestStructure}</p>
-            <div style={{ marginTop: 14, padding: 14, borderRadius: 12, background: '#FFF4D6', border: '1px solid #E4CA82', color: '#654F17', fontSize: 13, lineHeight: 1.55 }}>Aridon should search for low-down or zero-down structures when available, never advertise them as guaranteed.</div>
-          </article>
-          <article style={card}>
-            <div style={eyebrow}>WATER STRATEGY</div>
-            <h2 style={{ fontSize: 28, margin: '8px 0 10px' }}>Make water a purchase condition.</h2>
-            <p style={{ color: '#5E5A51', lineHeight: 1.65 }}>{analysis.waterPlan}</p>
-            <div style={{ marginTop: 14, padding: 14, borderRadius: 12, background: '#EAF4F5', border: '1px solid #B9D6D9', color: '#284E52', fontSize: 13, lineHeight: 1.55 }}>For Aridon Ag projects, the property file can feed irrigation demand, storage sizing, drought risk and AWG supplemental-water modeling.</div>
-          </article>
-        </div>
-      </section>
+        <RiskStrip risks={risks} updateRisk={updateRisk} />
+        <ResultBoard result={result} asking={numeric(askingText)} propertyRef={propertyRef} />
+      </section>}
 
-      <section style={{ maxWidth: 1180, margin: '0 auto', padding: '42px 20px 8px' }}>
-        <div style={eyebrow}>FUNDING FINDER</div>
-        <h2 style={{ fontSize: 'clamp(34px,5vw,50px)', margin: '8px 0 18px', letterSpacing: -1.3 }}>Search every realistic capital lane, then prove eligibility.</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 10 }}>
-          {fundingPaths.map(([title, text]) => <article key={title} style={card}><h3 style={{ margin: '0 0 7px', fontSize: 21 }}>{title}</h3><p style={{ margin: 0, color: '#625E55', lineHeight: 1.6, fontSize: 14 }}>{text}</p></article>)}
+      {mode === 'analyze' && <section style={section}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(310px,1fr))', gap: 14 }}>
+          <article style={card}><div style={eyebrow}>LAND-SPECIFIC RISK</div><h2 style={h2}>A Zestimate-style number is not enough for raw land.</h2><p style={copy}>Land can look cheap and still be unusable. Aridon forces the expensive questions into the valuation instead of hiding them after the estimate.</p><RiskFields risks={risks} updateRisk={updateRisk} /></article>
+          <article style={{ ...card, background: '#101827', color: '#fff', borderColor: '#26354D' }}><div style={{ ...eyebrow, color: mint }}>CURRENT ADJUSTMENTS</div><h2 style={h2}>What is moving the value.</h2>{result ? <div style={{ display: 'grid', gap: 8 }}>{result.factors.map((item) => <div key={item.label} style={{ padding: 12, border: '1px solid #2B3B55', borderRadius: 12, background: '#0C1524' }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}><strong>{item.label}</strong><strong style={{ color: item.impactPct >= 0 ? mint : '#FFB8A8' }}>{item.impactPct >= 0 ? '+' : ''}{item.impactPct}%</strong></div><div style={{ color: '#AFBDD0', fontSize: 12, lineHeight: 1.5, marginTop: 5 }}>{item.note}</div></div>)}</div> : <EmptyState />}</article>
         </div>
-      </section>
+        <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(250px,1fr))', gap: 10 }}>{dueDiligence.map(([title, source, detail]) => <article key={title} style={card}><div style={eyebrow}>{title}</div><h3 style={{ margin: '8px 0 6px' }}>{source}</h3><p style={{ ...copy, fontSize: 14, margin: 0 }}>{detail}</p></article>)}</div>
+      </section>}
 
-      <section style={{ maxWidth: 1180, margin: '0 auto', padding: '42px 20px 8px' }}>
-        <div style={eyebrow}>AUTOMATIC DUE DILIGENCE</div>
-        <h2 style={{ fontSize: 'clamp(34px,5vw,50px)', margin: '8px 0 18px', letterSpacing: -1.3 }}>The questions Aridon should answer before money moves.</h2>
-        <div style={{ display: 'grid', gap: 9 }}>
-          {dueDiligence.map(([title, source, text], index) => (
-            <article key={title} style={{ ...card, display: 'grid', gridTemplateColumns: '44px minmax(180px,.7fr) minmax(180px,.8fr) minmax(260px,1.4fr)', gap: 12, alignItems: 'center' }}>
-              <div style={{ width: 36, height: 36, borderRadius: 999, background: index < 3 ? '#E5F1DD' : '#F0EEE8', display: 'grid', placeItems: 'center', fontWeight: 950 }}>{index + 1}</div>
-              <div><div style={{ fontWeight: 950 }}>{title}</div><div style={{ color: propertyRef || index > 0 ? '#956A10' : '#B13E2E', fontSize: 11, fontWeight: 900, marginTop: 4 }}>{propertyRef || index > 0 ? 'VERIFY' : 'NEEDS PROPERTY ANCHOR'}</div></div>
-              <div style={{ color: '#1C6A50', fontSize: 12, fontWeight: 900 }}>{source}</div>
-              <div style={{ color: '#625E55', lineHeight: 1.5, fontSize: 13 }}>{text}</div>
-            </article>
-          ))}
+      {mode === 'hunt' && <section style={section}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: 14 }}>
+          <article style={card}><div style={eyebrow}>DEAL FINDER</div><h2 style={h2}>Describe the buy box.</h2><Field label="State / market"><input value={state} onChange={(e) => setState(e.target.value)} style={input} /></Field><div style={twoCol}><Field label="Min acres"><input value={minAcres} onChange={(e) => setMinAcres(e.target.value)} style={input} /></Field><Field label="Max acres"><input value={maxAcres} onChange={(e) => setMaxAcres(e.target.value)} style={input} /></Field></div><Field label="Max asking price"><input value={searchBudget} onChange={(e) => setSearchBudget(e.target.value)} style={input} /></Field><Field label="Minimum estimated value gap %"><input value={minDiscount} onChange={(e) => setMinDiscount(e.target.value)} style={input} /></Field><Field label="Use case"><select value={useCase} onChange={(e) => setUseCase(e.target.value)} style={input}><option>Investment / resale</option><option>Farm / ranch</option><option>Homestead</option><option>Development</option><option>Solar / energy</option><option>AWG / water infrastructure</option><option>Conservation</option></select></Field></article>
+          <article style={{ ...card, background: '#10271C', color: '#fff', borderColor: '#294736' }}><div style={{ ...eyebrow, color: '#BFE79F' }}>ARIDON SEARCH RECIPE</div><h2 style={h2}>Turn filters into a hunt.</h2><div style={{ background: '#183829', border: '1px solid #315340', borderRadius: 14, padding: 16, lineHeight: 1.65, color: '#E8F1EB' }}>{huntSentence}</div><div style={{ marginTop: 16, padding: 14, borderRadius: 12, background: '#0B1D14', color: '#C8D8CF', fontSize: 13, lineHeight: 1.6 }}><strong style={{ color: '#fff' }}>Data honesty:</strong> the scoring engine is live now. Nationwide automatic valuation requires a licensed sold-comps / parcel feed plus public-record overlays. Aridon will not invent a sale, owner, water right or parcel fact when a source is missing.</div><Link href="/property-intelligence" style={{ ...primaryButton, display: 'inline-block', textDecoration: 'none', marginTop: 14 }}>Open Property Hunter →</Link></article>
         </div>
-      </section>
+      </section>}
 
-      <section style={{ maxWidth: 1180, margin: '0 auto', padding: '42px 20px 70px' }}>
-        <div style={eyebrow}>THE ARIDON LAND LOOP</div>
-        <h2 style={{ fontSize: 'clamp(34px,5vw,50px)', margin: '8px 0 18px', letterSpacing: -1.3 }}>From “I want land” to an owner-approved acquisition.</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))', gap: 10 }}>
-          {[
-            ['01', 'Find', 'Listed, distressed, auction, tax-sale, owner-financed and off-market candidates.'],
-            ['02', 'Score', 'Price, water, access, zoning, utilities, income uses, funding fit and risk.'],
-            ['03', 'Verify', 'Tie every important claim to parcel, county, title, utility or program evidence.'],
-            ['04', 'Fund', 'Compare seller carry, lenders, USDA/FSA, rural, conservation and state programs.'],
-            ['05', 'Negotiate', 'Build a price, terms, contingencies and document-request strategy.'],
-            ['06', 'Monitor', 'Keep watchlists alive as listings, taxes, grants, owners and public records change.'],
-          ].map(([number, title, text]) => <article key={title} style={card}><div style={eyebrow}>{number}</div><h3 style={{ fontSize: 21, margin: '8px 0 6px' }}>{title}</h3><p style={{ margin: 0, color: '#625E55', lineHeight: 1.6, fontSize: 14 }}>{text}</p></article>)}
-        </div>
-      </section>
+      <section style={{ background: '#fff', borderTop: '1px solid #D8D1C5', marginTop: 34, padding: '44px 20px 70px' }}><div style={{ maxWidth: 1220, margin: '0 auto' }}><div style={eyebrow}>THE MOAT</div><h2 style={{ fontSize: 'clamp(34px,5vw,54px)', margin: '8px 0 18px', letterSpacing: -1.7 }}>The estimate should explain itself.</h2><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 10 }}>{[['Value', 'Weighted sold comps + acreage normalization'], ['Truth', 'Confidence and source verification instead of false precision'], ['Land', 'Water, access, zoning, slope, flood and wetlands'], ['Buy box', 'Maximum offer, target margin and gross spread'], ['Use', 'Farm, ranch, development, energy and water-infrastructure fit'], ['Action', 'Push the best parcels into Aridon Property Hunter and acquisition workflow']].map(([title, text]) => <article key={title} style={card}><h3 style={{ marginTop: 0 }}>{title}</h3><p style={{ ...copy, fontSize: 14, marginBottom: 0 }}>{text}</p></article>)}</div></div></section>
     </main>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label style={{ display: 'block', marginBottom: 13 }}><span style={{ display: 'block', fontSize: 12, fontWeight: 900, marginBottom: 6 }}>{label}</span>{children}</label>;
+function ResultBoard({ result, asking, propertyRef }: { result: ReturnType<typeof priceLand>; asking: number; propertyRef: string }) {
+  return <div style={{ marginTop: 14 }}>{result ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px,.7fr) minmax(0,1.5fr)', gap: 14 }}><article style={{ ...card, background: '#101827', color: '#fff', borderColor: '#26354D' }}><div style={{ ...eyebrow, color: mint }}>ARIDON DEAL SCORE</div><div style={{ fontSize: 84, fontWeight: 950, lineHeight: 1, marginTop: 12 }}>{result.dealScore}</div><div style={{ color: mint, fontWeight: 950, marginTop: 8 }}>{result.verdict}</div><div style={{ color: '#AEBBD0', marginTop: 16, lineHeight: 1.55, fontSize: 13 }}>{propertyRef || 'Subject property'}<br />{result.compCount} verified inputs in comp model · confidence {result.confidence}%</div></article><article style={card}><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(145px,1fr))', gap: 9 }}><Metric label="Estimated value" value={fmtMoney(result.estimatedValue)} /><Metric label="Value range" value={`${fmtMoney(result.lowValue)} – ${fmtMoney(result.highValue)}`} /><Metric label="Adjusted $ / acre" value={fmtMoney(result.adjustedPricePerAcre)} /><Metric label="Confidence" value={`${result.confidence}%`} /><Metric label="Max offer" value={fmtMoney(result.maxOffer)} /><Metric label="Value gap vs ask" value={fmtPct(result.askingDiscountPct)} /><Metric label="Gross spread vs ask" value={result.grossSpread == null ? '—' : fmtMoney(result.grossSpread)} /><Metric label="Land adjustment" value={fmtPct(result.adjustmentPct)} /></div><div style={{ ...finePrint, marginTop: 14 }}>{asking > 0 ? `Asking price entered: ${fmtMoney(asking)}. ` : ''}The range expands when comps disagree or parcel facts are missing. That uncertainty is a feature, not decorative precision.</div></article></div> : <article style={card}><EmptyState /></article>}</div>;
 }
 
-function Score({ label, value }: { label: string; value: number }) {
-  return <div style={{ background: '#F7F5EF', border: '1px solid #DDD7CC', borderRadius: 13, padding: 12 }}><div style={{ color: '#706A61', fontSize: 10, fontWeight: 900 }}>{label}</div><div style={{ fontSize: 28, fontWeight: 950, marginTop: 4 }}>{value}</div></div>;
+function RiskStrip({ risks, updateRisk }: { risks: LandRiskInputs; updateRisk: <K extends keyof LandRiskInputs>(key: K, value: LandRiskInputs[K]) => void }) {
+  return <article style={{ ...card, marginTop: 14 }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}><div><div style={eyebrow}>PARCEL ADJUSTMENTS</div><h2 style={{ ...h2, marginBottom: 0 }}>Make land facts move the price.</h2></div><div style={finePrint}>Unknowns receive a conservative haircut until verified.</div></div><RiskFields risks={risks} updateRisk={updateRisk} compact /></article>;
 }
 
-function Line({ label, value }: { label: string; value: string }) {
-  return <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, fontSize: 14 }}><span style={{ color: '#706A61' }}>{label}</span><strong>{value}</strong></div>;
+function RiskFields({ risks, updateRisk, compact = false }: { risks: LandRiskInputs; updateRisk: <K extends keyof LandRiskInputs>(key: K, value: LandRiskInputs[K]) => void; compact?: boolean }) {
+  return <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit,minmax(${compact ? 145 : 210}px,1fr))`, gap: 9, marginTop: 14 }}><SelectField label="Access" value={risks.access} onChange={(v) => updateRisk('access', v as LandRiskInputs['access'])} options={[['unknown','Unknown'],['paved','Paved legal'],['unpaved','Unpaved legal'],['easement','Private / easement'],['landlocked','Landlocked']]} /><SelectField label="Water" value={risks.water} onChange={(v) => updateRisk('water', v as LandRiskInputs['water'])} options={[['unknown','Unknown'],['public','Public'],['well','Verified well'],['rights','Water rights'],['haul','Haul / storage'],['none','No source']]} /><SelectField label="Utilities" value={risks.utilities} onChange={(v) => updateRisk('utilities', v as LandRiskInputs['utilities'])} options={[['unknown','Unknown'],['onsite','On site'],['nearby','Nearby'],['offgrid','Off-grid plan'],['none','None']]} /><SelectField label="Zoning" value={risks.zoning} onChange={(v) => updateRisk('zoning', v as LandRiskInputs['zoning'])} options={[['unknown','Unknown'],['confirmed','Use confirmed'],['conditional','Conditional'],['restricted','Restricted']]} /><SelectField label="Flood" value={risks.flood} onChange={(v) => updateRisk('flood', v as LandRiskInputs['flood'])} options={[['unknown','Unknown'],['low','Low'],['moderate','Moderate'],['high','High']]} /><SelectField label="Wetlands" value={risks.wetlands} onChange={(v) => updateRisk('wetlands', v as LandRiskInputs['wetlands'])} options={[['unknown','Unknown'],['none','None known'],['partial','Partial'],['major','Major']]} /><SelectField label="Slope" value={risks.slope} onChange={(v) => updateRisk('slope', v as LandRiskInputs['slope'])} options={[['unknown','Unknown'],['flat','Flat'],['rolling','Rolling'],['steep','Steep']]} /></div>;
 }
 
-const card = { background: '#fff', border: '1px solid #D4CEC2', borderRadius: 18, padding: 20, boxShadow: '0 10px 28px rgba(31,24,15,.05)' } as const;
+function SelectField({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: string[][] }) { return <Field label={label}><select value={value} onChange={(e) => onChange(e.target.value)} style={input}>{options.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></Field>; }
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label style={{ display: 'block', marginTop: 10 }}><span style={labelStyle}>{label}</span>{children}</label>; }
+function Cell({ children }: { children: React.ReactNode }) { return <td style={{ borderTop: '1px solid #E5DED3', padding: 6 }}>{children}</td>; }
+function Metric({ label, value }: { label: string; value: string }) { return <div style={{ border: '1px solid #DDD6CA', borderRadius: 12, padding: 12, background: '#FAF8F3' }}><div style={{ fontSize: 11, color: '#6A655D', fontWeight: 900 }}>{label}</div><div style={{ fontSize: 20, fontWeight: 950, marginTop: 6 }}>{value}</div></div>; }
+function ModeButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) { return <button onClick={onClick} style={{ border: active ? '1px solid #07101D' : '1px solid #D5CEC2', background: active ? '#07101D' : '#fff', color: active ? '#fff' : '#171717', borderRadius: 11, padding: '11px 14px', fontWeight: 950, cursor: 'pointer' }}>{children}</button>; }
+function EmptyState() { return <div style={{ color: '#6C665D', lineHeight: 1.6 }}><strong style={{ color: '#171717' }}>Add at least one valid sold comp.</strong><br />Aridon will not manufacture a valuation when the evidence box is empty.</div>; }
+
+const mint = '#9EF0CF';
+const section = { maxWidth: 1220, margin: '0 auto', padding: '18px 20px 16px' } as const;
+const card = { background: '#fff', border: '1px solid #D4CEC2', borderRadius: 18, padding: 20, boxShadow: '0 10px 28px rgba(31,24,15,.045)' } as const;
 const eyebrow = { color: '#1C6A50', fontSize: 11, fontWeight: 950, letterSpacing: 1.05 } as const;
-const input = { width: '100%', boxSizing: 'border-box', border: '1px solid #CFC9BE', borderRadius: 10, padding: '11px 12px', background: '#fff', color: '#171717', fontWeight: 750, fontSize: 14 } as const;
-const primaryButton = { width: '100%', marginTop: 16, border: 0, borderRadius: 12, padding: '14px 15px', background: '#173B29', color: '#fff', fontWeight: 950, fontSize: 15, cursor: 'pointer' } as const;
-const toggle = { width: '100%', textAlign: 'left', border: '1px solid #D5CEC1', borderRadius: 11, padding: '12px 13px', color: '#203027', fontWeight: 900, cursor: 'pointer' } as const;
-const chip = { background: '#183829', border: '1px solid #315340', color: '#EAF4ED', borderRadius: 999, padding: '8px 10px', fontSize: 11, fontWeight: 850 } as const;
-const darkLink = { color: '#EAF4ED', textDecoration: 'none', border: '1px solid #3B5A47', borderRadius: 10, padding: '8px 10px', fontSize: 12, fontWeight: 900 } as const;
+const h2 = { fontSize: 29, lineHeight: 1.08, margin: '8px 0 14px', letterSpacing: -.7 } as const;
+const copy = { color: '#625E55', lineHeight: 1.65 } as const;
+const labelStyle = { display: 'block', fontSize: 11, fontWeight: 900, marginBottom: 6, color: '#514D46' } as const;
+const input = { width: '100%', boxSizing: 'border-box', border: '1px solid #CFC9BE', borderRadius: 10, padding: '11px 12px', background: '#fff', color: '#171717', fontWeight: 750 } as const;
+const cellInput = { ...input, padding: '9px 9px', minWidth: 90 } as const;
+const th = { textAlign: 'left', padding: '8px 6px', color: '#69635B', fontSize: 11, whiteSpace: 'nowrap' } as const;
+const twoCol = { display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 9 } as const;
+const primaryButton = { background: mint, color: '#07130F', border: 0, borderRadius: 11, padding: '12px 14px', fontWeight: 950, cursor: 'pointer' } as const;
+const secondaryButton = { background: '#F5F2EC', color: '#171717', border: '1px solid #D5CEC2', borderRadius: 10, padding: '10px 12px', fontWeight: 900, cursor: 'pointer' } as const;
+const removeButton = { border: '1px solid #D9CFC2', background: '#FFF7F4', color: '#8C3120', borderRadius: 9, width: 34, height: 34, fontSize: 20, cursor: 'pointer' } as const;
+const darkLink = { color: '#E7EDF6', textDecoration: 'none', border: '1px solid #34445E', borderRadius: 10, padding: '8px 10px', fontSize: 12, fontWeight: 900 } as const;
+const chip = { background: '#0E1B2E', border: '1px solid #2C405F', color: '#EAF0F8', borderRadius: 999, padding: '8px 10px', fontSize: 11, fontWeight: 850 } as const;
+const finePrint = { color: '#746E64', fontSize: 12, lineHeight: 1.5 } as const;
