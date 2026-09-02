@@ -33,6 +33,9 @@ export function didCreatorPublicConfig(creatorSlug: string): DidPublicConfig {
   } else if (slug === 'maria-wendt') {
     agentId = process.env.DID_MARIA_AGENT_ID?.trim() || '';
     clientKey = process.env.DID_MARIA_CLIENT_KEY?.trim() || '';
+  } else if (slug === 'cnm-ingenuity') {
+    agentId = process.env.DID_CNM_AGENT_ID?.trim() || '';
+    clientKey = process.env.DID_CNM_CLIENT_KEY?.trim() || '';
   }
 
   if (agentId && clientKey) return configured(agentId, clientKey);
