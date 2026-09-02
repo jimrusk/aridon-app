@@ -28,6 +28,7 @@ export type LandPricingInput = {
 
 export type LandPricingResult = {
   estimatedValue: number;
+  conservativeValue: number;
   lowValue: number;
   highValue: number;
   weightedPricePerAcre: number;
@@ -40,6 +41,7 @@ export type LandPricingResult = {
   dealScore: number;
   verdict: 'PURSUE' | 'NEGOTIATE' | 'VERIFY' | 'PASS / REPRICE';
   compCount: number;
+  outlierCount: number;
   dispersionPct: number;
   factors: Array<{ label: string; impactPct: number; note: string }>;
 };
@@ -48,6 +50,25 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 
 function factor(label: string, impactPct: number, note: string) {
   return { label, impactPct, note };
+}
+
+function median(values: number[]) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function weightedMedian(items: Array<{ ppa: number; weight: number }>) {
+  if (!items.length) return 0;
+  const sorted = [...items].sort((a, b) => a.ppa - b.ppa);
+  const total = sorted.reduce((sum, item) => sum + item.weight, 0) || 1;
+  let running = 0;
+  for (const item of sorted) {
+    running += item.weight;
+    if (running >= total / 2) return item.ppa;
+  }
+  return sorted[sorted.length - 1].ppa;
 }
 
 export function landAdjustmentFactors(risks: LandRiskInputs) {
@@ -125,21 +146,35 @@ function compWeight(subjectAcres: number, comp: ComparableLandSale) {
   return acreageWeight * recencyWeight * distanceWeight * similarityWeight;
 }
 
+function removePriceOutliers(items: Array<{ ppa: number; weight: number }>) {
+  if (items.length < 4) return items;
+  const center = median(items.map((item) => item.ppa));
+  const deviations = items.map((item) => Math.abs(item.ppa - center));
+  const mad = median(deviations);
+  const robustSigma = mad * 1.4826;
+  const threshold = Math.max(center * 0.28, robustSigma * 2.5);
+  const kept = items.filter((item) => Math.abs(item.ppa - center) <= threshold);
+  return kept.length >= Math.max(3, Math.ceil(items.length * 0.6)) ? kept : items;
+}
+
 export function priceLand(input: LandPricingInput): LandPricingResult | null {
   const acres = Number(input.acres);
   const comps = input.comps.filter((c) => c.price > 0 && c.acres > 0 && Number.isFinite(c.price) && Number.isFinite(c.acres));
   if (!Number.isFinite(acres) || acres <= 0 || !comps.length) return null;
 
-  const weighted = comps.map((comp) => ({
-    ppa: comp.price / comp.acres,
-    weight: compWeight(acres, comp),
-  }));
+  const allWeighted = comps.map((comp) => ({ ppa: comp.price / comp.acres, weight: compWeight(acres, comp) }));
+  const weighted = removePriceOutliers(allWeighted);
+  const outlierCount = allWeighted.length - weighted.length;
   const weightTotal = weighted.reduce((sum, item) => sum + item.weight, 0) || 1;
-  const weightedPricePerAcre = weighted.reduce((sum, item) => sum + item.ppa * item.weight, 0) / weightTotal;
+  const weightedMean = weighted.reduce((sum, item) => sum + item.ppa * item.weight, 0) / weightTotal;
+  const robustMedian = weightedMedian(weighted);
 
-  const ppas = weighted.map((item) => item.ppa);
-  const mean = ppas.reduce((sum, value) => sum + value, 0) / ppas.length;
-  const variance = ppas.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / ppas.length;
+  // Favor the weighted median so one expensive sale cannot pull the estimate upward.
+  const weightedPricePerAcre = robustMedian * 0.65 + weightedMean * 0.35;
+
+  const allPpas = allWeighted.map((item) => item.ppa);
+  const mean = allPpas.reduce((sum, value) => sum + value, 0) / allPpas.length;
+  const variance = allPpas.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / allPpas.length;
   const dispersionPct = mean ? Math.sqrt(variance) / mean : 0;
 
   const factors = landAdjustmentFactors(input.risks);
@@ -153,23 +188,26 @@ export function priceLand(input: LandPricingInput): LandPricingResult | null {
   const closeComps = comps.filter((comp) => comp.distanceMiles <= 25).length;
   const compQuality = clamp(comps.length * 8 + recentComps * 4 + closeComps * 3, 0, 52);
   const completeness = knownRiskCount * 5;
-  const dispersionPenalty = clamp(dispersionPct * 45, 0, 26);
-  const confidence = Math.round(clamp(28 + compQuality + completeness - dispersionPenalty, 22, 97));
+  const dispersionPenalty = clamp(dispersionPct * 48, 0, 28);
+  const outlierPenalty = outlierCount * 4;
+  const confidence = Math.round(clamp(28 + compQuality + completeness - dispersionPenalty - outlierPenalty, 22, 97));
 
   const uncertainty = clamp(0.07 + dispersionPct * 0.45 + (100 - confidence) / 330, 0.08, 0.34);
   const lowValue = estimatedValue * (1 - uncertainty);
   const highValue = estimatedValue * (1 + uncertainty);
+  const conservativeValue = estimatedValue * (1 - Math.max(0.04, uncertainty * 0.5));
 
   const targetMarginPct = clamp(input.targetMarginPct ?? 25, 5, 65);
   const reserve = Math.max(0, input.reserve ?? 0);
-  const maxOffer = Math.max(0, estimatedValue * (1 - targetMarginPct / 100) - reserve);
+  // Buy discipline is anchored to the conservative value, not the headline estimate.
+  const maxOffer = Math.max(0, conservativeValue * (1 - targetMarginPct / 100) - reserve);
   const asking = Number(input.askingPrice ?? 0);
-  const askingDiscountPct = asking > 0 ? ((estimatedValue - asking) / estimatedValue) * 100 : null;
-  const grossSpread = asking > 0 ? estimatedValue - asking : null;
+  const askingDiscountPct = asking > 0 ? ((conservativeValue - asking) / conservativeValue) * 100 : null;
+  const grossSpread = asking > 0 ? conservativeValue - asking : null;
 
   const riskQuality = clamp(72 + adjustmentPct, 20, 95);
   const priceEdge = askingDiscountPct == null ? 55 : clamp(50 + askingDiscountPct * 1.4, 10, 98);
-  const marginEdge = estimatedValue > 0 ? clamp(((estimatedValue - maxOffer) / estimatedValue) * 100 + 55, 30, 95) : 50;
+  const marginEdge = conservativeValue > 0 ? clamp(((conservativeValue - maxOffer) / conservativeValue) * 100 + 55, 30, 95) : 50;
   const dealScore = Math.round(clamp(confidence * 0.32 + riskQuality * 0.24 + priceEdge * 0.32 + marginEdge * 0.12, 0, 100));
 
   const verdict: LandPricingResult['verdict'] =
@@ -180,6 +218,7 @@ export function priceLand(input: LandPricingInput): LandPricingResult | null {
 
   return {
     estimatedValue,
+    conservativeValue,
     lowValue,
     highValue,
     weightedPricePerAcre,
@@ -192,6 +231,7 @@ export function priceLand(input: LandPricingInput): LandPricingResult | null {
     dealScore,
     verdict,
     compCount: comps.length,
+    outlierCount,
     dispersionPct: dispersionPct * 100,
     factors,
   };
