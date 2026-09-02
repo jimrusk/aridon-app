@@ -29,6 +29,7 @@ const EXECUTIVE_VOICES: Record<string, VoiceProfile> = {
   Eva: { voice: 'shimmer', speed: 1.01 },
   'Contrarian Curriculum Tutor': { voice: 'shimmer', speed: 0.98 },
   'Maria Curriculum Tutor': { voice: 'nova', speed: 1.0 },
+  'Future Skills Guide': { voice: 'nova', speed: 0.98 },
 };
 
 function cleanText(value: unknown) {
