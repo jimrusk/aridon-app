@@ -5,6 +5,10 @@
     {
       "path": "/api/marketing-autopilot/daily",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/relationship-brain/daily-brief",
+      "schedule": "0 12 * * *"
     }
   ]
 }
