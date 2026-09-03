@@ -3,6 +3,11 @@
 -- and server-only encrypted integration token storage.
 
 alter table public.leads
+  add column if not exists phone text,
+  add column if not exists title text,
+  add column if not exists priority text default 'medium',
+  add column if not exists next_action text,
+  add column if not exists updated_at timestamptz default now(),
   add column if not exists last_contact_at timestamptz,
   add column if not exists next_follow_up_at timestamptz,
   add column if not exists relationship_score integer not null default 0,
