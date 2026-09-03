@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { base64UrlMessage, decryptToken, refreshGoogleAccessToken, safeHeader } from '../../../../lib/gmail';
 import { upcomingCalendarEvents } from '../../../../lib/googleWorkspace';
 import { scoreAttention, type AttentionLead } from '../../../../lib/relationshipBrain';
+import { STARTER_LEADS } from '../../../../lib/starterLeads';
 import { getServerClient } from '../../../../lib/supabase';
 
 export const runtime = 'nodejs';
@@ -17,6 +18,35 @@ function authorizedCron(request: NextRequest) {
 
 function startValue(event: any) {
   return event?.start?.dateTime || event?.start?.date || '';
+}
+
+function leadKey(lead: { name?: string | null; company?: string | null; email?: string | null }) {
+  const email = String(lead.email || '').trim().toLowerCase();
+  if (email) return `email:${email}`;
+  return `name:${String(lead.name || '').trim().toLowerCase()}|company:${String(lead.company || '').trim().toLowerCase()}`;
+}
+
+function starterRelationship(lead: (typeof STARTER_LEADS)[number]): AttentionLead {
+  return {
+    ...lead,
+    phone: null,
+    title: null,
+    priority: lead.status === 'qualified' ? 'high' : 'medium',
+    next_action: null,
+    last_contact_at: lead.created_at,
+    next_follow_up_at: null,
+    relationship_score: lead.status === 'qualified' ? 35 : lead.status === 'active' ? 28 : 12,
+    social_handle: null,
+    social_url: null,
+  };
+}
+
+function combineRelationships(live: AttentionLead[]) {
+  const liveKeys = new Set(live.map(leadKey));
+  const restored = STARTER_LEADS
+    .filter((lead) => lead.status !== 'closed' && !liveKeys.has(leadKey(lead)))
+    .map(starterRelationship);
+  return [...live, ...restored];
 }
 
 function formatBrief(attention: any[], opportunities: any[], calendar: any[]) {
@@ -61,7 +91,7 @@ async function run(request: NextRequest, manual: boolean) {
     }
 
     const db = getServerClient();
-    const [{ data: settings }, { data: integration, error: tokenError }, { data: leads, error: leadError }] = await Promise.all([
+    const [{ data: settings }, { data: integration, error: tokenError }, { data: dbLeads, error: leadError }] = await Promise.all([
       db.from('relationship_settings').select('*').eq('id', 1).maybeSingle(),
       db.from('executive_integration_tokens').select('account_label,encrypted_refresh_token').eq('provider', 'google-workspace').maybeSingle(),
       db.from('leads').select('id,name,company,email,status,priority,notes,next_action,last_contact_at,next_follow_up_at,relationship_score').neq('status', 'closed').limit(1000),
@@ -80,7 +110,8 @@ async function run(request: NextRequest, manual: boolean) {
       return NextResponse.json({ sent: false, error: 'Set a valid briefing recipient in Relationship Brain.' }, { status: 400, headers: NO_STORE });
     }
 
-    const ranked = ((leads || []) as AttentionLead[]).map((lead: any) => ({
+    const leads = combineRelationships((dbLeads || []) as AttentionLead[]);
+    const ranked = leads.map((lead: any) => ({
       ...lead,
       ...scoreAttention(lead),
     })).map((item: any) => ({
