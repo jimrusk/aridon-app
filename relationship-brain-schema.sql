@@ -84,5 +84,6 @@ create table if not exists public.executive_integration_tokens (
 );
 
 -- These tables are only read/written from server routes using the service role.
+alter table public.relationship_events enable row level security;
 alter table public.relationship_settings enable row level security;
 alter table public.executive_integration_tokens enable row level security;
