@@ -3,6 +3,7 @@ import { getServerClient } from '../../../../lib/supabase';
 import { scoreAttention, type AttentionLead } from '../../../../lib/relationshipBrain';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
 
