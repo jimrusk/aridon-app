@@ -49,8 +49,7 @@ create table if not exists public.relationship_events (
 );
 
 create unique index if not exists relationship_events_source_message_lead_idx
-  on public.relationship_events (source, source_message_id, lead_id)
-  where source_message_id is not null;
+  on public.relationship_events (source, source_message_id, lead_id);
 
 create index if not exists relationship_events_lead_happened_idx
   on public.relationship_events (lead_id, happened_at desc);
