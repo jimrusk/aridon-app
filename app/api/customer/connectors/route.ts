@@ -6,13 +6,14 @@ const NO_STORE = { 'Cache-Control': 'no-store' };
 const catalog = [
   { key: 'gmail', label: 'Gmail', category: 'communications', capabilities: ['read','draft','send','monitor'] },
   { key: 'google-calendar', label: 'Google Calendar', category: 'schedule', capabilities: ['read','availability','create','update'] },
+  { key: 'x', label: 'X', category: 'communications', capabilities: ['mentions','relationships','social history','follow-up signals'] },
   { key: 'github', label: 'GitHub', category: 'engineering', capabilities: ['read','issues','pull requests','code changes'] },
   { key: 'vercel', label: 'Vercel', category: 'deployment', capabilities: ['deployments','logs','production status'] },
   { key: 'supabase', label: 'Supabase', category: 'data', capabilities: ['database','auth','storage','functions'] },
   { key: 'stripe', label: 'Stripe', category: 'revenue', capabilities: ['customers','payments','subscriptions','payment links'] },
   { key: 'analytics', label: 'Analytics', category: 'growth', capabilities: ['traffic','conversion','attribution'] },
   { key: 'ads', label: 'Paid Ads', category: 'growth', capabilities: ['campaigns','spend','lead attribution'] },
-  { key: 'crm', label: 'CRM', category: 'revenue', capabilities: ['leads','pipeline','opportunities','follow-up'] },
+  { key: 'crm', label: 'CRM + Relationship Brain', category: 'revenue', capabilities: ['leads','pipeline','opportunities','follow-up','relationship timeline','attention queue'] },
 ];
 function text(value: unknown, max = 120) { return typeof value === 'string' ? value.trim().slice(0, max) : ''; }
 

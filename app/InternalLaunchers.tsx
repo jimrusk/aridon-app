@@ -96,6 +96,7 @@ export default function InternalLaunchers() {
         <img src={EVA_AVATAR} alt="Eva" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', display: 'block' }} />
         <span>Eva</span>
       </Link>
+      <Link href="/relationship-brain" aria-label="Open Aridon Relationship Brain" style={{ ...launcherStyle, background: '#9EF0CF' }}>◎ Relationships</Link>
       <Link href="/property-intelligence" aria-label="Open nationwide property intelligence hunter" style={{ ...launcherStyle, background: '#FFE1A8' }}>⌂ Property</Link>
       <Link href="/agent-supervisor" aria-label="Open Aridon Agent Supervisor" style={{ ...launcherStyle, background: '#9EF0CF' }}>◎ Agents</Link>
       <Link href="/presentation-studio" aria-label="Open Aridon Presentation Studio" style={{ ...launcherStyle, background: '#FFD5A8' }}>▣ Present</Link>
