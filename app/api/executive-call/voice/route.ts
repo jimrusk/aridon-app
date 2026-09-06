@@ -12,9 +12,11 @@ export async function POST(request: NextRequest) {
   const profile = voiceFor(executive.name);
   const origin = publicOrigin(request.nextUrl.origin);
   const action = `${origin}/api/executive-call/respond?token=${encodeURIComponent(token)}`;
-  const greeting = executive.name === 'Eva'
-    ? `Hi, this is Eva from Aridon. I’m here. Tell me what you need and I’ll work with the right executive.`
-    : `Hi, this is ${executive.name}, ${executive.role} at Aridon. What would you like to work on?`;
+  const greeting = session.outboundAi
+    ? `Hi${session.targetContact ? ` ${session.targetContact}` : ''}, this is Eva, an AI assistant with Aridon. I’m calling about ${session.callBrief || 'a business matter'}. Is now a good time for a quick conversation?`
+    : executive.name === 'Eva'
+      ? `Hi, this is Eva from Aridon. I’m here. Tell me what you need and I’ll work with the right executive.`
+      : `Hi, this is ${executive.name}, ${executive.role} at Aridon. What would you like to work on?`;
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
