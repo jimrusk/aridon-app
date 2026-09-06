@@ -7,6 +7,11 @@ export type ExecutivePhoneToken = {
   slug: string;
   executive: string;
   exp: number;
+  outboundAi?: boolean;
+  targetId?: string;
+  targetCompany?: string;
+  targetContact?: string;
+  callBrief?: string;
 };
 
 const VOICES: Record<string, { voice: string; language: string }> = {
