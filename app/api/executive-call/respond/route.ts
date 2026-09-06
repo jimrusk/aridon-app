@@ -32,6 +32,10 @@ function extractReply(data: any) {
   return (data?.output || []).flatMap((item: any) => item.content || []).filter((item: any) => item.type === 'output_text').map((item: any) => item.text || '').join('\n').trim();
 }
 
+function isDoNotCallRequest(speech: string) {
+  return /\b(do not call|don't call|dont call|stop calling|stop these calls|remove me from (your|the) call|take me off (your|the) call|put me on (your|the) do not call)\b/i.test(speech);
+}
+
 export async function POST(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('token') || '';
   const session = verifyPhoneToken(token);
@@ -46,21 +50,52 @@ export async function POST(request: NextRequest) {
     const voice = voiceFor(executive.name);
 
     if (!speech) {
-      const xml = `<?xml version="1.0" encoding="UTF-8"?><Response><Gather input="speech" action="${escapeXml(action)}" method="POST" speechTimeout="auto" language="en-US" actionOnEmptyResult="true"><Say voice="${escapeXml(voice.voice)}" language="${escapeXml(voice.language)}">I’m still here. What would you like me to help with?</Say></Gather><Redirect method="POST">${escapeXml(action)}</Redirect></Response>`;
+      const prompt = session.outboundAi ? 'I’m still here. If now is not a good time, just let me know.' : 'I’m still here. What would you like me to help with?';
+      const xml = `<?xml version="1.0" encoding="UTF-8"?><Response><Gather input="speech" action="${escapeXml(action)}" method="POST" speechTimeout="auto" language="en-US" actionOnEmptyResult="true"><Say voice="${escapeXml(voice.voice)}" language="${escapeXml(voice.language)}">${escapeXml(prompt)}</Say></Gather><Redirect method="POST">${escapeXml(action)}</Redirect></Response>`;
       return new Response(xml, { headers: { 'Content-Type': 'text/xml; charset=utf-8', 'Cache-Control': 'no-store' } });
     }
 
     const db = getServerClient();
+
+    if (session.outboundAi && session.targetId && isDoNotCallRequest(speech)) {
+      const target = await db.from('customer_call_targets').select('phone').eq('tenant_id', session.tenantId).eq('id', session.targetId).maybeSingle();
+      if (target.data?.phone) {
+        const reason = 'Recipient requested no further phone calls during an Eva AI call.';
+        await db.from('customer_call_suppression').upsert({
+          tenant_id: session.tenantId,
+          phone: target.data.phone,
+          reason,
+          source: 'eva_ai_call',
+        }, { onConflict: 'tenant_id,phone' });
+        await db.from('customer_call_targets').update({
+          do_not_call: true,
+          compliance_status: 'blocked',
+          compliance_reason: reason,
+          call_status: 'suppressed',
+        }).eq('tenant_id', session.tenantId).eq('id', session.targetId);
+      }
+      const xml = `<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="${escapeXml(voice.voice)}" language="${escapeXml(voice.language)}">Understood. I’ve marked this number so Aridon will not call it again. Thank you for your time.</Say><Hangup/></Response>`;
+      return new Response(xml, { headers: { 'Content-Type': 'text/xml; charset=utf-8', 'Cache-Control': 'no-store' } });
+    }
+
     const [tenantResult, recentResult] = await Promise.all([
       db.from('customer_tenants').select('business_name,industry,plan').eq('id', session.tenantId).maybeSingle(),
-      db.from('customer_assistant_messages').select('role,content,created_at').eq('tenant_id', session.tenantId).order('created_at', { ascending: false }).limit(12),
+      session.outboundAi
+        ? Promise.resolve({ data: [] as any[] })
+        : db.from('customer_assistant_messages').select('role,content,created_at').eq('tenant_id', session.tenantId).order('created_at', { ascending: false }).limit(12),
     ]);
     const recent = (recentResult.data || []).reverse().map((item: any) => `${String(item.role).toUpperCase()}: ${String(item.content).slice(0, 1800)}`).join('\n');
     const company = tenantResult.data?.business_name || 'the customer company';
 
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) throw new Error('OpenAI service is not configured.');
-    const system = `You are ${executive.name}, ${executive.role}, speaking live on a telephone call for ${company}. Your focus is ${executive.focus}. Your tone is ${executive.tone}. ${executive.voice}\n\nPHONE RULES: Sound natural and conversational. Keep most replies under 120 spoken words. Do not read markdown, URLs, citations, long lists, or tables aloud. The caller may interrupt or change topics. If another Aridon executive owns the topic, you may say you are bringing that lane into the answer, but keep one continuous conversation. Never claim an external action was completed unless the system actually performed it. Research and analysis are fine; spending, signatures, external sends, commitments and other consequential actions require explicit owner approval.\n\nRECENT ARIDON CONTEXT:\n${recent}\n\nCALLER: ${speech}`;
+
+    const outboundContext = session.outboundAi
+      ? `\n\nOUTBOUND CALL CONTEXT:\nYou are Eva, an AI assistant with Aridon, and you already disclosed that you are AI in the opening greeting. You are speaking with ${session.targetContact || 'a business contact'} at ${session.targetCompany || 'their organization'}. The approved purpose of this call is: ${session.callBrief || 'a business conversation'}. Stay within that purpose. Do not imply that the recipient agreed to anything they did not say. If they are not interested, be gracious and end the call. If they ask not to be called again, the system handles suppression automatically. Do not make binding pricing, legal, investment, purchasing, or contractual commitments. Do not reveal private Aridon workspace conversations or internal confidential information.`
+      : '';
+
+    const recentContext = recent ? `\n\nRECENT ARIDON CONTEXT:\n${recent}` : '';
+    const system = `You are ${executive.name}, ${executive.role}, speaking live on a telephone call for ${company}. Your focus is ${executive.focus}. Your tone is ${executive.tone}. ${executive.voice}\n\nPHONE RULES: Sound natural and conversational. Keep most replies under 120 spoken words. Do not read markdown, URLs, citations, long lists, or tables aloud. The caller may interrupt or change topics. If another Aridon executive owns the topic, you may say you are bringing that lane into the answer, but keep one continuous conversation. Never claim an external action was completed unless the system actually performed it. Research and analysis are fine; spending, signatures, external sends, commitments and other consequential actions require explicit owner approval.${outboundContext}${recentContext}\n\nOTHER PERSON SAID: ${speech}`;
 
     const ai = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
