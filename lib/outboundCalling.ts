@@ -1,8 +1,9 @@
 export type CallMode = 'human_assisted' | 'ai_opt_in';
 export type ComplianceStatus = 'pending' | 'allowed_human_b2b' | 'allowed_ai_opt_in' | 'blocked';
+export type VoiceProvider = 'signalwire' | 'twilio' | null;
 
 export const outboundCallingPolicy = {
-  provider: 'twilio',
+  provider: 'signalwire',
   defaultMode: 'human_assisted' as CallMode,
   rules: [
     'Never dial a number on the workspace suppression list.',
@@ -39,10 +40,29 @@ export const callDispositions = [
   'wrong_contact', 'no_answer', 'voicemail', 'do_not_call', 'follow_up', 'human_handoff'
 ] as const;
 
+export function signalWireConfigured() {
+  return Boolean(
+    process.env.SIGNALWIRE_SPACE?.trim() &&
+    process.env.SIGNALWIRE_PROJECT_ID?.trim() &&
+    process.env.SIGNALWIRE_API_TOKEN?.trim() &&
+    process.env.SIGNALWIRE_FROM_NUMBER?.trim()
+  );
+}
+
 export function twilioConfigured() {
   return Boolean(
     process.env.TWILIO_ACCOUNT_SID?.trim() &&
     process.env.TWILIO_AUTH_TOKEN?.trim() &&
     process.env.TWILIO_FROM_NUMBER?.trim()
   );
+}
+
+export function voiceProvider(): VoiceProvider {
+  if (signalWireConfigured()) return 'signalwire';
+  if (twilioConfigured()) return 'twilio';
+  return null;
+}
+
+export function voiceConfigured() {
+  return voiceProvider() !== null;
 }
