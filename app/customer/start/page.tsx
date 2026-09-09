@@ -6,7 +6,10 @@ import { useRouter } from 'next/navigation';
 import { getBrowserClient } from '../../../lib/supabase';
 import { executives } from '../../../lib/executives';
 
-type Account = { tenant: { slug: string; business_name: string; industry?: string | null } };
+type Account = {
+  tenant: { slug: string; business_name: string; industry?: string | null };
+  user?: { name?: string; first_name?: string; email?: string };
+};
 type Executive = (typeof executives)[number];
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 type BrowserSpeechRecognition = {
@@ -21,10 +24,21 @@ type BrowserSpeechRecognition = {
   onend: (() => void) | null;
 };
 
-function introFor(executive: Executive, company: string) {
-  if (executive.name === 'Eva') return `Welcome to the ${company} Main Room. Eva here. Your executive team is online. Hands-Free is the default, so speak naturally and switch executives whenever you want.`;
-  return `I am ${executive.name}, your ${executive.role}. I am here in the ${company} Main Room. My focus is ${executive.focus}. What do you want to work through?`;
+function introFor(executive: Executive, company: string, firstName?: string) {
+  const namedHello = firstName && firstName.toLowerCase() !== 'there' ? `Hi ${firstName}` : 'Hi';
+  if (executive.name === 'Eva') {
+    return `${namedHello}, I'm Eva. Welcome to ${company}. What are you looking to get done today? Tell me in your own words and I'll get you started. If another Aridon executive is the best fit, I'll bring them in.`;
+  }
+  return `${namedHello}, I'm ${executive.name}, your ${executive.role}. My focus is ${executive.focus}. Tell me what you want to accomplish and we'll work through it.`;
 }
+
+const intakeChoices = [
+  'Grow sales and find customers',
+  'Find funding or investors',
+  'Improve operations',
+  'Research a company or opportunity',
+  'Build a plan for something new',
+];
 
 export default function CustomerStartPage() {
   const router = useRouter();
@@ -43,6 +57,7 @@ export default function CustomerStartPage() {
   const [recognitionSupported, setRecognitionSupported] = useState(true);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [researchWeb, setResearchWeb] = useState(false);
+  const [intakeMode, setIntakeMode] = useState(true);
 
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -69,10 +84,13 @@ export default function CustomerStartPage() {
         router.replace('/customer/login');
         return;
       }
+      const loadedAccount = result as Account;
       setToken(accessToken);
-      setAccount(result as Account);
+      setAccount(loadedAccount);
       const eva = executives.find((item) => item.name === 'Eva') || executives[0];
-      setReply(introFor(eva, result.tenant.business_name));
+      const greeting = introFor(eva, loadedAccount.tenant.business_name, loadedAccount.user?.first_name);
+      setReply(greeting);
+      setMessages([{ role: 'assistant', content: greeting }]);
     });
     return () => {
       handsFreeRef.current = false;
@@ -84,7 +102,7 @@ export default function CustomerStartPage() {
   useEffect(() => {
     if (!account || !token || autoStartedRef.current) return;
     autoStartedRef.current = true;
-    const timer = window.setTimeout(() => { void activateHandsFree(true); }, 400);
+    const timer = window.setTimeout(() => { void activateHandsFree(true); }, 450);
     return () => window.clearTimeout(timer);
   }, [account, token]);
 
@@ -206,18 +224,33 @@ export default function CustomerStartPage() {
   async function activateHandsFree(automatic = false) {
     handsFreeRef.current = true;
     setHandsFree(true);
-    if (!recognitionSupported) return;
+    const eva = executives.find((item) => item.name === 'Eva') || executives[0];
+    const greeting = account ? introFor(eva, account.tenant.business_name, account.user?.first_name) : reply;
+    if (!recognitionSupported) {
+      if (automatic && greeting) void speak(eva, greeting);
+      return;
+    }
     try {
       if (navigator.mediaDevices?.getUserMedia) {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach((track) => track.stop());
       }
       setMicNeedsTap(false);
-      setReply(automatic ? 'Hands-Free Main Room is on. I am listening.' : `Hands-Free is on. I am listening for your question to ${selected.name}.`);
-      window.setTimeout(startListening, 100);
+      if (automatic) {
+        setReply(greeting);
+        void speak(eva, greeting);
+      } else {
+        setReply(`Hands-Free is on. I am listening for your question to ${selected.name}.`);
+        window.setTimeout(startListening, 100);
+      }
     } catch {
       setMicNeedsTap(true);
-      setReply('Hands-Free is the default. Your browser needs one microphone-permission tap before automatic listening can begin.');
+      if (automatic) {
+        setReply(greeting);
+        void speak(eva, greeting);
+      } else {
+        setReply('Hands-Free is the default. Your browser needs one microphone-permission tap before automatic listening can begin.');
+      }
     }
   }
 
@@ -238,21 +271,25 @@ export default function CustomerStartPage() {
     const nextMessages: ChatMessage[] = [...messages, userMessage].slice(-18);
     setMessages(nextMessages);
     setReply('');
+    const requestedExecutive = intakeMode ? 'Auto' : selected.name;
     try {
       const response = await fetch('/api/customer/assistant', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug: account.tenant.slug, executive: selected.name, messages: nextMessages, researchWeb }),
+        body: JSON.stringify({ slug: account.tenant.slug, executive: requestedExecutive, messages: nextMessages, researchWeb }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.reply) throw new Error(data.error || `${selected.name} could not answer right now.`);
+      const routed = executives.find((item) => item.name === data.executive) || selected;
       const assistantMessage: ChatMessage = { role: 'assistant', content: data.reply };
       setMessages([...nextMessages, assistantMessage].slice(-18));
       setReply(data.reply);
       setInput('');
+      if (intakeMode) setIntakeMode(false);
+      if (routed.name !== selected.name) setSelectedName(routed.name);
       busyRef.current = false;
       setBusy(false);
-      void speak(selected, data.reply);
+      void speak(routed, data.reply);
       return;
     } catch (error) {
       setReply(error instanceof Error ? error.message : 'The executive team is temporarily unavailable.');
@@ -266,9 +303,11 @@ export default function CustomerStartPage() {
   function selectExecutive(executive: Executive) {
     stopListening();
     stopSpeaking();
+    setIntakeMode(false);
     setSelectedName(executive.name);
-    const intro = introFor(executive, account?.tenant.business_name || 'your company');
+    const intro = introFor(executive, account?.tenant.business_name || 'your company', account?.user?.first_name);
     setReply(intro);
+    setMessages((current) => [...current, { role: 'assistant' as const, content: intro }].slice(-18));
     void speak(executive, intro);
   }
 
@@ -276,6 +315,7 @@ export default function CustomerStartPage() {
 
   const home = `/workspace/${account.tenant.slug}`;
   const speaking = speakingName === selected.name;
+  const firstName = account.user?.first_name && account.user.first_name.toLowerCase() !== 'there' ? account.user.first_name : '';
 
   return (
     <main className="avatar-room">
@@ -283,8 +323,8 @@ export default function CustomerStartPage() {
         <header className="avatar-room-header">
           <div>
             <div className="avatar-room-brand">ARIDON · {account.tenant.business_name.toUpperCase()}</div>
-            <h1>Executive Main Room</h1>
-            <p>All eight executives stay together here. Speak naturally, change executives with one tap, and keep the conversation in the same room.</p>
+            <h1>{firstName ? `Welcome, ${firstName}.` : 'Executive Main Room'}</h1>
+            <p>Eva is your front door. Tell her what you want to accomplish and Aridon will bring the right executive into the conversation.</p>
           </div>
           <div className="avatar-room-header-actions">
             {handsFree ? <button className="handsfree-toggle on" onClick={micNeedsTap ? () => void activateHandsFree(false) : turnHandsFreeOff}>{micNeedsTap ? '🎙 Enable Microphone' : listening ? '🎙 Listening Automatically' : '🎙 Hands-Free On'}</button> : <button className="handsfree-toggle" onClick={() => void activateHandsFree(false)}>🎙 Turn Hands-Free On</button>}
@@ -324,11 +364,18 @@ export default function CustomerStartPage() {
 
           <div className="avatar-conversation">
             <div className="avatar-conversation-head">
-              <div><h3>Talk with {selected.name}</h3><p>{handsFree ? 'Listen → answer → speak → listen again.' : 'Type or tap Talk Now.'}</p></div>
+              <div><h3>{intakeMode ? 'What are you looking to do?' : `Talk with ${selected.name}`}</h3><p>{intakeMode ? 'Answer Eva naturally. Aridon will route the work for you.' : handsFree ? 'Listen → answer → speak → listen again.' : 'Type or tap Talk Now.'}</p></div>
               <div className={`voice-status ${listening ? 'listening' : speaking ? 'speaking' : handsFree ? 'ready' : ''}`}>{listening ? '● Listening' : speaking ? '● Speaking' : handsFree ? '● Ready' : '● Manual'}</div>
             </div>
-            <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder={`Ask ${selected.name} anything about ${account.tenant.business_name}…`} />
-            <button className="avatar-primary avatar-ask" onClick={() => void askExecutive()} disabled={busy || !input.trim()}>{busy ? `${selected.name} is thinking…` : `Ask ${selected.name}`}</button>
+            {intakeMode && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                {intakeChoices.map((choice) => (
+                  <button key={choice} type="button" onClick={() => void askExecutive(choice)} disabled={busy} style={intakeChoiceStyle}>{choice}</button>
+                ))}
+              </div>
+            )}
+            <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder={intakeMode ? 'Tell Eva what you want to get done today…' : `Ask ${selected.name} anything about ${account.tenant.business_name}…`} />
+            <button className="avatar-primary avatar-ask" onClick={() => void askExecutive()} disabled={busy || !input.trim()}>{busy ? `${selected.name} is thinking…` : intakeMode ? 'Tell Eva What I Need' : `Ask ${selected.name}`}</button>
             <div className="avatar-reply" aria-live="polite">{reply || `Hands-Free is ready. Start talking to ${selected.name}.`}</div>
             {micNeedsTap && <div className="avatar-browser-note">Your browser requires one microphone or audio interaction. Tap “Enable Microphone” once. After that, Hands-Free continues automatically.</div>}
             {!recognitionSupported && <div className="avatar-browser-note">This browser does not expose speech recognition. You can still type and hear spoken answers.</div>}
@@ -357,3 +404,4 @@ export default function CustomerStartPage() {
 
 const loadingStyle = { minHeight: '100vh', background: '#08101D', color: '#F7FAFC', display: 'grid', placeItems: 'center', fontFamily: 'Arial, sans-serif' };
 const toolLink = { border: '1px solid #34435D', color: '#DDE7F5', borderRadius: 10, padding: '9px 12px', textDecoration: 'none', fontWeight: 850, fontSize: 12, background: '#10192A' };
+const intakeChoiceStyle = { border: '1px solid #3B516E', background: '#101B2D', color: '#DDE7F5', borderRadius: 999, padding: '8px 11px', fontWeight: 800, fontSize: 12, cursor: 'pointer' as const };
