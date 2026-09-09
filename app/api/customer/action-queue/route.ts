@@ -5,6 +5,11 @@ import {
   actionAdapterDefinition,
   normalizeActionAdapterKey,
 } from '../../../../lib/actionFabric';
+import {
+  DIRECT_ACTION_ADAPTERS,
+  directActionDefinition,
+  normalizeDirectActionAdapterKey,
+} from '../../../../lib/directActionAdapters';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,6 +23,13 @@ function text(value: unknown, max = 500) {
 
 function objectPayload(value: unknown) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function adapterSpec(value: unknown, actionType?: unknown) {
+  const directKey = normalizeDirectActionAdapterKey(value, actionType);
+  if (directKey) return { key: directKey, adapter: directActionDefinition(directKey), direct: true } as const;
+  const key = normalizeActionAdapterKey(value, actionType);
+  return { key, adapter: actionAdapterDefinition(key), direct: false } as const;
 }
 
 export async function GET(request: NextRequest) {
@@ -49,7 +61,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       actions: actionsResult.data || [],
       executions: executionsResult.data || [],
-      adapters: ACTION_ADAPTERS,
+      adapters: [...ACTION_ADAPTERS, ...DIRECT_ACTION_ADAPTERS],
       controlRole: CONTROL_ROLES.has(membership.role),
       role: membership.role,
     }, { headers: NO_STORE });
@@ -75,10 +87,9 @@ export async function POST(request: NextRequest) {
     const title = text(body?.title, 500);
     const executive = text(body?.executive, 80) || 'Eva';
     const actionType = text(body?.actionType, 80) || 'business_action';
-    const adapterKey = normalizeActionAdapterKey(body?.adapterKey, actionType);
-    const adapter = actionAdapterDefinition(adapterKey);
+    const spec = adapterSpec(body?.adapterKey, actionType);
     const requestedNoApproval = body?.approvalRequired === false;
-    const approvalRequired = adapter.requiresApproval || !CONTROL_ROLES.has(membership.role) || !requestedNoApproval;
+    const approvalRequired = spec.adapter.requiresApproval || !CONTROL_ROLES.has(membership.role) || !requestedNoApproval;
 
     if (!title) return NextResponse.json({ error: 'Action title is required.' }, { status: 400, headers: NO_STORE });
 
@@ -94,6 +105,8 @@ export async function POST(request: NextRequest) {
       if (existing) return NextResponse.json({ action: existing, existing: true }, { headers: NO_STORE });
     }
 
+    const connection = spec.adapter.connection;
+    const connectionKey = connection === 'workspace' ? 'workspace-account' : connection === 'none' ? null : connection;
     const now = new Date().toISOString();
     const { data, error } = await auth.db
       .from('customer_action_queue')
@@ -102,12 +115,12 @@ export async function POST(request: NextRequest) {
         requested_by: auth.user.id,
         executive,
         action_type: actionType,
-        adapter_key: adapterKey,
+        adapter_key: spec.key,
         title,
         payload: objectPayload(body?.payload),
         rationale: text(body?.rationale, 2500) || null,
         expected_outcome: text(body?.expectedOutcome, 1200) || null,
-        risk_level: text(body?.riskLevel, 20) || (adapter.category === 'external' ? 'medium' : 'low'),
+        risk_level: text(body?.riskLevel, 20) || (spec.adapter.category === 'external' ? 'medium' : 'low'),
         approval_required: approvalRequired,
         status: approvalRequired ? 'proposed' : 'approved',
         approved_by: approvalRequired ? null : auth.user.id,
@@ -115,14 +128,14 @@ export async function POST(request: NextRequest) {
         source: text(body?.source, 80) || 'action-center',
         source_ref: text(body?.sourceRef, 200) || null,
         idempotency_key: idempotencyKey,
-        connection_key: adapter.connection === 'workspace' ? 'workspace-account' : null,
+        connection_key: connectionKey,
         updated_at: now,
       })
       .select('*')
       .single();
     if (error) throw error;
 
-    return NextResponse.json({ action: data, adapter }, { headers: NO_STORE });
+    return NextResponse.json({ action: data, adapter: spec.adapter }, { headers: NO_STORE });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to create action.' }, { status: 500, headers: NO_STORE });
   }
@@ -161,7 +174,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if ('adapterKey' in body) patch.adapter_key = normalizeActionAdapterKey(body?.adapterKey, current.action_type);
+    if ('adapterKey' in body) patch.adapter_key = adapterSpec(body?.adapterKey, current.action_type).key;
     if ('payload' in body) patch.payload = objectPayload(body?.payload);
     if ('rationale' in body) patch.rationale = text(body?.rationale, 2500) || null;
     if ('expectedOutcome' in body) patch.expected_outcome = text(body?.expectedOutcome, 1200) || null;
@@ -172,8 +185,8 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: 'Unsupported status.' }, { status: 400, headers: NO_STORE });
       }
       if (requestedStatus === 'completed') {
-        const adapterKey = normalizeActionAdapterKey(current.adapter_key, current.action_type);
-        if (adapterKey !== 'manual') {
+        const spec = adapterSpec(current.adapter_key, current.action_type);
+        if (spec.key !== 'manual') {
           return NextResponse.json({ error: 'Executable actions must run through Action Fabric instead of being marked complete manually.' }, { status: 409, headers: NO_STORE });
         }
         patch.result = { manual: true, completedBy: auth.user.id };
