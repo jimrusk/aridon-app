@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticatedCustomer, customerTenantForUser, subscriptionAllowsAccess } from '../../../../../lib/customerAuth';
-import { loadCustomerExecutiveContext } from '../../../../../lib/customerExecutiveContext';
+import { authenticatedCustomer, customerTenantForUser, subscriptionAllowsAccess } from '../../../../lib/customerAuth';
+import { loadCustomerExecutiveContext } from '../../../../lib/customerExecutiveContext';
 import {
   executeActionAdapter,
   normalizeActionAdapterKey,
   type ActionFabricRecord,
-} from '../../../../../lib/actionFabric';
+} from '../../../../lib/actionFabric';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
