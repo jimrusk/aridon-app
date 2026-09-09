@@ -8,6 +8,7 @@ const radarTabs = [
   { href: '/customer/aridon-two', label: 'Aridon 2', sublabel: 'Real Estate' },
   { href: '/customer/aridon-three', label: 'Aridon 3', sublabel: 'Buy a Business' },
   { href: '/cloud-workers', label: 'Workers', sublabel: 'Eva Keeps Working' },
+  { href: '/worker-connections', label: 'Connections', sublabel: 'Identity & Tools' },
 ] as const;
 
 function shouldShow(pathname: string) {
@@ -31,7 +32,8 @@ function shouldShow(pathname: string) {
     pathname.startsWith('/eva-chat') ||
     pathname.startsWith('/eva-core') ||
     pathname.startsWith('/mission-control') ||
-    pathname.startsWith('/cloud-workers')
+    pathname.startsWith('/cloud-workers') ||
+    pathname.startsWith('/worker-connections')
   );
 }
 
@@ -42,7 +44,9 @@ export default function AridonRadarTabs() {
   return (
     <nav className="aridon-global-radar-tabs" aria-label="Aridon operating lanes">
       {radarTabs.map((tab) => {
-        const active = pathname === tab.href || (tab.href === '/cloud-workers' && pathname.includes('/cloud-workers'));
+        const active = pathname === tab.href ||
+          (tab.href === '/cloud-workers' && pathname.includes('/cloud-workers')) ||
+          (tab.href === '/worker-connections' && pathname.includes('/worker-connections'));
         return (
           <Link key={tab.href} href={tab.href} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined}>
             <strong>{tab.label}</strong>
@@ -58,8 +62,8 @@ export default function AridonRadarTabs() {
           transform: translateX(-50%);
           z-index: 2147483000;
           display: grid;
-          grid-template-columns: repeat(4,minmax(96px,1fr));
-          width: min(760px, calc(100vw - 20px));
+          grid-template-columns: repeat(5,minmax(88px,1fr));
+          width: min(890px, calc(100vw - 20px));
           padding: 6px;
           gap: 6px;
           border: 1px solid #35516a;
@@ -72,7 +76,7 @@ export default function AridonRadarTabs() {
           display: grid;
           gap: 3px;
           min-width: 0;
-          padding: 10px 12px;
+          padding: 10px 10px;
           border: 1px solid transparent;
           border-radius: 12px;
           color: #e5edf6;
@@ -104,18 +108,18 @@ export default function AridonRadarTabs() {
           box-shadow: inset 0 0 0 1px rgba(132,244,209,.08);
         }
         .aridon-global-radar-tabs a.active span { color: #b9f8e5; }
-        @media (max-width: 640px) {
+        @media (max-width: 700px) {
           .aridon-global-radar-tabs {
             bottom: 7px;
             width: calc(100vw - 10px);
             padding: 4px;
             gap: 3px;
             border-radius: 15px;
-            grid-template-columns: repeat(4,minmax(0,1fr));
+            grid-template-columns: repeat(5,minmax(0,1fr));
           }
-          .aridon-global-radar-tabs a { padding: 9px 4px; border-radius: 10px; }
-          .aridon-global-radar-tabs a strong { font-size: 11px; }
-          .aridon-global-radar-tabs a span { font-size: 8px; }
+          .aridon-global-radar-tabs a { padding: 9px 3px; border-radius: 10px; }
+          .aridon-global-radar-tabs a strong { font-size: 10px; }
+          .aridon-global-radar-tabs a span { font-size: 7px; }
         }
       `}</style>
     </nav>
