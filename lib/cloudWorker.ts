@@ -3,6 +3,11 @@ import 'server-only';
 import { getServerClient } from './supabase';
 import { loadCustomerExecutiveContext } from './customerExecutiveContext';
 import { normalizeActionAdapterKey } from './actionFabric';
+import {
+  executeDirectActionAdapter,
+  normalizeDirectActionAdapterKey,
+  type DirectActionAdapterKey,
+} from './directActionAdapters';
 
 const RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const ACTIVE_STATUSES = ['queued', 'running', 'waiting_approval'];
@@ -18,6 +23,7 @@ export type CloudWorkerRow = {
   priority: string;
   status: string;
   provider: string;
+  browser_identity_id?: string | null;
   checkpoint?: Record<string, unknown> | null;
   result?: Record<string, unknown> | null;
   cycle_count: number;
@@ -175,9 +181,30 @@ async function claimWorker(worker: CloudWorkerRow) {
 }
 
 function normalizeWorkerAction(item: WorkerAction) {
-  const requested = normalizeActionAdapterKey(item.adapterKey, item.actionType);
   const raw = objectValue(item.payload);
+  const direct = normalizeDirectActionAdapterKey(item.adapterKey, item.actionType);
 
+  if (direct === 'crm_lead_create') {
+    const companyName = text(raw.companyName ?? raw.company_name, 300);
+    if (companyName) return { adapterKey: direct, actionType: direct, payload: { ...raw, companyName }, approvalRequired: false, connectionKey: null };
+  }
+
+  if (direct === 'knowledge_save') {
+    const title = text(raw.title, 500) || text(item.title, 500);
+    const content = text(raw.content, 80_000);
+    if (title && content) return { adapterKey: direct, actionType: direct, payload: { ...raw, title, content }, approvalRequired: false, connectionKey: null };
+  }
+
+  if (direct === 'github_issue_create') {
+    const title = text(raw.title, 256) || text(item.title, 256);
+    if (title) return { adapterKey: direct, actionType: direct, payload: { ...raw, title }, approvalRequired: true, connectionKey: 'github' };
+  }
+
+  if (direct === 'vercel_deploy_hook') {
+    return { adapterKey: direct, actionType: direct, payload: raw, approvalRequired: true, connectionKey: 'vercel_hook' };
+  }
+
+  const requested = normalizeActionAdapterKey(item.adapterKey, item.actionType);
   if (requested === 'internal_task') {
     const title = text(raw.title, 500) || text(item.title, 500) || 'Eva cloud-worker task';
     const owner = text(raw.owner, 160) || text(item.owner, 160) || 'Eva';
@@ -211,6 +238,20 @@ function normalizeWorkerAction(item: WorkerAction) {
   }
 
   return { adapterKey: 'manual' as const, actionType: 'manual', payload: raw, approvalRequired: true, connectionKey: null };
+}
+
+async function completeAutoAction(db: ReturnType<typeof getServerClient>, action: any, result: Record<string, unknown>, startedAt: string) {
+  const finishedAt = new Date().toISOString();
+  const { data, error } = await db.from('customer_action_queue').update({
+    status: 'completed',
+    attempt_count: 1,
+    last_attempt_at: startedAt,
+    result,
+    executed_at: finishedAt,
+    updated_at: finishedAt,
+  }).eq('id', action.id).select('*').single();
+  if (error) throw error;
+  return data;
 }
 
 async function materializeActions(worker: CloudWorkerRow, cycle: WorkerCycle, cycleNo: number) {
@@ -273,25 +314,18 @@ async function materializeActions(worker: CloudWorkerRow, cycle: WorkerCycle, cy
         status: 'open',
       }).select('id,title,owner,priority,status,created_at').single();
       if (taskError) throw taskError;
-      const finishedAt = new Date().toISOString();
-      const { data: completedAction, error: updateError } = await db
-        .from('customer_action_queue')
-        .update({
-          status: 'completed',
-          attempt_count: 1,
-          last_attempt_at: now,
-          result: { adapter: 'internal_task', created: true, task, completedAt: finishedAt },
-          executed_at: finishedAt,
-          updated_at: finishedAt,
-        })
-        .eq('id', action.id)
-        .select('*')
-        .single();
-      if (updateError) throw updateError;
-      created.push(completedAction);
-    } else {
-      created.push(action);
+      created.push(await completeAutoAction(db, action, { adapter: 'internal_task', created: true, task, completedAt: new Date().toISOString() }, now));
+      continue;
     }
+
+    const direct = normalizeDirectActionAdapterKey(spec.adapterKey, spec.actionType);
+    if (direct && !spec.approvalRequired) {
+      const result = await executeDirectActionAdapter({ db, key: direct as DirectActionAdapterKey, action });
+      created.push(await completeAutoAction(db, action, result as Record<string, unknown>, now));
+      continue;
+    }
+
+    created.push(action);
   }
   return created;
 }
@@ -301,7 +335,7 @@ async function runModelCycle(worker: CloudWorkerRow, context: string, recentEven
   if (!apiKey) throw new Error('OPENAI_API_KEY is not configured for Cloud Workers.');
 
   const browserConfigured = Boolean(process.env.BROWSERBASE_API_KEY?.trim() && process.env.BROWSERBASE_PROJECT_ID?.trim());
-  const system = `You are Eva operating an Aridon persistent cloud worker. The owner assigned an outcome, not a chat question. Work the objective forward and leave a durable checkpoint for the next cycle.\n\nCAPABILITY-FIRST RULES:\n- Do useful work now. Research current public information, compare sources, reason, draft, organize, calculate, and create safe internal tasks.\n- Use live web search whenever current public facts matter. Prefer primary sources and distinguish verified facts from inference.\n- Never invent a completed side effect. External email/calendar actions must be fully drafted and queued for owner approval.\n- Do not refuse an entire job because one action or website needs a missing connection. Finish every available part and isolate the exact blocker.\n- Never invent credentials, contacts, prices, approvals, or private facts.\n- If a website requires interactive browser clicking/sign-in and browser infrastructure is unavailable, record that exact step in nextSteps and continue all non-browser work.\n- Spending, contracts, signatures, destructive actions, security/account changes, public publishing, and consequential commitments remain owner controlled.\n- Do not expose private chain-of-thought. Return concise findings and a durable work checkpoint.\n\nCONNECTED EXECUTION LANES:\n- live web research: available\n- internal task creation: available\n- approval-gated email: available through Action Center when exact recipient is known\n- approval-gated calendar: available through Action Center when exact times are known\n- interactive cloud browser provider: ${browserConfigured ? 'configured for a later browser-action cycle' : 'not configured; use web research and identify only the exact browser-only step'}\n\nReturn ONLY JSON with this shape:\n{"summary":"what this cycle accomplished","status":"continue|completed|waiting_for_approval","findings":["..."],"nextSteps":["..."],"checkpoint":{"facts":[],"openQuestions":[],"progress":"..."},"actions":[{"title":"...","owner":"Eva","actionType":"internal_task|email_send|calendar_create|manual","adapterKey":"internal_task|email_send|calendar_create|manual","rationale":"...","expectedOutcome":"...","riskLevel":"low|medium|high","payload":{}}]}\n\nUse status continue when another autonomous research/work cycle can materially advance the objective. Use waiting_for_approval only when the next meaningful step depends on an owner-approved queued action. Use completed when the requested outcome is substantially delivered or no further connected work can improve it. Maximum 10 actions.`;
+  const system = `You are Eva operating an Aridon persistent cloud worker. The owner assigned an outcome, not a chat question. Work the objective forward and leave a durable checkpoint for the next cycle.\n\nCAPABILITY-FIRST RULES:\n- Do useful work now. Research current public information, compare sources, reason, draft, organize, calculate, create safe internal tasks, create CRM leads, and save durable research to the Knowledge Vault.\n- Use live web search whenever current public facts matter. Prefer primary sources and distinguish verified facts from inference.\n- Never invent a completed side effect. Email, calendar, GitHub issue, and Vercel deploy actions must be fully prepared and queued for owner approval.\n- Do not refuse an entire job because one action or website needs a missing connection. Finish every available part and isolate the exact blocker.\n- Never invent credentials, contacts, prices, approvals, or private facts.\n- If a website requires interactive browser clicking/sign-in and browser infrastructure is unavailable, record that exact step in nextSteps and continue all non-browser work.\n- Spending, contracts, signatures, destructive actions, security/account changes, public publishing, and consequential commitments remain owner controlled.\n- Do not expose private chain-of-thought. Return concise findings and a durable work checkpoint.\n\nCONNECTED EXECUTION LANES:\n- live web research: available\n- internal task creation: available\n- CRM lead creation: available\n- Knowledge Vault save: available\n- approval-gated email/calendar: available through Action Center\n- approval-gated GitHub issue creation: available when GitHub is connected\n- approval-gated Vercel deployment hook: available when Vercel is connected\n- interactive cloud browser provider: ${browserConfigured ? 'configured; persistent browser identities may be assigned to browser workers' : 'not configured; use web research and identify only the exact browser-only step'}\n\nReturn ONLY JSON with this shape:\n{"summary":"what this cycle accomplished","status":"continue|completed|waiting_for_approval","findings":["..."],"nextSteps":["..."],"checkpoint":{"facts":[],"openQuestions":[],"progress":"..."},"actions":[{"title":"...","owner":"Eva","actionType":"internal_task|crm_lead_create|knowledge_save|email_send|calendar_create|github_issue_create|vercel_deploy_hook|manual","adapterKey":"internal_task|crm_lead_create|knowledge_save|email_send|calendar_create|github_issue_create|vercel_deploy_hook|manual","rationale":"...","expectedOutcome":"...","riskLevel":"low|medium|high","payload":{}}]}\n\nFor crm_lead_create include payload.companyName and any known website/contact/research fields. For knowledge_save include payload.title, payload.category, payload.content. For github_issue_create include payload.repository as owner/name when known, payload.title, and payload.body. Use vercel_deploy_hook only when a deployment is explicitly needed.\n\nUse status continue when another autonomous research/work cycle can materially advance the objective. Use waiting_for_approval only when the next meaningful step depends on an owner-approved queued action. Use completed when the requested outcome is substantially delivered or no further connected work can improve it. Maximum 10 actions.`;
 
   const input = `WORKER\nName: ${worker.name}\nExecutive: ${worker.executive}\nMode: ${worker.mode}\nCycle: ${Number(worker.cycle_count || 0) + 1} of ${worker.max_cycles}\nObjective: ${worker.objective}\n\nPRIOR CHECKPOINT\n${JSON.stringify(worker.checkpoint || {}, null, 2).slice(0, 12000)}\n\nRECENT WORKER EVENTS\n${JSON.stringify(recentEvents, null, 2).slice(0, 10000)}\n\nCOMPANY CONTEXT\n${context.slice(0, 36000)}`;
 
