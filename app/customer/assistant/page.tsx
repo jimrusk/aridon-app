@@ -7,9 +7,11 @@ import { getBrowserClient } from '../../../lib/supabase';
 
 type Message = { role: 'user' | 'assistant'; content: string; sources?: Array<{ title: string; url: string }> };
 type Account = { email: string; tenant: { slug: string; business_name: string; industry?: string | null; subscription_status?: string | null } };
+type SharedPage = { id: string; title: string; text: string; url: string; sharedAt: string };
 
 const KIM_WELLS_LINK = 'https://www.linkedin.com/in/kim-%F0%9F%A5%A9-wells-59bb9a33?utm_source=share_via&utm_content=profile&utm_medium=member_android';
 const KIM_WELLS_CONTEXT = `Shared resource from Jim: Kim Wells LinkedIn profile\n${KIM_WELLS_LINK}`;
+const SHARE_QUEUE_KEY = 'aridon-phone-share-queue-v1';
 
 const quickPrompts = [
   'What should I focus on today?',
@@ -19,6 +21,19 @@ const quickPrompts = [
   'Challenge an idea before I spend money on it.',
   'Turn this goal into a simple action plan.',
 ];
+
+function sharedPageKey(page: Pick<SharedPage, 'url' | 'title' | 'text'>) {
+  return `${page.url.trim()}|${page.title.trim()}|${page.text.trim()}`.toLowerCase();
+}
+
+function sharedPagePrompt(page: SharedPage) {
+  const details = [
+    page.title ? `Title: ${page.title}` : '',
+    page.url ? `URL: ${page.url}` : '',
+    page.text ? `Shared text: ${page.text}` : '',
+  ].filter(Boolean).join('\n');
+  return `Review this page I shared from my phone. Use current web research when the URL is public. Tell me what matters, what Aridon should do with it, and route the work to the executive best suited for the subject.\n\n${details}`;
+}
 
 export default function CustomerEvaPage() {
   const router = useRouter();
@@ -32,13 +47,51 @@ export default function CustomerEvaPage() {
   const [researchWeb, setResearchWeb] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [sharedPages, setSharedPages] = useState<SharedPage[]>([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sharedTitle = (params.get('title') || '').trim().slice(0, 500);
+    const sharedText = (params.get('text') || '').trim().slice(0, 4000);
+    const sharedUrl = (params.get('url') || '').trim().slice(0, 2000);
+
+    let stored: SharedPage[] = [];
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(SHARE_QUEUE_KEY) || '[]');
+      if (Array.isArray(parsed)) stored = parsed.filter((item) => item && typeof item === 'object').slice(0, 12) as SharedPage[];
+    } catch {}
+
+    if (sharedTitle || sharedText || sharedUrl) {
+      const candidate: SharedPage = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        title: sharedTitle,
+        text: sharedText,
+        url: sharedUrl,
+        sharedAt: new Date().toISOString(),
+      };
+      const key = sharedPageKey(candidate);
+      const next = [candidate, ...stored.filter((page) => sharedPageKey(page) !== key)].slice(0, 12);
+      setSharedPages(next);
+      try { window.localStorage.setItem(SHARE_QUEUE_KEY, JSON.stringify(next)); } catch {}
+      setResearchWeb(true);
+      setInput(sharedPagePrompt(candidate));
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+
+    setSharedPages(stored);
+  }, []);
 
   useEffect(() => {
     const db = getBrowserClient();
     db.auth.getSession().then(async ({ data }) => {
       const accessToken = data.session?.access_token;
-      if (!accessToken) { router.replace('/customer/login'); return; }
+      if (!accessToken) {
+        const next = `${window.location.pathname}${window.location.search}`;
+        router.replace(`/customer/login?next=${encodeURIComponent(next)}`);
+        return;
+      }
       setToken(accessToken);
       const response = await fetch('/api/customer/me', { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' });
       const result = await response.json().catch(() => ({}));
@@ -74,6 +127,32 @@ export default function CustomerEvaPage() {
     setError('');
   }
 
+  function useSharedPage(page: SharedPage) {
+    setResearchWeb(true);
+    setInput(sharedPagePrompt(page));
+    setError('');
+  }
+
+  function analyzeAllSharedPages() {
+    if (!sharedPages.length) return;
+    const pages = sharedPages.map((page, index) => {
+      const details = [
+        `${index + 1}. ${page.title || 'Shared page'}`,
+        page.url ? `URL: ${page.url}` : '',
+        page.text ? `Shared text: ${page.text}` : '',
+      ].filter(Boolean).join('\n');
+      return details;
+    }).join('\n\n');
+    setResearchWeb(true);
+    setInput(`Analyze all of these pages I shared from my phone as one research packet. Route each item to the Aridon executive best suited for it. Identify opportunities, risks, contacts or companies worth pursuing, and concrete next actions. Do not invent facts from pages you cannot access.\n\n${pages}`);
+    setError('');
+  }
+
+  function clearSharedPages() {
+    setSharedPages([]);
+    try { window.localStorage.removeItem(SHARE_QUEUE_KEY); } catch {}
+  }
+
   async function send(event?: FormEvent, promptOverride?: string) {
     event?.preventDefault();
     const text = (promptOverride ?? input).trim();
@@ -105,7 +184,7 @@ export default function CustomerEvaPage() {
 
         <section style={{ background: '#0F1727', border: '1px solid #263551', borderRadius: '18px', overflow: 'hidden', boxShadow: '0 24px 70px rgba(0,0,0,.24)' }}>
           <div style={{ padding: '14px 16px', borderBottom: '1px solid #25324A', display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ color: '#C8D2E3', fontSize: '13px' }}>Ask a question, paste a problem, or tell Eva what you want finished.</div>
+            <div style={{ color: '#C8D2E3', fontSize: '13px' }}>Ask a question, share a page from your phone, paste a problem, or tell Eva what you want finished.</div>
             <label style={{ display: 'flex', alignItems: 'center', gap: '7px', color: '#C8D2E3', fontSize: '12px', cursor: 'pointer' }}><input type="checkbox" checked={researchWeb} onChange={(event) => setResearchWeb(event.target.checked)} /> Use current web research</label>
           </div>
 
@@ -117,6 +196,17 @@ export default function CustomerEvaPage() {
               <button type="button" onClick={useKimLink} style={utilityButton}>Use Kim’s LinkedIn</button>
               <button type="button" onClick={pasteFromClipboard} style={utilityButton}>Paste from clipboard</button>
             </div>
+          </div>
+
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid #25324A', background: '#0A1220' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ color: '#9EF0CF', fontSize: '11px', fontWeight: 950 }}>PHONE SHARE QUEUE</div>
+                <div style={{ color: '#9AA9BF', fontSize: '12px', marginTop: '4px' }}>{sharedPages.length ? `${sharedPages.length} page${sharedPages.length === 1 ? '' : 's'} shared with Aridon on this device` : 'Share a browser page to Aridon from Android and it will appear here.'}</div>
+              </div>
+              {sharedPages.length > 0 && <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}><button type="button" onClick={analyzeAllSharedPages} style={utilityButton}>Analyze all</button><button type="button" onClick={clearSharedPages} style={quietButton}>Clear</button></div>}
+            </div>
+            {sharedPages.length > 0 && <div style={{ display: 'grid', gap: '7px', marginTop: '10px' }}>{sharedPages.map((page) => <button key={page.id} type="button" onClick={() => useSharedPage(page)} style={sharedPageButton}><strong style={{ color: '#E8EEF7' }}>{page.title || page.url || 'Shared page'}</strong><span style={{ color: '#8EA0BB', fontSize: '11px', wordBreak: 'break-all' }}>{page.url || page.text.slice(0, 180)}</span></button>)}</div>}
           </div>
 
           <div style={{ minHeight: '470px', maxHeight: '66vh', overflowY: 'auto', padding: '18px', display: 'grid', gap: '13px' }}>
@@ -139,7 +229,7 @@ export default function CustomerEvaPage() {
               <textarea rows={3} value={input} onChange={(event) => setInput(event.target.value)} onPaste={(event) => { const pasted = event.clipboardData.getData('text'); if (pasted) { event.preventDefault(); const target = event.currentTarget; const start = target.selectionStart ?? input.length; const end = target.selectionEnd ?? input.length; setInput(`${input.slice(0, start)}${pasted}${input.slice(end)}`); requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + pasted.length; }); } }} autoCapitalize="sentences" autoCorrect="on" spellCheck placeholder="Paste a link, message, or problem here. Example: Help me research this LinkedIn profile." style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', background: '#08101D', color: '#F7FAFC', border: '1px solid #34445F', borderRadius: '12px', padding: '12px 13px', fontSize: '16px', lineHeight: 1.5, WebkitUserSelect: 'text', userSelect: 'text' }} />
               <button disabled={!canSend} style={{ border: 0, borderRadius: '12px', background: '#9EF0CF', color: '#07130F', padding: '0 20px', fontWeight: 950, minHeight: '48px', cursor: canSend ? 'pointer' : 'not-allowed', opacity: canSend ? 1 : .5 }}>{loading ? 'Working…' : 'Send'}</button>
             </form>
-            <p style={{ color: '#73839D', fontSize: '11px', lineHeight: 1.5, margin: '9px 2px 0' }}>Eva is an AI assistant. If a task needs an outside service or an approval, Eva should tell you what is still required instead of pretending it happened.</p>
+            <p style={{ color: '#73839D', fontSize: '11px', lineHeight: 1.5, margin: '9px 2px 0' }}>Phone sharing gives Aridon only the page information you explicitly share. Private tabs, passwords, other apps, and unshared pages remain outside Aridon.</p>
           </div>
         </section>
       </div>
@@ -150,3 +240,5 @@ export default function CustomerEvaPage() {
 
 const topLink = { border: '1px solid #3B4B67', color: '#E5EBF5', borderRadius: '10px', padding: '9px 12px', textDecoration: 'none', fontWeight: 850, fontSize: '13px' };
 const utilityButton = { border: '1px solid #3F5577', background: '#111D30', color: '#DCE7F6', borderRadius: '10px', padding: '9px 11px', fontWeight: 850, fontSize: '12px', cursor: 'pointer' } as const;
+const quietButton = { border: '1px solid #3B465A', background: 'transparent', color: '#AAB6CA', borderRadius: '10px', padding: '9px 11px', fontWeight: 800, fontSize: '12px', cursor: 'pointer' } as const;
+const sharedPageButton = { display: 'grid', gap: '4px', textAlign: 'left', width: '100%', border: '1px solid #293A57', background: '#0D1728', borderRadius: '10px', padding: '9px 11px', cursor: 'pointer' } as const;
