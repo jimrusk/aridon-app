@@ -1,6 +1,18 @@
 import type { MetadataRoute } from 'next';
 
-export default function manifest(): MetadataRoute.Manifest {
+type AridonManifest = MetadataRoute.Manifest & {
+  share_target: {
+    action: string;
+    method: 'GET';
+    params: {
+      title: string;
+      text: string;
+      url: string;
+    };
+  };
+};
+
+export default function manifest(): AridonManifest {
   return {
     id: '/',
     name: 'Aridon Business AI',
@@ -12,6 +24,15 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: '#07101D',
     theme_color: '#07101D',
     categories: ['business', 'productivity'],
+    share_target: {
+      action: '/customer/assistant',
+      method: 'GET',
+      params: {
+        title: 'title',
+        text: 'text',
+        url: 'url',
+      },
+    },
     icons: [
       {
         src: '/pwa/icon/192',
@@ -37,6 +58,11 @@ export default function manifest(): MetadataRoute.Manifest {
         name: 'Executive Main Room',
         short_name: 'Main Room',
         url: '/customer/start',
+      },
+      {
+        name: 'Ask Eva',
+        short_name: 'Eva',
+        url: '/customer/assistant',
       },
       {
         name: 'Company Account',
