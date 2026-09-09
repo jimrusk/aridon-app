@@ -1,7 +1,9 @@
 import 'server-only';
 
+import { randomUUID } from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getDirectIntegration } from './directIntegrations';
+import { getServerClient } from './supabase';
 
 export const DIRECT_ACTION_ADAPTERS = [
   {
@@ -19,6 +21,14 @@ export const DIRECT_ACTION_ADAPTERS = [
     requiresApproval: false,
     connection: 'none',
     description: 'Saves a durable research note into the customer Knowledge Vault.',
+  },
+  {
+    key: 'file_create',
+    label: 'Create private workspace file',
+    category: 'internal',
+    requiresApproval: false,
+    connection: 'none',
+    description: 'Creates a private Markdown or text file in the customer source-file library.',
   },
   {
     key: 'github_issue_create',
@@ -62,6 +72,18 @@ function validRepo(value: string) {
   return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value);
 }
 
+function safeFilename(value: string, markdown: boolean) {
+  const fallback = markdown ? 'eva-worker-output.md' : 'eva-worker-output.txt';
+  const cleaned = value
+    .replace(/[\\/:*?"<>|\x00-\x1F]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 180);
+  if (!cleaned) return fallback;
+  if (/\.(md|markdown|txt)$/i.test(cleaned)) return cleaned;
+  return `${cleaned}.${markdown ? 'md' : 'txt'}`;
+}
+
 export function normalizeDirectActionAdapterKey(value: unknown, actionType?: unknown): DirectActionAdapterKey | null {
   const requested = text(value, 80).toLowerCase();
   const exact = DIRECT_ACTION_ADAPTERS.find((item) => item.key === requested);
@@ -69,6 +91,7 @@ export function normalizeDirectActionAdapterKey(value: unknown, actionType?: unk
   const type = text(actionType, 80).toLowerCase();
   if (/^(crm|lead|crm_lead|crm_lead_create|save_lead)$/.test(type)) return 'crm_lead_create';
   if (/^(knowledge|knowledge_save|save_knowledge|vault|knowledge_vault)$/.test(type)) return 'knowledge_save';
+  if (/^(file|files|file_create|create_file|save_file|workspace_file)$/.test(type)) return 'file_create';
   if (/^(github|github_issue|github_issue_create|create_issue)$/.test(type)) return 'github_issue_create';
   if (/^(vercel|deploy|vercel_deploy|vercel_deploy_hook)$/.test(type)) return 'vercel_deploy_hook';
   return null;
@@ -170,6 +193,43 @@ export async function saveKnowledge(db: SupabaseClient, action: DirectActionReco
   return { adapter: 'knowledge_save', created: true, knowledge: data, completedAt: new Date().toISOString() };
 }
 
+export async function createWorkspaceFile(_db: SupabaseClient, action: DirectActionRecord) {
+  const payload = payloadFor(action);
+  const content = text(payload.content, 180_000);
+  if (!content) throw new Error('File creation actions require content.');
+  const format = text(payload.format, 30).toLowerCase();
+  const markdown = format !== 'txt' && format !== 'text';
+  const filename = safeFilename(text(payload.filename, 220) || text(payload.title, 220) || action.title, markdown);
+  const mimeType = markdown ? 'text/markdown; charset=utf-8' : 'text/plain; charset=utf-8';
+  const storagePath = `${action.tenant_id}/eva/${Date.now()}-${randomUUID()}-${filename}`;
+  const bytes = Buffer.from(content, 'utf8');
+  const service = getServerClient();
+  const upload = await service.storage.from('customer-files').upload(storagePath, bytes, {
+    contentType: mimeType,
+    cacheControl: '3600',
+    upsert: false,
+  });
+  if (upload.error) throw upload.error;
+
+  const { data, error } = await service.from('customer_files').insert({
+    tenant_id: action.tenant_id,
+    filename,
+    storage_path: storagePath,
+    mime_type: mimeType,
+    size_bytes: bytes.length,
+    status: 'ready',
+    extraction_status: 'ready',
+    extracted_text: content,
+    notes: text(payload.notes, 3000) || `Created by ${action.executive || 'Eva'} from an Aridon worker action.`,
+    updated_at: new Date().toISOString(),
+  }).select('id,filename,mime_type,size_bytes,status,extraction_status,created_at').single();
+  if (error) {
+    await service.storage.from('customer-files').remove([storagePath]).catch(() => undefined);
+    throw error;
+  }
+  return { adapter: 'file_create', created: true, file: data, completedAt: new Date().toISOString() };
+}
+
 export async function executeDirectActionAdapter(input: {
   db: SupabaseClient;
   key: DirectActionAdapterKey;
@@ -178,6 +238,7 @@ export async function executeDirectActionAdapter(input: {
   switch (input.key) {
     case 'crm_lead_create': return createCrmLead(input.db, input.action);
     case 'knowledge_save': return saveKnowledge(input.db, input.action);
+    case 'file_create': return createWorkspaceFile(input.db, input.action);
     case 'github_issue_create': return createGitHubIssue(input.db, input.action);
     case 'vercel_deploy_hook': return triggerVercelDeployHook(input.db, input.action);
   }
