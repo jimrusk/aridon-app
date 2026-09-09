@@ -3,6 +3,43 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getDirectIntegration } from './directIntegrations';
 
+export const DIRECT_ACTION_ADAPTERS = [
+  {
+    key: 'crm_lead_create',
+    label: 'Create CRM lead',
+    category: 'internal',
+    requiresApproval: false,
+    connection: 'none',
+    description: 'Creates a tenant-scoped researched lead inside Aridon Scout CRM.',
+  },
+  {
+    key: 'knowledge_save',
+    label: 'Save to Knowledge Vault',
+    category: 'internal',
+    requiresApproval: false,
+    connection: 'none',
+    description: 'Saves a durable research note into the customer Knowledge Vault.',
+  },
+  {
+    key: 'github_issue_create',
+    label: 'Create approved GitHub issue',
+    category: 'external',
+    requiresApproval: true,
+    connection: 'github',
+    description: 'Creates an issue in the connected GitHub repository after owner approval.',
+  },
+  {
+    key: 'vercel_deploy_hook',
+    label: 'Trigger approved Vercel deploy',
+    category: 'external',
+    requiresApproval: true,
+    connection: 'vercel_hook',
+    description: 'Triggers the connected Vercel Deployment Hook after owner approval.',
+  },
+] as const;
+
+export type DirectActionAdapterKey = (typeof DIRECT_ACTION_ADAPTERS)[number]['key'];
+
 export type DirectActionRecord = {
   id: string;
   tenant_id: string;
@@ -23,6 +60,22 @@ function payloadFor(action: DirectActionRecord) {
 
 function validRepo(value: string) {
   return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value);
+}
+
+export function normalizeDirectActionAdapterKey(value: unknown, actionType?: unknown): DirectActionAdapterKey | null {
+  const requested = text(value, 80).toLowerCase();
+  const exact = DIRECT_ACTION_ADAPTERS.find((item) => item.key === requested);
+  if (exact) return exact.key;
+  const type = text(actionType, 80).toLowerCase();
+  if (/^(crm|lead|crm_lead|crm_lead_create|save_lead)$/.test(type)) return 'crm_lead_create';
+  if (/^(knowledge|knowledge_save|save_knowledge|vault|knowledge_vault)$/.test(type)) return 'knowledge_save';
+  if (/^(github|github_issue|github_issue_create|create_issue)$/.test(type)) return 'github_issue_create';
+  if (/^(vercel|deploy|vercel_deploy|vercel_deploy_hook)$/.test(type)) return 'vercel_deploy_hook';
+  return null;
+}
+
+export function directActionDefinition(key: DirectActionAdapterKey) {
+  return DIRECT_ACTION_ADAPTERS.find((item) => item.key === key)!;
 }
 
 export async function createGitHubIssue(db: SupabaseClient, action: DirectActionRecord) {
@@ -115,4 +168,17 @@ export async function saveKnowledge(db: SupabaseClient, action: DirectActionReco
   }).select('id,title,category,created_at').single();
   if (error) throw error;
   return { adapter: 'knowledge_save', created: true, knowledge: data, completedAt: new Date().toISOString() };
+}
+
+export async function executeDirectActionAdapter(input: {
+  db: SupabaseClient;
+  key: DirectActionAdapterKey;
+  action: DirectActionRecord;
+}) {
+  switch (input.key) {
+    case 'crm_lead_create': return createCrmLead(input.db, input.action);
+    case 'knowledge_save': return saveKnowledge(input.db, input.action);
+    case 'github_issue_create': return createGitHubIssue(input.db, input.action);
+    case 'vercel_deploy_hook': return triggerVercelDeployHook(input.db, input.action);
+  }
 }
