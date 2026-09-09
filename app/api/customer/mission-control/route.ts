@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
 import { authenticatedCustomer, customerTenantForUser, subscriptionAllowsAccess } from '../../../../lib/customerAuth';
 import { loadCustomerExecutiveContext } from '../../../../lib/customerExecutiveContext';
 import { executives } from '../../../../lib/executives';
+import { routeModel } from '../../../../lib/modelRouter';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,8 +23,28 @@ function numeric(value: unknown) {
 }
 
 function parseJson(value: string) {
-  try { return JSON.parse(value); } catch { return null; }
+  const trimmed = value.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+  try { return JSON.parse(trimmed); } catch {
+    const start = trimmed.indexOf('{');
+    const end = trimmed.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      try { return JSON.parse(trimmed.slice(start, end + 1)); } catch { return null; }
+    }
+    return null;
+  }
 }
+
+const industryPacks = [
+  { id: 'business-core', name: 'Business Core', description: 'Executive strategy, operations, company memory and controlled execution.' },
+  { id: 'growth-sales', name: 'Growth & Sales', description: 'Customers, positioning, pipeline, outreach and measurable revenue work.' },
+  { id: 'finance-capital', name: 'Finance & Capital', description: 'Cash, funding, grants, investors, budgets and capital strategy.' },
+  { id: 'agriculture', name: 'Aridon Ag', description: 'Farm, ranch, greenhouse, grain, grazing, irrigation and producer economics.' },
+  { id: 'utilities-grid', name: 'Utilities & Grid', description: 'Electric, water, resilience, asset intelligence and utility operations.' },
+  { id: 'water-awg', name: 'Water & AWG', description: 'Atmospheric water, treatment, pilots, manufacturing and water security.' },
+  { id: 'manufacturing-rd', name: 'Manufacturing & R&D', description: 'Engineering programs, prototypes, vendors, testing and domestic manufacturing.' },
+  { id: 'acquisitions', name: 'Acquisitions', description: 'Deal screening, underwriting, diligence, structures and takeover planning.' },
+  { id: 'campus-infrastructure', name: 'Campus & Infrastructure', description: 'Sites, buildings, tenants, sponsors, utilities and phased development.' },
+];
 
 export async function GET(request: NextRequest) {
   try {
@@ -65,11 +85,11 @@ export async function GET(request: NextRequest) {
     const queueRows = actionQueue.data || [];
     const memoryRows = memories.data || [];
 
-    const completedTasks = taskRows.filter((item) => String(item.status || '').toLowerCase().includes('complete') || String(item.status || '').toLowerCase() === 'done').length;
-    const openTasks = Math.max(0, taskRows.length - completedTasks);
+    const completedTasks = taskRows.filter((item) => {
+      const status = String(item.status || '').toLowerCase();
+      return status.includes('complete') || status === 'done';
+    }).length;
     const activeProjects = projectRows.filter((item) => !['complete', 'completed', 'done', 'archived'].includes(String(item.status || '').toLowerCase())).length;
-    const webResearchRuns = messageRows.filter((item) => item.role === 'assistant' && item.web_research).length;
-    const executiveRuns = messageRows.filter((item) => item.role === 'assistant').length;
     const pendingApprovals = queueRows.filter((item) => item.approval_required && !['approved', 'completed', 'executed', 'rejected', 'cancelled'].includes(String(item.status || '').toLowerCase())).length;
     const trackedOutcomes = outcomeRows.filter((item) => !['archived', 'cancelled'].includes(String(item.status || '').toLowerCase())).length;
     const completedMissionRuns = runRows.filter((item) => ['complete', 'completed', 'done', 'success'].includes(String(item.status || '').toLowerCase())).length;
@@ -77,12 +97,7 @@ export async function GET(request: NextRequest) {
     const recentActivity = messageRows
       .filter((item) => item.role === 'assistant')
       .slice(0, 8)
-      .map((item) => ({
-        id: item.id,
-        summary: text(item.content, 220),
-        webResearch: Boolean(item.web_research),
-        createdAt: item.created_at,
-      }));
+      .map((item) => ({ id: item.id, summary: text(item.content, 220), webResearch: Boolean(item.web_research), createdAt: item.created_at }));
 
     return NextResponse.json({
       businessName: membership.tenant.business_name,
@@ -90,12 +105,12 @@ export async function GET(request: NextRequest) {
       role: membership.role,
       telemetry: {
         activeProjects,
-        openTasks,
+        openTasks: Math.max(0, taskRows.length - completedTasks),
         completedTasks,
         companyBrainItems: (knowledge.data || []).length,
         readyFiles: (files.data || []).filter((item) => item.status === 'ready').length,
-        executiveRuns,
-        webResearchRuns,
+        executiveRuns: messageRows.filter((item) => item.role === 'assistant').length,
+        webResearchRuns: messageRows.filter((item) => item.role === 'assistant' && item.web_research).length,
         trackedOutcomes,
         pendingApprovals,
         missionRuns: runRows.length,
@@ -109,17 +124,7 @@ export async function GET(request: NextRequest) {
       missionRuns: runRows,
       actionQueue: queueRows,
       memories: memoryRows,
-      industryPacks: [
-        { id: 'business-core', name: 'Business Core', description: 'Executive strategy, operations, company memory and controlled execution.' },
-        { id: 'growth-sales', name: 'Growth & Sales', description: 'Customers, positioning, pipeline, outreach and measurable revenue work.' },
-        { id: 'finance-capital', name: 'Finance & Capital', description: 'Cash, funding, grants, investors, budgets and capital strategy.' },
-        { id: 'agriculture', name: 'Aridon Ag', description: 'Farm, ranch, greenhouse, grain, grazing, irrigation and producer economics.' },
-        { id: 'utilities-grid', name: 'Utilities & Grid', description: 'Electric, water, resilience, asset intelligence and utility operations.' },
-        { id: 'water-awg', name: 'Water & AWG', description: 'Atmospheric water, treatment, pilots, manufacturing and water security.' },
-        { id: 'manufacturing-rd', name: 'Manufacturing & R&D', description: 'Engineering programs, prototypes, vendors, testing and domestic manufacturing.' },
-        { id: 'acquisitions', name: 'Acquisitions', description: 'Deal screening, underwriting, diligence, structures and takeover planning.' },
-        { id: 'campus-infrastructure', name: 'Campus & Infrastructure', description: 'Sites, buildings, tenants, sponsors, utilities and phased development.' },
-      ],
+      industryPacks,
       system: {
         companyBrain: true,
         boardroom: true,
@@ -133,10 +138,11 @@ export async function GET(request: NextRequest) {
         outcomeEngine: true,
         actionCenter: true,
         industryRouting: true,
+        multiModelRouting: true,
       },
     }, { headers: NO_STORE });
   } catch (error) {
-    console.error('Mission Control error', error);
+    console.error('Mission Control load error', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Mission Control is temporarily unavailable.' }, { status: 500, headers: NO_STORE });
   }
 }
@@ -151,7 +157,9 @@ export async function POST(request: NextRequest) {
     const slug = text(body?.slug, 80);
     const objective = text(body?.objective, 6000);
     const successDefinition = text(body?.successDefinition, 3000);
-    if (!slug || objective.length < 12) return NextResponse.json({ error: 'Workspace and a clear objective are required.' }, { status: 400, headers: NO_STORE });
+    if (!slug || objective.length < 12) {
+      return NextResponse.json({ error: 'Workspace and a clear objective are required.' }, { status: 400, headers: NO_STORE });
+    }
 
     const membership = await customerTenantForUser(auth.user.id, slug);
     if (!membership) return NextResponse.json({ error: 'You do not have access to this workspace.' }, { status: 403, headers: NO_STORE });
@@ -159,31 +167,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'This workspace is not active.' }, { status: 402, headers: NO_STORE });
     }
 
-    const apiKey = process.env.OPENAI_API_KEY?.trim();
-    if (!apiKey) return NextResponse.json({ error: 'The AI service is not configured on this deployment.' }, { status: 503, headers: NO_STORE });
-
     const company = await loadCustomerExecutiveContext(auth.db, membership.tenant);
     const roster = executives.map((executive) => `${executive.name} | ${executive.role} | ${executive.focus}`).join('\n');
-    const client = new OpenAI({ apiKey });
-    const completion = await client.chat.completions.create({
-      model: process.env.CUSTOMER_MISSION_CONTROL_MODEL?.trim() || process.env.CUSTOMER_EXECUTION_MODEL?.trim() || 'gpt-4o-mini',
-      response_format: { type: 'json_object' },
-      temperature: 0.2,
-      max_tokens: 2600,
-      messages: [
-        {
-          role: 'system',
-          content: `You are Eva, Aridon's Mission Control orchestrator. Convert the owner's objective into a controlled, measurable mission for the AI executive team.\n\nEXECUTIVE ROSTER\n${roster}\n\nChoose one industryPack from: business-core, growth-sales, finance-capital, agriculture, utilities-grid, water-awg, manufacturing-rd, acquisitions, campus-infrastructure.\n\nReturn JSON only with this shape: {"missionTitle":"...","objective":"...","industryPack":"...","executiveLead":"...","supportingExecutives":["..."],"outcomeMetric":{"name":"...","unit":"...","baseline":"...","target":"..."},"successDefinition":"...","phases":[{"name":"...","purpose":"...","actions":["..."]}],"immediateActions":[{"owner":"...","action":"...","approvalRequired":true,"reason":"..."}],"approvalGates":["..."],"risks":["..."],"nextDecision":"..."}.\n\nRules: create a plan, drafts, research steps, and internal actions only. Never claim an email was sent, a purchase was made, a contract was signed, money was moved, a public filing was submitted, or any external action occurred unless the provided company context proves it. Preserve owner control over external sends, spending, signatures, commitments, consequential claims, and destructive actions. Do not invent customer facts, prices, approvals, partners, metrics, or results.`
-        },
-        {
-          role: 'user',
-          content: `COMPANY CONTEXT\n${company.context}\n\nOWNER OBJECTIVE\n${objective}\n\nSUCCESS DEFINITION\n${successDefinition || 'Define the clearest measurable success condition without inventing a numeric target.'}`
-        },
-      ],
-    });
+    const system = `You are Eva, Aridon's Mission Control orchestrator. Convert the owner's objective into a controlled, measurable mission for the AI executive team.\n\nEXECUTIVE ROSTER\n${roster}\n\nChoose one industryPack from: ${industryPacks.map((pack) => pack.id).join(', ')}.\n\nReturn JSON only with this exact shape: {"missionTitle":"...","objective":"...","industryPack":"...","executiveLead":"...","supportingExecutives":["..."],"outcomeMetric":{"name":"...","unit":"...","baseline":"...","target":"..."},"successDefinition":"...","phases":[{"name":"...","purpose":"...","actions":["..."]}],"immediateActions":[{"owner":"...","action":"...","approvalRequired":true,"reason":"..."}],"approvalGates":["..."],"risks":["..."],"nextDecision":"..."}.\n\nRules: create plans, analysis, research steps, draft deliverables, and internal actions. Never claim an email was sent, a purchase was made, a contract was signed, money was moved, a public filing was submitted, or any external action occurred unless the company context proves it. Preserve owner control over external sends, spending, signatures, commitments, consequential claims, and destructive actions. Do not invent customer facts, contacts, prices, approvals, partners, metrics, citations, or results.`;
 
-    const raw = completion.choices[0]?.message?.content || '';
-    const mission = parseJson(raw);
+    const modelResult = await routeModel([
+      {
+        role: 'user',
+        content: `COMPANY CONTEXT\n${company.context}\n\nOWNER OBJECTIVE\n${objective}\n\nSUCCESS DEFINITION\n${successDefinition || 'Define the clearest measurable success condition without inventing a numeric target.'}`,
+      },
+    ], system);
+
+    const mission = parseJson(modelResult.text);
     if (!mission || typeof mission !== 'object') throw new Error('Mission Control returned an invalid planning result.');
 
     const completedAt = new Date().toISOString();
@@ -191,6 +186,15 @@ export async function POST(request: NextRequest) {
       industryPack: typeof mission.industryPack === 'string' ? mission.industryPack : 'business-core',
       executiveLead: typeof mission.executiveLead === 'string' ? mission.executiveLead : 'Eva',
       supportingExecutives: Array.isArray(mission.supportingExecutives) ? mission.supportingExecutives.slice(0, 8) : [],
+      model: {
+        task: modelResult.routing.task,
+        provider: modelResult.routing.provider,
+        model: modelResult.routing.model,
+        reason: modelResult.routing.reason,
+        fallbackUsed: modelResult.routing.fallbackUsed,
+        attempts: modelResult.routing.attempts,
+        totalLatencyMs: modelResult.routing.totalLatencyMs,
+      },
       source: 'mission-control',
     };
 
@@ -244,7 +248,12 @@ export async function POST(request: NextRequest) {
         target_value: numeric(outcomeMetric.target),
         unit: text(outcomeMetric.unit, 40) || null,
         status: 'tracking',
-        attribution: { mission_run_id: savedRun.id, executive_lead: routing.executiveLead },
+        attribution: {
+          mission_run_id: savedRun.id,
+          executive_lead: routing.executiveLead,
+          model_provider: modelResult.routing.provider,
+          model: modelResult.routing.model,
+        },
         notes: text(mission.successDefinition, 2500) || successDefinition || null,
         updated_at: completedAt,
       }).select('id,category,name,baseline_value,current_value,target_value,unit,status,notes,created_at,updated_at').single();
@@ -256,10 +265,17 @@ export async function POST(request: NextRequest) {
       tenant_id: membership.tenant.id,
       user_id: auth.user.id,
       event_name: 'mission_control_run',
-      event_data: { objective: objective.slice(0, 500), industry_pack: routing.industryPack, executive_lead: routing.executiveLead },
+      event_data: {
+        objective: objective.slice(0, 500),
+        industry_pack: routing.industryPack,
+        executive_lead: routing.executiveLead,
+        model_provider: modelResult.routing.provider,
+        model: modelResult.routing.model,
+        fallback_used: modelResult.routing.fallbackUsed,
+      },
     });
 
-    return NextResponse.json({ mission, run: savedRun, queuedActions, trackedOutcome }, { headers: NO_STORE });
+    return NextResponse.json({ mission, run: savedRun, queuedActions, trackedOutcome, modelRouting: modelResult.routing }, { headers: NO_STORE });
   } catch (error) {
     console.error('Mission Control run error', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Mission Control is temporarily unavailable.' }, { status: 500, headers: NO_STORE });
