@@ -1,19 +1,7 @@
 import type { MetadataRoute } from 'next';
 
-type AridonManifest = MetadataRoute.Manifest & {
-  share_target: {
-    action: string;
-    method: 'GET';
-    params: {
-      title: string;
-      text: string;
-      url: string;
-    };
-  };
-};
-
-export default function manifest(): AridonManifest {
-  return {
+export default function manifest(): MetadataRoute.Manifest {
+  const value = {
     id: '/',
     name: 'Aridon Business AI',
     short_name: 'Aridon',
@@ -71,4 +59,9 @@ export default function manifest(): AridonManifest {
       },
     ],
   };
+
+  // Next 14's MetadataRoute.Manifest type predates the standards-based share_target
+  // manifest member. The runtime emits this object as JSON, so keep the supported
+  // field while casting through unknown until the framework type catches up.
+  return value as unknown as MetadataRoute.Manifest;
 }
