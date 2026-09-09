@@ -3,6 +3,7 @@ import { authenticatedCustomer, customerTenantForUser, subscriptionAllowsAccess 
 import { loadCustomerExecutiveContext } from '../../../../lib/customerExecutiveContext';
 import { executives } from '../../../../lib/executives';
 import { routeModel } from '../../../../lib/modelRouter';
+import { normalizeActionAdapterKey } from '../../../../lib/actionFabric';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -32,6 +33,58 @@ function parseJson(value: string) {
     }
     return null;
   }
+}
+
+function objectValue(value: unknown) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function validEmail(value: string) {
+  return /^\S+@\S+\.\S+$/.test(value);
+}
+
+function missionActionSpec(item: any) {
+  const requested = normalizeActionAdapterKey(item?.adapterKey, item?.actionType);
+  const raw = objectValue(item?.payload);
+
+  if (requested === 'email_send') {
+    const to = text(raw.to, 254);
+    const subject = text(raw.subject, 300);
+    const body = text(raw.body, 50_000);
+    if (validEmail(to) && subject && body) {
+      return { adapterKey: 'email_send' as const, actionType: 'email_send', payload: { to, subject, body }, connectionKey: 'workspace-account' };
+    }
+  }
+
+  if (requested === 'calendar_create') {
+    const summary = text(raw.summary, 500) || text(item?.action, 500);
+    const description = text(raw.description, 10_000);
+    const location = text(raw.location, 1_000);
+    const start = text(raw.start, 100);
+    const end = text(raw.end, 100);
+    const timeZone = text(raw.timeZone, 100);
+    const attendees = Array.isArray(raw.attendees)
+      ? raw.attendees.map((value) => text(value, 254)).filter(validEmail).slice(0, 50)
+      : [];
+    if (summary && Number.isFinite(Date.parse(start)) && Number.isFinite(Date.parse(end)) && Date.parse(end) > Date.parse(start)) {
+      return {
+        adapterKey: 'calendar_create' as const,
+        actionType: 'calendar_create',
+        payload: { summary, description, location, start, end, timeZone, attendees },
+        connectionKey: 'workspace-account',
+      };
+    }
+  }
+
+  if (requested === 'internal_task') {
+    const title = text(raw.title, 500) || text(item?.action, 500) || 'Mission task';
+    const owner = text(raw.owner, 160) || text(item?.owner, 80) || 'Eva';
+    const requestedPriority = text(raw.priority, 30).toLowerCase();
+    const priority = ['low', 'medium', 'high', 'urgent'].includes(requestedPriority) ? requestedPriority : 'medium';
+    return { adapterKey: 'internal_task' as const, actionType: 'internal_task', payload: { title, owner, priority }, connectionKey: null };
+  }
+
+  return { adapterKey: 'manual' as const, actionType: 'mission_step', payload: {}, connectionKey: null };
 }
 
 const industryPacks = [
@@ -70,7 +123,7 @@ export async function GET(request: NextRequest) {
       db.from('customer_assistant_messages').select('id,role,content,web_research,created_at').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(30),
       db.from('customer_outcomes').select('id,category,name,source,baseline_value,current_value,target_value,unit,status,notes,created_at,updated_at').eq('tenant_id', tenantId).order('updated_at', { ascending: false }).limit(20),
       db.from('customer_agent_runs').select('id,objective,status,plan,final_output,routing,started_at,completed_at,created_at,updated_at').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(20),
-      db.from('customer_action_queue').select('id,executive,action_type,title,rationale,expected_outcome,risk_level,approval_required,status,created_at,updated_at').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(24),
+      db.from('customer_action_queue').select('id,executive,action_type,adapter_key,title,rationale,expected_outcome,risk_level,approval_required,status,created_at,updated_at').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(24),
       db.from('customer_executive_memories').select('id,executive_id,memory_type,summary,confidence,source,created_at,last_reinforced_at').eq('tenant_id', tenantId).order('last_reinforced_at', { ascending: false }).limit(20),
     ]);
 
@@ -139,6 +192,7 @@ export async function GET(request: NextRequest) {
         actionCenter: true,
         industryRouting: true,
         multiModelRouting: true,
+        actionFabric: true,
       },
     }, { headers: NO_STORE });
   } catch (error) {
@@ -169,7 +223,7 @@ export async function POST(request: NextRequest) {
 
     const company = await loadCustomerExecutiveContext(auth.db, membership.tenant);
     const roster = executives.map((executive) => `${executive.name} | ${executive.role} | ${executive.focus}`).join('\n');
-    const system = `You are Eva, Aridon's Mission Control orchestrator. Convert the owner's objective into a controlled, measurable mission for the AI executive team.\n\nEXECUTIVE ROSTER\n${roster}\n\nChoose one industryPack from: ${industryPacks.map((pack) => pack.id).join(', ')}.\n\nReturn JSON only with this exact shape: {"missionTitle":"...","objective":"...","industryPack":"...","executiveLead":"...","supportingExecutives":["..."],"outcomeMetric":{"name":"...","unit":"...","baseline":"...","target":"..."},"successDefinition":"...","phases":[{"name":"...","purpose":"...","actions":["..."]}],"immediateActions":[{"owner":"...","action":"...","approvalRequired":true,"reason":"..."}],"approvalGates":["..."],"risks":["..."],"nextDecision":"..."}.\n\nRules: create plans, analysis, research steps, draft deliverables, and internal actions. Never claim an email was sent, a purchase was made, a contract was signed, money was moved, a public filing was submitted, or any external action occurred unless the company context proves it. Preserve owner control over external sends, spending, signatures, commitments, consequential claims, and destructive actions. Do not invent customer facts, contacts, prices, approvals, partners, metrics, citations, or results.`;
+    const system = `You are Eva, Aridon's Mission Control orchestrator. Convert the owner's objective into a controlled, measurable mission for the AI executive team.\n\nEXECUTIVE ROSTER\n${roster}\n\nChoose one industryPack from: ${industryPacks.map((pack) => pack.id).join(', ')}.\n\nReturn JSON only with this exact shape: {"missionTitle":"...","objective":"...","industryPack":"...","executiveLead":"...","supportingExecutives":["..."],"outcomeMetric":{"name":"...","unit":"...","baseline":"...","target":"..."},"successDefinition":"...","phases":[{"name":"...","purpose":"...","actions":["..."]}],"immediateActions":[{"owner":"...","action":"...","adapterKey":"manual|internal_task|email_send|calendar_create","payload":{},"approvalRequired":true,"reason":"..."}],"approvalGates":["..."],"risks":["..."],"nextDecision":"..."}.\n\nACTION FABRIC RULES:\n- Every immediate action is a proposal. External actions always require owner approval before execution.\n- Use internal_task when Aridon can safely create an internal workspace task. Payload: {"title":"...","owner":"...","priority":"low|medium|high|urgent"}.\n- Use email_send only when the exact recipient email address is explicitly present in COMPANY CONTEXT or OWNER OBJECTIVE. Never infer or fabricate an email address. Payload: {"to":"exact@example.com","subject":"...","body":"complete draft message"}.\n- Use calendar_create only when exact start and end date-times are explicitly known. Never guess meeting dates or times. Payload: {"summary":"...","description":"...","location":"...","start":"ISO date-time","end":"ISO date-time","timeZone":"IANA zone if known","attendees":["exact@example.com"]}.\n- If an external action would be useful but exact execution details are missing, use manual. Do not invent the missing details.\n- Do not put secrets, tokens, passwords, bank details, or private credentials into an action payload.\n\nGENERAL RULES: create plans, analysis, research steps, draft deliverables, and internal actions. Never claim an email was sent, a purchase was made, a contract was signed, money was moved, a public filing was submitted, or any external action occurred unless the company context proves it. Preserve owner control over external sends, spending, signatures, commitments, consequential claims, and destructive actions. Do not invent customer facts, contacts, prices, approvals, partners, metrics, citations, or results.`;
 
     const modelResult = await routeModel([
       {
@@ -216,21 +270,29 @@ export async function POST(request: NextRequest) {
     const immediateActions = Array.isArray(mission.immediateActions) ? mission.immediateActions.slice(0, 10) : [];
     let queuedActions: unknown[] = [];
     if (immediateActions.length) {
-      const queuePayload = immediateActions.map((item: any) => ({
-        tenant_id: membership.tenant.id,
-        requested_by: auth.user.id,
-        executive: text(item?.owner, 80) || routing.executiveLead,
-        action_type: 'mission_step',
-        title: text(item?.action, 500) || 'Mission step',
-        payload: { mission_run_id: savedRun.id, industry_pack: routing.industryPack },
-        rationale: text(item?.reason, 1500) || null,
-        expected_outcome: text(mission.successDefinition, 1200) || successDefinition || null,
-        risk_level: item?.approvalRequired ? 'medium' : 'low',
-        approval_required: Boolean(item?.approvalRequired),
-        status: 'proposed',
-        updated_at: completedAt,
-      }));
-      const { data, error } = await auth.db.from('customer_action_queue').insert(queuePayload).select('id,executive,title,risk_level,approval_required,status');
+      const queuePayload = immediateActions.map((item: any, index: number) => {
+        const spec = missionActionSpec(item);
+        return {
+          tenant_id: membership.tenant.id,
+          requested_by: auth.user.id,
+          executive: text(item?.owner, 80) || routing.executiveLead,
+          action_type: spec.actionType,
+          adapter_key: spec.adapterKey,
+          title: text(item?.action, 500) || 'Mission step',
+          payload: { ...spec.payload, mission_run_id: savedRun.id, industry_pack: routing.industryPack },
+          rationale: text(item?.reason, 1500) || null,
+          expected_outcome: text(mission.successDefinition, 1200) || successDefinition || null,
+          risk_level: spec.adapterKey === 'email_send' || spec.adapterKey === 'calendar_create' ? 'medium' : 'low',
+          approval_required: true,
+          status: 'proposed',
+          source: 'mission-control',
+          source_ref: savedRun.id,
+          idempotency_key: `${savedRun.id}:${index}`,
+          connection_key: spec.connectionKey,
+          updated_at: completedAt,
+        };
+      });
+      const { data, error } = await auth.db.from('customer_action_queue').insert(queuePayload).select('id,executive,action_type,adapter_key,title,risk_level,approval_required,status');
       if (error) throw error;
       queuedActions = data || [];
     }
