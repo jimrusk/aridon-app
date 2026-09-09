@@ -6,6 +6,12 @@ import {
   normalizeActionAdapterKey,
   type ActionFabricRecord,
 } from '../../../../../lib/actionFabric';
+import {
+  directActionDefinition,
+  executeDirectActionAdapter,
+  normalizeDirectActionAdapterKey,
+} from '../../../../../lib/directActionAdapters';
+import { externalActionsEnabled } from '../../../../../lib/executiveOps';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -68,7 +74,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Approve this action before execution.' }, { status: 403, headers: NO_STORE });
     }
 
-    const adapterKey = normalizeActionAdapterKey(action.adapter_key, action.action_type);
+    const directKey = normalizeDirectActionAdapterKey(action.adapter_key, action.action_type);
+    const adapterKey = directKey || normalizeActionAdapterKey(action.adapter_key, action.action_type);
+    if (directKey && directActionDefinition(directKey).category === 'external' && !(await externalActionsEnabled(request))) {
+      throw new ActionFabricBlockedError('Executive Operations emergency stop is active. External actions remain blocked.', 423, 'emergency_stop');
+    }
+
     const attemptNo = Math.max(1, Number(action.attempt_count || 0) + 1);
     const startedAt = new Date().toISOString();
 
@@ -121,11 +132,10 @@ export async function POST(request: NextRequest) {
     if (executionError) throw executionError;
     executionId = execution.id;
 
-    const result = await executeActionAdapter({
-      request,
-      db: auth.db,
-      action: { ...action, adapter_key: adapterKey, attempt_count: attemptNo, status: 'executing' },
-    });
+    const executingAction = { ...action, adapter_key: adapterKey, attempt_count: attemptNo, status: 'executing' };
+    const result = directKey
+      ? await executeDirectActionAdapter({ db: auth.db, key: directKey, action: executingAction })
+      : await executeActionAdapter({ request, db: auth.db, action: executingAction });
 
     const finishedAt = new Date().toISOString();
     const [executionUpdate, actionUpdate] = await Promise.all([
