@@ -137,7 +137,7 @@ export default function CustomerStartPage() {
           setCapabilities(historyData.capabilities || null);
         }
       } catch {}
-      setMessages([...continuity, { role: 'assistant', content: greeting }].slice(-18));
+      setMessages([...continuity, { role: 'assistant' as const, content: greeting }].slice(-18));
     });
     return () => {
       handsFreeRef.current = false;
