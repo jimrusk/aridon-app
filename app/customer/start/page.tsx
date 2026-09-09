@@ -12,6 +12,19 @@ type Account = {
 };
 type Executive = (typeof executives)[number];
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
+type BrainMode = 'fast' | 'think' | 'research' | 'act';
+type BrainSource = { title: string; url: string };
+type BrainRouting = { mode?: string; task?: string; provider?: string; model?: string; reason?: string; fallbackUsed?: boolean; totalLatencyMs?: number };
+type BrainAction = { id: string; title: string; adapterKey: string; status: string; approvalRequired: boolean };
+type BrainCapabilities = {
+  googleWorkspace?: boolean;
+  microsoft365?: boolean;
+  connectedExecutionProvider?: string | null;
+  actionFabric?: boolean;
+  companyFiles?: number;
+  durableMemories?: number;
+  aiProviders?: Array<{ provider: string; label: string; model: string }>;
+};
 type BrowserSpeechRecognition = {
   continuous: boolean;
   interimResults: boolean;
@@ -40,6 +53,13 @@ const intakeChoices = [
   'Build a plan for something new',
 ];
 
+const brainModes: Array<{ id: BrainMode; label: string; icon: string; description: string }> = [
+  { id: 'fast', label: 'Fast', icon: '⚡', description: 'Quickest complete answer for everyday work.' },
+  { id: 'think', label: 'Think', icon: '◈', description: 'Deeper analysis, tradeoffs and stronger reasoning.' },
+  { id: 'research', label: 'Research', icon: '⌕', description: 'Current web-backed research with sources when available.' },
+  { id: 'act', label: 'Act', icon: '▶', description: 'Turn the decision into a controlled Action Fabric step.' },
+];
+
 export default function CustomerStartPage() {
   const router = useRouter();
   const [account, setAccount] = useState<Account | null>(null);
@@ -56,8 +76,15 @@ export default function CustomerStartPage() {
   const [micNeedsTap, setMicNeedsTap] = useState(false);
   const [recognitionSupported, setRecognitionSupported] = useState(true);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
-  const [researchWeb, setResearchWeb] = useState(false);
   const [intakeMode, setIntakeMode] = useState(true);
+  const [mode, setMode] = useState<BrainMode>('fast');
+  const [sources, setSources] = useState<BrainSource[]>([]);
+  const [routing, setRouting] = useState<BrainRouting | null>(null);
+  const [queuedAction, setQueuedAction] = useState<BrainAction | null>(null);
+  const [capabilities, setCapabilities] = useState<BrainCapabilities | null>(null);
+  const [researchWarning, setResearchWarning] = useState('');
+  const [continuityCount, setContinuityCount] = useState(0);
+  const [memoryPulse, setMemoryPulse] = useState(false);
 
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -68,6 +95,7 @@ export default function CustomerStartPage() {
   const playbackRef = useRef(0);
 
   const selected = useMemo(() => executives.find((item) => item.name === selectedName) || executives[0], [selectedName]);
+  const selectedMode = brainModes.find((item) => item.id === mode) || brainModes[0];
 
   useEffect(() => {
     setRecognitionSupported(Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition));
@@ -90,7 +118,26 @@ export default function CustomerStartPage() {
       const eva = executives.find((item) => item.name === 'Eva') || executives[0];
       const greeting = introFor(eva, loadedAccount.tenant.business_name, loadedAccount.user?.first_name);
       setReply(greeting);
-      setMessages([{ role: 'assistant', content: greeting }]);
+
+      let continuity: ChatMessage[] = [];
+      try {
+        const historyResponse = await fetch(`/api/customer/assistant?slug=${encodeURIComponent(loadedAccount.tenant.slug)}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          cache: 'no-store',
+        });
+        const historyData = await historyResponse.json().catch(() => ({}));
+        if (historyResponse.ok) {
+          continuity = Array.isArray(historyData.history)
+            ? historyData.history
+                .filter((item: any) => (item?.role === 'user' || item?.role === 'assistant') && typeof item?.content === 'string' && item.content.trim())
+                .map((item: any) => ({ role: item.role as 'user' | 'assistant', content: item.content.trim() }))
+                .slice(-16)
+            : [];
+          setContinuityCount(continuity.length);
+          setCapabilities(historyData.capabilities || null);
+        }
+      } catch {}
+      setMessages([...continuity, { role: 'assistant' as const, content: greeting }].slice(-18));
     });
     return () => {
       handsFreeRef.current = false;
@@ -267,8 +314,13 @@ export default function CustomerStartPage() {
     stopListening();
     busyRef.current = true;
     setBusy(true);
+    setSources([]);
+    setRouting(null);
+    setQueuedAction(null);
+    setResearchWarning('');
+    setMemoryPulse(false);
     const userMessage: ChatMessage = { role: 'user', content: question };
-    const nextMessages: ChatMessage[] = [...messages, userMessage].slice(-18);
+    const nextMessages: ChatMessage[] = [...messages, userMessage].slice(-20);
     setMessages(nextMessages);
     setReply('');
     const requestedExecutive = intakeMode ? 'Auto' : selected.name;
@@ -276,15 +328,27 @@ export default function CustomerStartPage() {
       const response = await fetch('/api/customer/assistant', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug: account.tenant.slug, executive: requestedExecutive, messages: nextMessages, researchWeb }),
+        body: JSON.stringify({
+          slug: account.tenant.slug,
+          executive: requestedExecutive,
+          messages: nextMessages,
+          mode,
+          researchWeb: mode === 'research',
+        }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.reply) throw new Error(data.error || `${selected.name} could not answer right now.`);
       const routed = executives.find((item) => item.name === data.executive) || selected;
       const assistantMessage: ChatMessage = { role: 'assistant', content: data.reply };
-      setMessages([...nextMessages, assistantMessage].slice(-18));
+      setMessages([...nextMessages, assistantMessage].slice(-20));
       setReply(data.reply);
       setInput('');
+      setSources(Array.isArray(data.sources) ? data.sources : []);
+      setRouting(data.routing || null);
+      setQueuedAction(data.action || null);
+      setCapabilities(data.capabilities || capabilities);
+      setResearchWarning(data.researchWarning || '');
+      setMemoryPulse(Boolean(data.memoryCaptured));
       if (intakeMode) setIntakeMode(false);
       if (routed.name !== selected.name) setSelectedName(routed.name);
       busyRef.current = false;
@@ -307,37 +371,80 @@ export default function CustomerStartPage() {
     setSelectedName(executive.name);
     const intro = introFor(executive, account?.tenant.business_name || 'your company', account?.user?.first_name);
     setReply(intro);
-    setMessages((current) => [...current, { role: 'assistant' as const, content: intro }].slice(-18));
+    setSources([]);
+    setRouting(null);
+    setQueuedAction(null);
+    setMessages((current) => [...current, { role: 'assistant' as const, content: intro }].slice(-20));
     void speak(executive, intro);
   }
 
   if (!account) return <main style={loadingStyle}>Opening your Main Room…</main>;
 
   const home = `/workspace/${account.tenant.slug}`;
+  const missionControl = `/workspace/${account.tenant.slug}/mission-control`;
+  const actionCenter = `/workspace/${account.tenant.slug}/action-center`;
+  const companyBrain = `/workspace/${account.tenant.slug}/executive-suite?tab=brain`;
   const speaking = speakingName === selected.name;
   const firstName = account.user?.first_name && account.user.first_name.toLowerCase() !== 'there' ? account.user.first_name : '';
+  const connectionLabel = capabilities?.googleWorkspace
+    ? 'Google connected'
+    : capabilities?.microsoft365
+      ? 'Microsoft connected'
+      : 'External tools not connected';
 
   return (
     <main className="avatar-room">
       <div className="avatar-room-shell">
         <header className="avatar-room-header">
           <div>
-            <div className="avatar-room-brand">ARIDON · {account.tenant.business_name.toUpperCase()}</div>
+            <div className="avatar-room-brand">ARIDON BRAIN · {account.tenant.business_name.toUpperCase()}</div>
             <h1>{firstName ? `Welcome, ${firstName}.` : 'Executive Main Room'}</h1>
-            <p>Eva is your front door. Tell her what you want to accomplish and Aridon will bring the right executive into the conversation.</p>
+            <p>Tell Eva what you want. Aridon can answer fast, think deeper, research the live web, or turn a decision into a controlled action.</p>
           </div>
           <div className="avatar-room-header-actions">
             {handsFree ? <button className="handsfree-toggle on" onClick={micNeedsTap ? () => void activateHandsFree(false) : turnHandsFreeOff}>{micNeedsTap ? '🎙 Enable Microphone' : listening ? '🎙 Listening Automatically' : '🎙 Hands-Free On'}</button> : <button className="handsfree-toggle" onClick={() => void activateHandsFree(false)}>🎙 Turn Hands-Free On</button>}
             <button className={`voice-toggle ${voiceEnabled ? 'on' : ''}`} onClick={() => { if (voiceEnabled) stopSpeaking(); setVoiceEnabled((value) => !value); }}>{voiceEnabled ? '🔊 Voices On' : '🔇 Voice Off'}</button>
-            <label className="voice-toggle" style={{ cursor: 'pointer' }}><input type="checkbox" checked={researchWeb} onChange={(event) => setResearchWeb(event.target.checked)} /> Live web</label>
           </div>
         </header>
 
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
           <Link href={home} target="_blank" style={toolLink}>Company Dashboard ↗</Link>
-          <Link href="/customer/sales" target="_blank" style={toolLink}>Sales ↗</Link>
+          <Link href={missionControl} target="_blank" style={toolLink}>Mission Control ↗</Link>
+          <Link href={actionCenter} target="_blank" style={toolLink}>Action Center ↗</Link>
+          <Link href={companyBrain} target="_blank" style={toolLink}>Company Brain ↗</Link>
           <Link href="/customer/opportunities" target="_blank" style={toolLink}>Opportunities ↗</Link>
-          <Link href="/customer/account" target="_blank" style={toolLink}>Account ↗</Link>
+        </div>
+
+        <section style={brainModePanel} aria-label="Aridon Brain mode">
+          <div style={brainModeIntro}>
+            <div style={{ fontSize: 10, letterSpacing: 1, fontWeight: 950, color: '#9EF0CF' }}>CHOOSE HOW ARIDON WORKS</div>
+            <strong>{selectedMode.icon} {selectedMode.label}</strong>
+            <span>{selectedMode.description}</span>
+          </div>
+          <div style={brainModeButtons}>
+            {brainModes.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                disabled={busy}
+                onClick={() => setMode(item.id)}
+                aria-pressed={mode === item.id}
+                title={item.description}
+                style={mode === item.id ? brainModeButtonActive : brainModeButton}
+              >
+                <span>{item.icon}</span> {item.label}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <div style={brainStatusBar}>
+          <span><strong>{capabilities?.aiProviders?.length || 0}</strong> AI engines ready</span>
+          <span>{connectionLabel}</span>
+          <span><strong>{capabilities?.companyFiles || 0}</strong> company files</span>
+          <span><strong>{capabilities?.durableMemories || 0}</strong> durable memories</span>
+          <span><strong>{continuityCount}</strong> prior messages loaded</span>
+          {memoryPulse && <span style={{ color: '#9EF0CF' }}>✓ Continuity saved</span>}
         </div>
 
         <section className="avatar-stage">
@@ -354,17 +461,12 @@ export default function CustomerStartPage() {
               <div className="avatar-role" style={{ color: selected.color }}>{selected.role}</div>
               <p>{selected.tagline}</p>
               <div className="avatar-expertise">{selected.expertise.map((item) => <span key={item}>{item}</span>)}</div>
-              <div className="avatar-feature-actions">
-                <button className="avatar-primary" onClick={() => selectExecutive(selected)}>▶ Hear {selected.name}</button>
-                <button className={`avatar-mic ${listening ? 'listening' : ''}`} onClick={() => { handsFreeRef.current = true; setHandsFree(true); setMicNeedsTap(false); startListening(); }}>{listening ? 'Listening…' : '🎙 Talk Now'}</button>
-                <button className="avatar-secondary" onClick={() => { stopSpeaking(); stopListening(); }}>■ Stop</button>
-              </div>
             </div>
           </div>
 
           <div className="avatar-conversation">
             <div className="avatar-conversation-head">
-              <div><h3>{intakeMode ? 'What are you looking to do?' : `Talk with ${selected.name}`}</h3><p>{intakeMode ? 'Answer Eva naturally. Aridon will route the work for you.' : handsFree ? 'Listen → answer → speak → listen again.' : 'Type or tap Talk Now.'}</p></div>
+              <div><h3>{intakeMode ? 'What are you looking to do?' : `Talk with ${selected.name}`}</h3><p>{intakeMode ? `Answer Eva naturally. ${selectedMode.label} mode is on.` : `${selectedMode.label} mode · ${selectedMode.description}`}</p></div>
               <div className={`voice-status ${listening ? 'listening' : speaking ? 'speaking' : handsFree ? 'ready' : ''}`}>{listening ? '● Listening' : speaking ? '● Speaking' : handsFree ? '● Ready' : '● Manual'}</div>
             </div>
             {intakeMode && (
@@ -374,9 +476,42 @@ export default function CustomerStartPage() {
                 ))}
               </div>
             )}
-            <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder={intakeMode ? 'Tell Eva what you want to get done today…' : `Ask ${selected.name} anything about ${account.tenant.business_name}…`} />
-            <button className="avatar-primary avatar-ask" onClick={() => void askExecutive()} disabled={busy || !input.trim()}>{busy ? `${selected.name} is thinking…` : intakeMode ? 'Tell Eva What I Need' : `Ask ${selected.name}`}</button>
-            <div className="avatar-reply" aria-live="polite">{reply || `Hands-Free is ready. Start talking to ${selected.name}.`}</div>
+            <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder={mode === 'act' ? 'Tell Eva what you want Aridon to move forward…' : mode === 'research' ? 'What should Aridon research and verify?' : intakeMode ? 'Tell Eva what you want to get done today…' : `Ask ${selected.name} anything about ${account.tenant.business_name}…`} />
+            <button className="avatar-primary avatar-ask" onClick={() => void askExecutive()} disabled={busy || !input.trim()}>{busy ? `${selected.name} is working…` : mode === 'act' ? 'Prepare Action' : mode === 'research' ? 'Research It' : intakeMode ? 'Tell Eva What I Need' : `Ask ${selected.name}`}</button>
+
+            {routing && (
+              <div style={routeBadge}>
+                <strong>{routing.provider || 'AI'} · {routing.model || 'model'}</strong>
+                <span>{routing.task || mode}{routing.fallbackUsed ? ' · fallback used' : ''}{routing.totalLatencyMs ? ` · ${(routing.totalLatencyMs / 1000).toFixed(1)}s` : ''}</span>
+              </div>
+            )}
+
+            <div className="avatar-reply" aria-live="polite">{reply || `Aridon ${selectedMode.label} mode is ready. Start talking to ${selected.name}.`}</div>
+
+            {researchWarning && <div style={warningBox}>{researchWarning}</div>}
+
+            {sources.length > 0 && (
+              <div style={sourcePanel}>
+                <strong>Sources</strong>
+                <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
+                  {sources.slice(0, 8).map((source) => (
+                    <a key={source.url} href={source.url} target="_blank" rel="noreferrer" style={sourceLink}>{source.title || source.url} ↗</a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {queuedAction && (
+              <div style={actionCard}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 950, letterSpacing: 1 }}>ACTION FABRIC</div>
+                  <strong>{queuedAction.title}</strong>
+                  <p style={{ margin: '5px 0 0', fontSize: 12 }}>{queuedAction.adapterKey.replace(/_/g, ' ')} · {queuedAction.status}{queuedAction.approvalRequired ? ' · approval required' : ' · ready to execute'}</p>
+                </div>
+                <Link href={actionCenter} target="_blank" style={actionLink}>{queuedAction.approvalRequired ? 'Review & approve ↗' : 'Execute in Action Center ↗'}</Link>
+              </div>
+            )}
+
             {micNeedsTap && <div className="avatar-browser-note">Your browser requires one microphone or audio interaction. Tap “Enable Microphone” once. After that, Hands-Free continues automatically.</div>}
             {!recognitionSupported && <div className="avatar-browser-note">This browser does not expose speech recognition. You can still type and hear spoken answers.</div>}
           </div>
@@ -405,3 +540,15 @@ export default function CustomerStartPage() {
 const loadingStyle = { minHeight: '100vh', background: '#08101D', color: '#F7FAFC', display: 'grid', placeItems: 'center', fontFamily: 'Arial, sans-serif' };
 const toolLink = { border: '1px solid #34435D', color: '#DDE7F5', borderRadius: 10, padding: '9px 12px', textDecoration: 'none', fontWeight: 850, fontSize: 12, background: '#10192A' };
 const intakeChoiceStyle = { border: '1px solid #3B516E', background: '#101B2D', color: '#DDE7F5', borderRadius: 999, padding: '8px 11px', fontWeight: 800, fontSize: 12, cursor: 'pointer' as const };
+const brainModePanel = { display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap' as const, background: '#0B1525', border: '1px solid #263A55', borderRadius: 16, padding: 14, marginBottom: 10 };
+const brainModeIntro = { display: 'grid', gap: 3, color: '#EAF1FA', minWidth: 220 };
+const brainModeButtons = { display: 'flex', gap: 7, flexWrap: 'wrap' as const };
+const brainModeButton = { border: '1px solid #3A4B66', background: '#111C2E', color: '#D6E0ED', borderRadius: 11, padding: '9px 12px', fontWeight: 900, cursor: 'pointer' as const };
+const brainModeButtonActive = { ...brainModeButton, background: '#9EF0CF', color: '#07130F', border: '1px solid #9EF0CF' };
+const brainStatusBar = { display: 'flex', gap: 12, flexWrap: 'wrap' as const, color: '#9CACBF', fontSize: 11, margin: '0 2px 16px' };
+const routeBadge = { display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' as const, background: '#0E192A', border: '1px solid #2E405C', color: '#DCE7F5', borderRadius: 10, padding: '8px 10px', marginTop: 10, fontSize: 11 };
+const sourcePanel = { marginTop: 10, background: '#0D1726', border: '1px solid #2C3D57', borderRadius: 12, padding: 12, color: '#EAF1FA' };
+const sourceLink = { color: '#9EF0CF', textDecoration: 'none', fontSize: 12, overflowWrap: 'anywhere' as const };
+const warningBox = { marginTop: 10, background: '#3A2E17', border: '1px solid #705A2B', color: '#FFE2A2', borderRadius: 10, padding: 10, fontSize: 12, lineHeight: 1.5 };
+const actionCard = { marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const, background: '#DDF5EB', color: '#10231D', borderRadius: 12, padding: 12, border: '1px solid #A8D8C5' };
+const actionLink = { background: '#10231D', color: '#fff', borderRadius: 9, padding: '9px 11px', textDecoration: 'none', fontWeight: 900, fontSize: 12 };

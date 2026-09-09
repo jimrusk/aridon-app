@@ -92,8 +92,8 @@ export async function POST(req: NextRequest) {
       {
         reply: result.text || `${executive} is online, but did not receive a clear response.`,
         routing: {
-          mode: 'smart',
           ...result.routing,
+          mode: 'smart',
           enabledProviders: enabledProviders.map((provider) => ({
             provider: provider.provider,
             label: provider.label,
