@@ -9,6 +9,8 @@ export type BrowserExplorationResult = {
   configured: boolean;
   ran: boolean;
   sessionId?: string;
+  identityId?: string;
+  authenticatedContext?: boolean;
   visited: Array<{ url: string; title: string }>;
   findings: string[];
   blockedActions: string[];
@@ -149,7 +151,7 @@ async function browserDecision(objective: string, state: Awaited<ReturnType<type
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error('OPENAI_API_KEY is not configured.');
 
-  const instructions = `You are Eva's read-safe cloud-browser navigator. Your job is to gather information and navigate public web interfaces without causing consequential external side effects.\n\nYou MAY: follow ordinary links, open menus/details, use search or filter controls, scroll, and inspect dynamic content.\nYou MUST NOT: submit contact/application/payment forms, send messages, buy anything, publish/post, upload, delete/remove, sign/accept agreements, book/reserve/schedule, change account/security settings, or perform any action that creates a commitment. Never enter passwords, payment data, secret tokens, or private credentials.\n\nReturn ONLY JSON: {"action":"click|fill|goto|scroll|done","index":0,"text":"...","url":"https://...","direction":"up|down","reason":"...","findings":["..."]}.\nUse the supplied element index for click/fill. Fill only obvious search/filter inputs. If the page already contains enough evidence, choose done. Do not invent facts.`;
+  const instructions = `You are Eva's read-safe cloud-browser navigator. Your job is to gather information and navigate public or already-authenticated web interfaces without causing consequential external side effects.\n\nYou MAY: follow ordinary links, open menus/details, use search or filter controls, scroll, and inspect dynamic content that the assigned browser identity is already authorized to view.\nYou MUST NOT: submit contact/application/payment forms, send messages, buy anything, publish/post, upload, delete/remove, sign/accept agreements, book/reserve/schedule, change account/security settings, or perform any action that creates a commitment. Never enter passwords, payment data, secret tokens, or private credentials. If the stored identity is logged out, stop and report re-authentication is required.\n\nReturn ONLY JSON: {"action":"click|fill|goto|scroll|done","index":0,"text":"...","url":"https://...","direction":"up|down","reason":"...","findings":["..."]}.\nUse the supplied element index for click/fill. Fill only obvious search/filter inputs. If the page already contains enough evidence, choose done. Do not invent facts.`;
 
   const response = await fetch(RESPONSES_URL, {
     method: 'POST',
@@ -179,6 +181,7 @@ export async function runBrowserExploration(input: {
   objective: string;
   candidateUrls?: string[];
   maxSteps?: number;
+  browserIdentity?: { id: string; contextId: string; homeUrl?: string | null } | null;
 }): Promise<BrowserExplorationResult> {
   const apiKey = process.env.BROWSERBASE_API_KEY?.trim();
   const projectId = process.env.BROWSERBASE_PROJECT_ID?.trim();
@@ -187,19 +190,31 @@ export async function runBrowserExploration(input: {
   }
 
   const explicit = extractObjectiveUrl(input.objective);
-  const candidates = [explicit, ...(input.candidateUrls || [])]
+  const identityHome = input.browserIdentity?.homeUrl ? safeHttpUrl(input.browserIdentity.homeUrl) : null;
+  const candidates = [explicit, ...(input.candidateUrls || []), identityHome]
     .filter((value): value is string => Boolean(value))
     .map((value) => safeHttpUrl(value))
     .filter((value): value is string => Boolean(value));
   const startUrl = candidates[0];
   if (!startUrl) {
-    return { configured: true, ran: false, visited: [], findings: [], blockedActions: [], error: 'No safe public URL was available for browser exploration.' };
+    return { configured: true, ran: false, identityId: input.browserIdentity?.id, authenticatedContext: Boolean(input.browserIdentity), visited: [], findings: [], blockedActions: [], error: 'No safe URL was available for browser exploration.' };
   }
 
+  const browserSettings: Record<string, unknown> = { timeout: 180 };
+  if (input.browserIdentity?.contextId) {
+    browserSettings.context = { id: input.browserIdentity.contextId, persist: true };
+  }
   const sessionResponse = await fetch(BROWSERBASE_SESSIONS_URL, {
     method: 'POST',
     headers: { 'X-BB-API-Key': apiKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projectId }),
+    body: JSON.stringify({
+      projectId,
+      browserSettings,
+      userMetadata: {
+        aridonPurpose: 'cloud-worker',
+        identityId: input.browserIdentity?.id || '',
+      },
+    }),
     cache: 'no-store',
   });
   const session = await sessionResponse.json() as { id?: string; connectUrl?: string; message?: string };
@@ -278,12 +293,23 @@ export async function runBrowserExploration(input: {
     if (!findings.length && finalState.body) {
       findings.push(`Browser reached ${finalState.title || finalState.url} and inspected the live page. The worker can use this page state in its next cycle.`);
     }
-    return { configured: true, ran: true, sessionId: session.id, visited: visited.slice(0, 10), findings: findings.slice(0, 20), blockedActions: blockedActions.slice(0, 10) };
+    return {
+      configured: true,
+      ran: true,
+      sessionId: session.id,
+      identityId: input.browserIdentity?.id,
+      authenticatedContext: Boolean(input.browserIdentity?.contextId),
+      visited: visited.slice(0, 10),
+      findings: findings.slice(0, 20),
+      blockedActions: blockedActions.slice(0, 10),
+    };
   } catch (error) {
     return {
       configured: true,
       ran: Boolean(visited.length),
       sessionId: session.id,
+      identityId: input.browserIdentity?.id,
+      authenticatedContext: Boolean(input.browserIdentity?.contextId),
       visited,
       findings,
       blockedActions,
