@@ -307,7 +307,7 @@ export default function CustomerStartPage() {
     setSelectedName(executive.name);
     const intro = introFor(executive, account?.tenant.business_name || 'your company', account?.user?.first_name);
     setReply(intro);
-    setMessages((current) => [...current, { role: 'assistant', content: intro }].slice(-18));
+    setMessages((current): ChatMessage[] => [...current, { role: 'assistant', content: intro }].slice(-18));
     void speak(executive, intro);
   }
 
