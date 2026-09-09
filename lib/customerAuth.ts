@@ -40,8 +40,8 @@ export async function authenticatedCustomer(request: NextRequest) {
   if (pathname.startsWith('/api/customer/sales/instantly')) requiredFeature = 'externalSalesIntegrations';
   else if (pathname.startsWith('/api/customer/sales/')) requiredFeature = 'salesWorkspace';
   else if (pathname === '/api/customer/assistant' && request.method === 'POST') {
-    const body = await request.clone().json().catch(() => null) as { researchWeb?: unknown } | null;
-    if (body?.researchWeb === true) requiredFeature = 'liveWebResearch';
+    const body = await request.clone().json().catch(() => null) as { researchWeb?: unknown; mode?: unknown } | null;
+    if (body?.researchWeb === true || body?.mode === 'research') requiredFeature = 'liveWebResearch';
   }
 
   if (requiredFeature) {
