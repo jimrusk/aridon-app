@@ -13,6 +13,10 @@
     {
       "path": "/api/cron/cloud-workers",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/browser-workers",
+      "schedule": "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
     }
   ]
 }
