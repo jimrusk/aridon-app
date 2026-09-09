@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { chromium } from 'playwright-core';
+
 const API = 'https://api.browserbase.com/v1';
 
 function credentials() {
@@ -83,7 +85,20 @@ export async function startIdentityLoginSession(input: {
       },
     }),
   });
-  if (!session?.id) throw new Error('Browserbase did not create a login session.');
+  if (!session?.id || !session?.connectUrl) throw new Error('Browserbase did not create a usable login session.');
+
+  const loginUrl = safeBrowserUrl(input.loginUrl);
+  if (loginUrl) {
+    let browser;
+    try {
+      browser = await chromium.connectOverCDP(String(session.connectUrl), { timeout: 12000 });
+      const context = browser.contexts()[0] || await browser.newContext();
+      const page = context.pages()[0] || await context.newPage();
+      await page.goto(loginUrl, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => undefined);
+    } finally {
+      if (browser) await browser.close().catch(() => undefined);
+    }
+  }
 
   const live = await bb(`/sessions/${encodeURIComponent(String(session.id))}/debug`, { method: 'GET' });
   const liveViewUrl = String(live?.debuggerFullscreenUrl || live?.debuggerUrl || '');
@@ -91,9 +106,9 @@ export async function startIdentityLoginSession(input: {
 
   return {
     sessionId: String(session.id),
-    connectUrl: typeof session.connectUrl === 'string' ? session.connectUrl : '',
+    connectUrl: String(session.connectUrl),
     liveViewUrl,
-    loginUrl: safeBrowserUrl(input.loginUrl),
+    loginUrl,
   };
 }
 
