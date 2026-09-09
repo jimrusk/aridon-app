@@ -39,8 +39,17 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
       .limit(40);
     if (workerId) workersQuery = workersQuery.eq('id', workerId);
-    const workersResult = await workersQuery;
+
+    const [workersResult, identitiesResult] = await Promise.all([
+      workersQuery,
+      auth.db
+        .from('customer_browser_identities')
+        .select('id,name,site_name,login_url,home_url,status,last_verified_at,last_used_at,updated_at')
+        .eq('tenant_id', membership.tenant.id)
+        .order('updated_at', { ascending: false }),
+    ]);
     if (workersResult.error) throw workersResult.error;
+    if (identitiesResult.error) throw identitiesResult.error;
 
     const workers = workersResult.data || [];
     const workerIds = workers.map((item) => item.id);
@@ -60,6 +69,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       workers,
       events,
+      browserIdentities: identitiesResult.data || [],
       controlRole: CONTROL_ROLES.has(membership.role),
       role: membership.role,
       browserProviderConfigured: Boolean(process.env.BROWSERBASE_API_KEY?.trim() && process.env.BROWSERBASE_PROJECT_ID?.trim()),
@@ -94,7 +104,25 @@ export async function POST(request: NextRequest) {
       const mode = ['research', 'browser', 'mixed'].includes(text(body?.mode, 30).toLowerCase()) ? text(body?.mode, 30).toLowerCase() : 'research';
       const priority = ['low', 'medium', 'high', 'urgent'].includes(text(body?.priority, 30).toLowerCase()) ? text(body?.priority, 30).toLowerCase() : 'medium';
       const maxCycles = positiveInt(body?.maxCycles, 6, 12);
+      const browserIdentityId = text(body?.browserIdentityId, 80) || null;
       if (objective.length < 4) return NextResponse.json({ error: 'Give Eva a clear worker objective.' }, { status: 400, headers: NO_STORE });
+
+      if (browserIdentityId && !['browser', 'mixed'].includes(mode)) {
+        return NextResponse.json({ error: 'A persistent browser identity can only be attached to a Browser or Mixed worker.' }, { status: 400, headers: NO_STORE });
+      }
+      if (browserIdentityId) {
+        const { data: identity, error: identityError } = await auth.db
+          .from('customer_browser_identities')
+          .select('id,status')
+          .eq('id', browserIdentityId)
+          .eq('tenant_id', membership.tenant.id)
+          .maybeSingle();
+        if (identityError) throw identityError;
+        if (!identity) return NextResponse.json({ error: 'That browser identity does not belong to this workspace.' }, { status: 404, headers: NO_STORE });
+        if (identity.status !== 'connected') {
+          return NextResponse.json({ error: 'Authenticate that browser identity before assigning it to Eva.' }, { status: 409, headers: NO_STORE });
+        }
+      }
 
       const now = new Date().toISOString();
       const { data: worker, error } = await auth.db.from('customer_cloud_workers').insert({
@@ -106,7 +134,8 @@ export async function POST(request: NextRequest) {
         mode,
         priority,
         status: 'queued',
-        provider: mode === 'browser' ? 'browser-plus-web' : 'openai-web',
+        provider: ['browser', 'mixed'].includes(mode) ? 'browser-plus-web' : 'openai-web',
+        browser_identity_id: browserIdentityId,
         checkpoint: {},
         result: {},
         cycle_count: 0,
@@ -120,8 +149,8 @@ export async function POST(request: NextRequest) {
         tenant_id: membership.tenant.id,
         worker_id: worker.id,
         event_type: 'created',
-        message: 'Eva cloud worker created and queued.',
-        payload: { objective, mode, priority, maxCycles },
+        message: browserIdentityId ? 'Eva cloud worker created with a persistent authenticated browser identity.' : 'Eva cloud worker created and queued.',
+        payload: { objective, mode, priority, maxCycles, browserIdentityId },
       });
 
       if (body?.runNow === false) return NextResponse.json({ worker, queued: true }, { status: 201, headers: NO_STORE });
