@@ -1,225 +1,129 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowLeft, CheckCircle2, Download, Droplets, FileCheck2, Leaf, Plus, ShieldCheck, Sparkles, TrendingUp } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, Cloud, Copy, Download, Droplets, FileCheck2, FolderLock, Leaf, Link2, MapPinned, Plus, Save, ShieldCheck, Sparkles, TrendingUp, UploadCloud, Users } from 'lucide-react';
+import { getBrowserClient } from '../../../lib/supabase';
 
-type EvidenceKey = 'yield' | 'nitrogen' | 'nutrient' | 'land' | 'gis' | 'traceability' | 'water' | 'attestation';
+type EvidenceKey = 'yield'|'nitrogen'|'nutrient'|'land'|'gis'|'traceability'|'water'|'attestation';
+type Readiness = { z45:number; iscc:number; carb:number };
 type FieldRecord = {
-  id: string;
-  fieldId: string;
-  farm: string;
-  producer: string;
-  countyState: string;
-  crop: string;
-  acres: number;
-  harvestYear: number;
-  landUseHistory: string;
-  actualYield: number;
-  benchmarkYield: number;
-  syntheticN: number;
-  nitrificationInhibitor: boolean;
-  manure: string;
-  tillage: string;
-  coverCrop: string;
-  nutrientPlan: boolean;
-  nutrientRecords: boolean;
-  gisBoundary: boolean;
-  selfDeclaration: boolean;
-  traceability: boolean;
-  sustainabilityAttestation: boolean;
-  waterSource: string;
-  annualAllocationAf: number;
-  expectedNeedAf: number;
-  pumpingCostPerAf: number;
-  waterQualityRisk: number;
-  infrastructureRisk: number;
-  premiumPerUnit: number;
-  waterSavingsPerAcre: number;
-  inputSavingsPerAcre: number;
-  evidence: Record<EvidenceKey, boolean>;
+  id:string; cloudId?:string; fieldId:string; farm:string; producer:string; countyState:string; crop:string; acres:number; harvestYear:number;
+  landUseHistory:string; actualYield:number; benchmarkYield:number; syntheticN:number; nitrificationInhibitor:boolean; manure:string; tillage:string; coverCrop:string;
+  nutrientPlan:boolean; nutrientRecords:boolean; gisBoundary:boolean; selfDeclaration:boolean; traceability:boolean; sustainabilityAttestation:boolean;
+  waterSource:string; annualAllocationAf:number; expectedNeedAf:number; pumpingCostPerAf:number; waterQualityRisk:number; infrastructureRisk:number;
+  premiumPerUnit:number; waterSavingsPerAcre:number; inputSavingsPerAcre:number; evidence:Record<EvidenceKey,boolean>; boundaryGeoJson?:any; status?:string;
 };
+type CloudFile = { id:string; passport_id:string; evidence_type:string; label:string|null; shared:boolean; customer_files?:{id:string;filename:string;mime_type:string;size_bytes:number;status:string;extraction_status:string}|null };
+type CloudShare = { id:string;passport_id:string;role:string;permissions:Record<string,boolean>;expires_at:string;revoked_at:string|null;created_at:string;last_accessed_at:string|null };
+type CloudReview = { id:string;passport_id:string;reviewer_name:string|null;organization:string|null;review_status:string;notes:string|null;requested_items:string[];created_at:string };
 
-const STORAGE_KEY = 'aridon-ag-field-passport-v2';
-const currentYear = new Date().getFullYear();
+const STORAGE_KEY='aridon-ag-field-passport-v3';
+const year=new Date().getFullYear();
+const blank=(n=1):FieldRecord=>({id:`local-${Date.now()}-${n}`,fieldId:`FIELD-${String(n).padStart(3,'0')}`,farm:'',producer:'',countyState:'',crop:'Corn',acres:0,harvestYear:year,landUseHistory:'',actualYield:0,benchmarkYield:0,syntheticN:0,nitrificationInhibitor:false,manure:'None',tillage:'Conventional',coverCrop:'None',nutrientPlan:false,nutrientRecords:false,gisBoundary:false,selfDeclaration:false,traceability:false,sustainabilityAttestation:false,waterSource:'Irrigation district',annualAllocationAf:0,expectedNeedAf:0,pumpingCostPerAf:0,waterQualityRisk:2,infrastructureRisk:2,premiumPerUnit:0,waterSavingsPerAcre:0,inputSavingsPerAcre:0,evidence:{yield:false,nitrogen:false,nutrient:false,land:false,gis:false,traceability:false,water:false,attestation:false},status:'draft'});
+const demo:FieldRecord={...blank(1),id:'demo',fieldId:'NORTH-40',farm:'Demo Farm',producer:'Producer',countyState:'San Juan County, NM',crop:'Corn',acres:40,landUseHistory:'Continuous cropland',actualYield:185,benchmarkYield:178,syntheticN:165,nitrificationInhibitor:true,manure:'None',tillage:'Reduced till',coverCrop:'Winter rye',nutrientPlan:true,nutrientRecords:true,gisBoundary:true,selfDeclaration:false,traceability:true,sustainabilityAttestation:false,waterSource:'Irrigation district',annualAllocationAf:105,expectedNeedAf:120,pumpingCostPerAf:22,waterQualityRisk:2,infrastructureRisk:3,premiumPerUnit:.08,waterSavingsPerAcre:18,inputSavingsPerAcre:24,evidence:{yield:true,nitrogen:true,nutrient:true,land:true,gis:true,traceability:true,water:false,attestation:false}};
 
-const blankField = (n = 1): FieldRecord => ({
-  id: `${Date.now()}-${n}`,
-  fieldId: `FIELD-${String(n).padStart(3, '0')}`,
-  farm: '', producer: '', countyState: '', crop: 'Corn', acres: 0, harvestYear: currentYear,
-  landUseHistory: '', actualYield: 0, benchmarkYield: 0, syntheticN: 0, nitrificationInhibitor: false,
-  manure: 'None', tillage: 'Conventional', coverCrop: 'None', nutrientPlan: false, nutrientRecords: false,
-  gisBoundary: false, selfDeclaration: false, traceability: false, sustainabilityAttestation: false,
-  waterSource: 'Irrigation district', annualAllocationAf: 0, expectedNeedAf: 0, pumpingCostPerAf: 0,
-  waterQualityRisk: 2, infrastructureRisk: 2, premiumPerUnit: 0, waterSavingsPerAcre: 0, inputSavingsPerAcre: 0,
-  evidence: { yield:false, nitrogen:false, nutrient:false, land:false, gis:false, traceability:false, water:false, attestation:false },
-});
+const inputStyle={width:'100%',padding:'11px 12px',border:'1px solid #cad5c7',borderRadius:10,background:'#fff',fontSize:14} as const;
+const labelStyle={display:'grid',gap:5,fontSize:12,fontWeight:850,color:'#304036'} as const;
+const cardStyle={background:'#fff',border:'1px solid #d8e1d5',borderRadius:18,padding:20} as const;
+function pct(xs:boolean[]){return Math.round(xs.filter(Boolean).length/Math.max(1,xs.length)*100)}
+function readiness(f:FieldRecord):Readiness{
+  const base=[!!f.fieldId,!!f.farm,!!f.producer,!!f.countyState,!!f.crop,f.acres>0,!!f.harvestYear,!!f.landUseHistory];
+  return {
+    z45:pct([...base,f.actualYield>0,f.benchmarkYield>0,f.syntheticN>=0,!!f.tillage,!!f.coverCrop,f.nutrientPlan,f.nutrientRecords,f.evidence.yield,f.evidence.nitrogen,f.evidence.nutrient]),
+    iscc:pct([...base,f.traceability,f.selfDeclaration,f.evidence.land,f.evidence.traceability]),
+    carb:pct([...base,f.gisBoundary,f.traceability,f.sustainabilityAttestation,f.evidence.gis,f.evidence.traceability,f.evidence.attestation]),
+  };
+}
+function money(n:number){return Number(n||0).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:0})}
+function splitPlace(value:string){const parts=value.split(',').map(v=>v.trim()).filter(Boolean);return {state:parts.length>1?parts[parts.length-1]:'',county:parts.length>1?parts.slice(0,-1).join(', '):value}}
+function download(name:string,body:string,type='application/json'){const b=new Blob([body],{type});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u)}
+function Field({children}:{children:ReactNode}){return <label style={labelStyle}>{children}</label>}
+function Check({checked,onChange,children}:{checked:boolean;onChange:(v:boolean)=>void;children:ReactNode}){return <label style={{display:'flex',gap:8,alignItems:'flex-start',fontSize:13,fontWeight:750,lineHeight:1.4}}><input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)} style={{marginTop:2}}/>{children}</label>}
 
-const sample: FieldRecord = {
-  ...blankField(1),
-  id: 'sample-1', fieldId:'NORTH-40', farm:'Demo Farm', producer:'Producer', countyState:'San Juan County, NM', crop:'Corn', acres:40,
-  landUseHistory:'Continuous cropland', actualYield:185, benchmarkYield:178, syntheticN:165, nitrificationInhibitor:true,
-  manure:'None', tillage:'Reduced till', coverCrop:'Winter rye', nutrientPlan:true, nutrientRecords:true, gisBoundary:true,
-  selfDeclaration:false, traceability:true, sustainabilityAttestation:false, waterSource:'Irrigation district', annualAllocationAf:105,
-  expectedNeedAf:120, pumpingCostPerAf:22, waterQualityRisk:2, infrastructureRisk:3, premiumPerUnit:0.08,
-  waterSavingsPerAcre:18, inputSavingsPerAcre:24,
-  evidence:{ yield:true, nitrogen:true, nutrient:true, land:true, gis:true, traceability:true, water:false, attestation:false },
-};
-
-function pct(done: boolean[]) { return Math.round((done.filter(Boolean).length / Math.max(done.length, 1)) * 100); }
-function money(n: number) { return n.toLocaleString(undefined, { style:'currency', currency:'USD', maximumFractionDigits:0 }); }
-
-function readiness(field: FieldRecord) {
-  const base = [!!field.fieldId, !!field.farm, !!field.producer, !!field.countyState, !!field.crop, field.acres>0, !!field.harvestYear, !!field.landUseHistory];
-  const z45 = [...base, field.actualYield>0, field.benchmarkYield>0, field.syntheticN>=0, !!field.tillage, !!field.coverCrop, field.nutrientPlan, field.nutrientRecords, field.evidence.yield, field.evidence.nitrogen, field.evidence.nutrient];
-  const iscc = [...base, field.traceability, field.selfDeclaration, field.evidence.land, field.evidence.traceability];
-  const carb = [...base, field.gisBoundary, field.traceability, field.sustainabilityAttestation, field.evidence.gis, field.evidence.traceability, field.evidence.attestation];
-  return { z45:pct(z45), iscc:pct(iscc), carb:pct(carb) };
+function BoundaryMap({geo}:{geo:any}){
+  const points=useMemo(()=>{try{const c=geo?.type==='Polygon'?geo.coordinates?.[0]:geo?.type==='MultiPolygon'?geo.coordinates?.[0]?.[0]:null;if(!Array.isArray(c)||c.length<3)return[] as [number,number][];const xs=c.map((p:any)=>Number(p[0])).filter(Number.isFinite),ys=c.map((p:any)=>Number(p[1])).filter(Number.isFinite);if(!xs.length||!ys.length)return[];const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);return c.map((p:any)=>[18+((Number(p[0])-minX)/(maxX-minX||1))*364,218-((Number(p[1])-minY)/(maxY-minY||1))*188] as [number,number])}catch{return[]}},[geo]);
+  if(!points.length)return <div style={{border:'1px dashed #b8c6b4',borderRadius:13,padding:18,color:'#667169'}}>Paste a GeoJSON Polygon or MultiPolygon below to preview the field boundary.</div>;
+  return <svg viewBox="0 0 400 235" style={{width:'100%',background:'#eef2e8',border:'1px solid #d4ddd0',borderRadius:13}}><path d={`M ${points.map(p=>p.join(' ')).join(' L ')} Z`} fill="#bad49f" stroke="#285b38" strokeWidth="4"/><text x="18" y="20" fontSize="12" fill="#466050">Field boundary preview</text></svg>;
 }
 
-function waterScore(field: FieldRecord) {
-  const shortfall = Math.max(0, field.expectedNeedAf - field.annualAllocationAf);
-  const shortfallPct = field.expectedNeedAf > 0 ? Math.min(100, shortfall / field.expectedNeedAf * 100) : 0;
-  const score = Math.round(Math.min(100, shortfallPct * 0.6 + field.waterQualityRisk * 8 + field.infrastructureRisk * 8));
-  return { score, shortfall, shortfallPct };
-}
+export default function FarmPassportPage(){
+  const [fields,setFields]=useState<FieldRecord[]>([blank(1)]),[activeIndex,setActiveIndex]=useState(0),[hydrated,setHydrated]=useState(false);
+  const [token,setToken]=useState(''),[slug,setSlug]=useState(''),[tenantName,setTenantName]=useState(''),[cloudFiles,setCloudFiles]=useState<CloudFile[]>([]),[cloudShares,setCloudShares]=useState<CloudShare[]>([]),[cloudReviews,setCloudReviews]=useState<CloudReview[]>([]);
+  const [message,setMessage]=useState(''),[busy,setBusy]=useState(false),[boundaryText,setBoundaryText]=useState(''),[framework,setFramework]=useState('45Z'),[shareRole,setShareRole]=useState('verifier'),[shareDocuments,setShareDocuments]=useState(false),[shareUrl,setShareUrl]=useState('');
+  const active=fields[Math.min(activeIndex,fields.length-1)]||blank(1),ready=readiness(active);
 
-function opportunity(field: FieldRecord) {
-  const cropPremium = field.acres * field.actualYield * field.premiumPerUnit;
-  const water = field.acres * field.waterSavingsPerAcre;
-  const inputs = field.acres * field.inputSavingsPerAcre;
-  return { cropPremium, water, inputs, total:cropPremium + water + inputs };
-}
+  useEffect(()=>{try{const raw=localStorage.getItem(STORAGE_KEY)||localStorage.getItem('aridon-ag-field-passport-v2');if(raw){const parsed=JSON.parse(raw);if(Array.isArray(parsed)&&parsed.length)setFields(parsed);else if(parsed&&typeof parsed==='object')setFields([parsed]);}}catch{}setHydrated(true)},[]);
+  useEffect(()=>{if(hydrated)try{localStorage.setItem(STORAGE_KEY,JSON.stringify(fields))}catch{}},[fields,hydrated]);
+  useEffect(()=>{setBoundaryText(active.boundaryGeoJson?JSON.stringify(active.boundaryGeoJson,null,2):'')},[active.id,active.boundaryGeoJson]);
 
-const inputStyle: React.CSSProperties = { width:'100%', boxSizing:'border-box', padding:'10px 11px', border:'1px solid #ccd8c8', borderRadius:9, background:'#fff', fontSize:14 };
-const labelStyle: React.CSSProperties = { display:'grid', gap:5, fontSize:12, fontWeight:850, color:'#4b5b51' };
-const card: React.CSSProperties = { background:'#fff', border:'1px solid #d7e0d3', borderRadius:18, padding:20 };
+  useEffect(()=>{(async()=>{try{const db=getBrowserClient();const {data}=await db.auth.getSession();const access=data.session?.access_token||'';if(!access)return;setToken(access);const me=await fetch('/api/customer/me',{headers:{Authorization:`Bearer ${access}`},cache:'no-store'});if(!me.ok)return;const m=await me.json();const workspace=m?.tenant?.slug||'';if(!workspace)return;setSlug(workspace);setTenantName(m?.tenant?.business_name||workspace);await loadCloud(access,workspace);}catch{}})()},[]);
 
-export default function FarmPassportPage() {
-  const [fields, setFields] = useState<FieldRecord[]>([sample]);
-  const [selectedId, setSelectedId] = useState(sample.id);
-  const [loaded, setLoaded] = useState(false);
+  async function loadCloud(access=token,workspace=slug){
+    if(!access||!workspace)return;
+    const r=await fetch(`/api/ag/farm-passport?slug=${encodeURIComponent(workspace)}`,{headers:{Authorization:`Bearer ${access}`},cache:'no-store'});const j=await r.json();if(!r.ok)throw new Error(j.error||'Unable to load cloud data.');
+    setCloudFiles(j.files||[]);setCloudShares(j.shares||[]);setCloudReviews(j.reviews||[]);
+    if((j.passports||[]).length){setFields((j.passports||[]).map((p:any,i:number)=>({...blank(i+1),...(p.record_data||{}),id:`cloud-${p.id}`,cloudId:p.id,fieldId:p.field_id||p.record_data?.fieldId||'',farm:p.farm_name||p.record_data?.farm||'',producer:p.producer||p.record_data?.producer||'',countyState:[p.county,p.state].filter(Boolean).join(', ')||p.record_data?.countyState||'',crop:p.crop||p.record_data?.crop||'Corn',harvestYear:p.harvest_year||p.record_data?.harvestYear||year,boundaryGeoJson:p.boundary_geojson||null,status:p.status||'draft'})));setActiveIndex(0)}
+  }
+  async function api(body:any){if(!token||!slug)throw new Error('Sign in to your Aridon workspace to use secure cloud features.');const r=await fetch('/api/ag/farm-passport',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({slug,...body})});const j=await r.json();if(!r.ok)throw new Error(j.error||'Farm Passport request failed.');return j}
+  function patch<K extends keyof FieldRecord>(key:K,value:FieldRecord[K]){setFields(prev=>prev.map((f,i)=>i===activeIndex?{...f,[key]:value}:f))}
+  function evidence(k:EvidenceKey,v:boolean){patch('evidence',{...active.evidence,[k]:v})}
+  function addField(){const next=blank(fields.length+1);setFields(v=>[...v,next]);setActiveIndex(fields.length);setMessage('New field started. Browser autosave is on.')}
+  function loadDemo(){setFields([demo]);setActiveIndex(0);setMessage('Demo field loaded. Replace it with your own operation data.')}
 
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw) as FieldRecord[];
-        if (Array.isArray(saved) && saved.length) { setFields(saved); setSelectedId(saved[0].id); }
-      }
-    } catch {}
-    setLoaded(true);
-  }, []);
+  async function saveCloud(){setBusy(true);setMessage('');try{const place=splitPlace(active.countyState);const j=await api({action:'save',passport:{id:active.cloudId,producer:active.producer,farmName:active.farm,fieldId:active.fieldId,state:place.state,county:place.county,crop:active.crop,harvestYear:active.harvestYear,recordData:active,boundaryGeoJson:active.boundaryGeoJson||null,readiness:ready,status:active.status||'draft'}});const cloudId=j.passport.id;setFields(prev=>prev.map((f,i)=>i===activeIndex?{...f,cloudId,id:`cloud-${cloudId}`}:f));setMessage('Saved securely to your Aridon workspace.');await loadCloud(token,slug);return cloudId}catch(e){setMessage(e instanceof Error?e.message:'Unable to save.');return ''}finally{setBusy(false)}}
+  function applyBoundary(){try{const geo=JSON.parse(boundaryText);if(!['Polygon','MultiPolygon'].includes(geo?.type))throw new Error('Use a GeoJSON Polygon or MultiPolygon.');if(!Array.isArray(geo.coordinates))throw new Error('GeoJSON coordinates are missing.');patch('boundaryGeoJson',geo);patch('gisBoundary',true);evidence('gis',true);setMessage('GIS boundary added. Save to cloud when ready.')}catch(e){setMessage(e instanceof Error?e.message:'Invalid GeoJSON.')}}
+  async function importGeo(file:File){try{const text=await file.text();setBoundaryText(text);const geo=JSON.parse(text);if(!['Polygon','MultiPolygon'].includes(geo?.type))throw new Error('This file is not a Polygon or MultiPolygon.');patch('boundaryGeoJson',geo);patch('gisBoundary',true);evidence('gis',true);setMessage('GeoJSON boundary imported.')}catch(e){setMessage(e instanceof Error?e.message:'Unable to import GeoJSON.')}}
 
-  useEffect(() => {
-    if (!loaded) return;
-    try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(fields)); } catch {}
-  }, [fields, loaded]);
+  async function uploadEvidence(file:File,evidenceType='supporting_document'){
+    if(!token){setMessage('Sign in before uploading private evidence.');return}setBusy(true);setMessage('Preparing private upload…');
+    try{let passportId=active.cloudId||await saveCloud();if(!passportId)throw new Error('Save the Farm Passport before uploading evidence.');const prep=await api({action:'prepare_upload',passportId,filename:file.name,mimeType:file.type||'application/octet-stream',sizeBytes:file.size,evidenceType,label:file.name,shared:true});const db=getBrowserClient();const {error}=await db.storage.from('customer-files').uploadToSignedUrl(prep.path,prep.token,file,{contentType:file.type||'application/octet-stream'});if(error)throw error;await api({action:'complete_upload',passportId,fileId:prep.fileId});setMessage('Evidence uploaded to private cloud storage.');await loadCloud(token,slug)}catch(e){setMessage(e instanceof Error?e.message:'Upload failed.')}finally{setBusy(false)}}
+  async function privateDownload(fileId:string){try{const j=await api({action:'download_url',passportId:active.cloudId,fileId});window.open(j.url,'_blank','noopener,noreferrer')}catch(e){setMessage(e instanceof Error?e.message:'Unable to download.')}}
+  async function createShare(){if(!active.cloudId){setMessage('Save this field to cloud before creating review access.');return}setBusy(true);try{const j=await api({action:'create_share',passportId:active.cloudId,role:shareRole,days:14,permissions:{record:true,review:true,boundary:true,documents:shareDocuments}});setShareUrl(j.share.url);setMessage(`Secure ${shareRole} link created for 14 days.`);await loadCloud(token,slug)}catch(e){setMessage(e instanceof Error?e.message:'Unable to create share link.')}finally{setBusy(false)}}
+  async function revokeShare(id:string){try{await api({action:'revoke_share',passportId:active.cloudId,shareId:id});setMessage('Review link revoked.');await loadCloud(token,slug)}catch(e){setMessage(e instanceof Error?e.message:'Unable to revoke link.')}}
+  async function exportPackage(){if(!active.cloudId){setMessage('Save this field to cloud before generating a package.');return}setBusy(true);try{const j=await api({action:'package',passportId:active.cloudId,framework});download(`aridon-${active.fieldId||'field'}-${framework}.json`,JSON.stringify(j.package,null,2));setMessage(`${framework} owner-review package generated.`)}catch(e){setMessage(e instanceof Error?e.message:'Unable to generate package.')}finally{setBusy(false)}}
 
-  const field = fields.find(f => f.id === selectedId) || fields[0];
-  const ready = useMemo(() => readiness(field), [field]);
-  const water = useMemo(() => waterScore(field), [field]);
-  const upside = useMemo(() => opportunity(field), [field]);
+  const files=cloudFiles.filter(f=>f.passport_id===active.cloudId),shares=cloudShares.filter(s=>s.passport_id===active.cloudId),reviews=cloudReviews.filter(r=>r.passport_id===active.cloudId);
+  const waterGap=Math.max(0,active.expectedNeedAf-active.annualAllocationAf),allocationRisk=active.expectedNeedAf>0?Math.min(100,waterGap/active.expectedNeedAf*100):0,waterRisk=Math.round(Math.min(100,allocationRisk*.6+active.waterQualityRisk*8+active.infrastructureRisk*8));
+  const modeledRevenue=active.actualYield*active.acres*active.premiumPerUnit+active.acres*(active.waterSavingsPerAcre+active.inputSavingsPerAcre);
+  const eva=waterGap>0?`Water is the first decision: this field models a ${waterGap.toFixed(1)} acre-foot shortfall. Compare irrigation, crop, allocation and supplemental-water options before committing inputs.`:ready.z45<80?`45Z readiness is ${ready.z45}%. Close the evidence gaps before asking a buyer or verifier to review the package.`:!active.cloudId?'The field record is taking shape. Sign in and save it to the secure cloud before inviting a verifier or attaching evidence.':'This field is ready for an owner-controlled review workflow. Generate a framework package, then invite the right buyer, verifier or auditor.';
 
-  const update = <K extends keyof FieldRecord>(key: K, value: FieldRecord[K]) => {
-    setFields(prev => prev.map(f => f.id === field.id ? { ...f, [key]: value } : f));
-  };
-  const toggleEvidence = (key: EvidenceKey) => update('evidence', { ...field.evidence, [key]:!field.evidence[key] });
-  const addField = () => {
-    const next = blankField(fields.length + 1);
-    setFields(prev => [...prev, next]); setSelectedId(next.id);
-  };
-  const exportPackage = () => {
-    const payload = { generatedAt:new Date().toISOString(), ownerReviewRequired:true, field, readiness:ready, waterRisk:water, scenarioOpportunity:upside };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
-    const url = URL.createObjectURL(blob); const a = document.createElement('a');
-    a.href=url; a.download=`aridon-field-passport-${field.fieldId || 'field'}.json`; a.click(); URL.revokeObjectURL(url);
-  };
+  return <main style={{minHeight:'100vh',background:'#f4f1e8',color:'#18251d',fontFamily:'Arial,sans-serif',paddingBottom:70}}>
+    <header style={{background:'#163d2a',color:'#fff',padding:'14px 18px',position:'sticky',top:0,zIndex:20}}><div style={{maxWidth:1180,margin:'auto',display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><div style={{fontSize:11,fontWeight:950,color:'#c8e2ac',letterSpacing:1}}>ARIDON AG</div><strong style={{fontSize:22}}>Field Passport + Compliance Engine</strong></div><div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}><span style={{fontSize:12,color:'#dbe8df',display:'inline-flex',gap:5,alignItems:'center'}}>{token?<><Cloud size={15}/>Secure cloud: {tenantName||'connected'}</>:<><FolderLock size={15}/>Browser-only mode</>}</span><Link href="/ag" style={{color:'#fff',fontWeight:850,textDecoration:'none',display:'inline-flex',gap:6,alignItems:'center'}}><ArrowLeft size={16}/>Ag home</Link></div></div></header>
 
-  const eva = useMemo(() => {
-    const notes: string[] = [];
-    if (ready.z45 < 85) notes.push(`45Z / FD-CIC readiness is ${ready.z45}%. Finish the missing evidence before treating this field as submission-ready.`);
-    if (!field.evidence.water) notes.push('Add irrigation or meter evidence so water use can be tied to field economics and drought exposure.');
-    if (water.shortfall > 0) notes.push(`Current scenario shows a ${water.shortfall.toFixed(1)} acre-foot water gap. Compare crop demand, allocation and supplemental supply before the next commitment.`);
-    if (!field.selfDeclaration || !field.sustainabilityAttestation) notes.push('ISCC/CARB declarations are incomplete. Keep them owner-reviewed and separate from raw private operating data.');
-    if (field.actualYield > 0 && field.benchmarkYield > 0 && field.actualYield < field.benchmarkYield) notes.push('Actual yield is below benchmark. Review water timing, nutrient timing and field-specific constraints before assuming a market premium fixes the margin.');
-    if (!notes.length) notes.push('This field is unusually complete. Next step: owner review, verifier/buyer requirements check, and controlled export of only the evidence they request.');
-    return notes.slice(0,4);
-  }, [field, ready, water]);
+    <section style={{maxWidth:1180,margin:'auto',padding:'28px 18px 10px'}}><div style={{display:'grid',gridTemplateColumns:'1.35fr .65fr',gap:16}} className="two"><div><div style={{color:'#356943',fontSize:12,fontWeight:950}}>FARM ONCE · RECORD ONCE · REUSE THE PROOF</div><h1 style={{fontSize:'clamp(40px,6vw,68px)',letterSpacing:-2,lineHeight:.96,margin:'8px 0 13px'}}>Turn field records into decisions, evidence and market-ready packages.</h1><p style={{fontSize:18,lineHeight:1.55,color:'#526058',maxWidth:790}}>One owner-controlled field record now connects production practices, water exposure, 45Z/ISCC/CARB readiness, private documents, GIS boundaries and external review.</p></div><aside style={{...cardStyle,background:token?'#eaf2e5':'#fff7dc'}}><ShieldCheck color="#356943"/><h3 style={{fontSize:22,margin:'8px 0'}}>Data control</h3><p style={{color:'#55635a',lineHeight:1.5,marginBottom:12}}>{token?'Signed-in fields can be stored in Aridon’s private workspace storage. Reviewers only see what an owner-approved link permits.':'Your work is currently saved only in this browser. Sign in to enable private cloud evidence, reviewer links and framework packages.'}</p>{!token&&<Link href="/customer/login?next=/ag/farm-passport" style={{display:'inline-block',background:'#163d2a',color:'#fff',padding:'10px 12px',borderRadius:9,fontWeight:900,textDecoration:'none'}}>Sign in for secure cloud</Link>}</aside></div></section>
 
-  if (!field) return null;
+    <section style={{maxWidth:1180,margin:'auto',padding:'8px 18px'}}><div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>{fields.map((f,i)=><button key={f.id} onClick={()=>setActiveIndex(i)} style={{border:i===activeIndex?'2px solid #285b38':'1px solid #ccd6c9',background:i===activeIndex?'#e4eddc':'#fff',padding:'9px 11px',borderRadius:10,fontWeight:900,cursor:'pointer'}}>{f.fieldId||`Field ${i+1}`}{f.cloudId?' ☁':''}</button>)}<button onClick={addField} style={{border:'1px solid #285b38',background:'#fff',color:'#285b38',padding:'9px 11px',borderRadius:10,fontWeight:900,cursor:'pointer',display:'inline-flex',gap:5,alignItems:'center'}}><Plus size={15}/>Add field</button><button onClick={loadDemo} style={{border:'none',background:'transparent',color:'#5c6a61',fontWeight:800,cursor:'pointer'}}>Load sample</button></div></section>
 
-  return <main style={{minHeight:'100vh',background:'#f4f1e8',color:'#17241c',fontFamily:'Arial,sans-serif',paddingBottom:60}}>
-    <header style={{background:'#143d2a',color:'#fff',padding:'15px 16px',position:'sticky',top:0,zIndex:20}}>
-      <div style={{maxWidth:1180,margin:'auto',display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}>
-        <div><div style={{fontSize:11,color:'#c8e2ac',fontWeight:950,letterSpacing:1}}>ARIDON AG</div><strong style={{fontSize:22}}>Field Passport</strong></div>
-        <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}><Link href="/ag" style={{color:'#fff',textDecoration:'none',fontWeight:850,display:'inline-flex',gap:5,alignItems:'center'}}><ArrowLeft size={17}/> Ag Home</Link><button onClick={exportPackage} style={{border:0,background:'#c8e2ac',color:'#143d2a',padding:'10px 12px',borderRadius:9,fontWeight:950,cursor:'pointer'}}><Download size={16} style={{verticalAlign:'middle',marginRight:5}}/>Export field package</button></div>
-      </div>
-    </header>
+    <section style={{maxWidth:1180,margin:'auto',padding:'8px 18px',display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}} className="three">{([['45Z / FD-CIC',ready.z45],['ISCC',ready.iscc],['CARB',ready.carb]] as [string,number][]).map(([name,value])=><article key={name} style={cardStyle}><div style={{display:'flex',justifyContent:'space-between',fontWeight:950}}><span>{name}</span><span style={{color:'#356943'}}>{value}%</span></div><div style={{height:8,background:'#e9ede6',borderRadius:99,marginTop:10}}><div style={{height:'100%',width:`${value}%`,background:'#356943',borderRadius:99}}/></div></article>)}</section>
 
-    <section style={{maxWidth:1180,margin:'auto',padding:'28px 16px 0'}}>
-      <div className="hero-grid" style={{display:'grid',gridTemplateColumns:'minmax(0,2fr) minmax(260px,1fr)',gap:16,alignItems:'stretch'}}>
-        <div style={{...card,background:'#173f2c',color:'#fff',border:0}}><div style={{color:'#c8e2ac',fontSize:12,fontWeight:950}}>FARM ONCE. RECORD ONCE. QUALIFY EVERYWHERE.</div><h1 style={{fontSize:'clamp(38px,6vw,62px)',lineHeight:.98,margin:'9px 0 13px',letterSpacing:-2}}>One field record for compliance, water risk and profit decisions.</h1><p style={{margin:0,color:'#dce8df',fontSize:17,lineHeight:1.55,maxWidth:760}}>Capture the evidence once, map it to 45Z, ISCC and CARB, see what is missing, measure water exposure and model the dollars before anything leaves the farm.</p></div>
-        <div style={card}><div style={{fontSize:12,fontWeight:950,color:'#356943'}}>SELECT FIELD</div><select value={field.id} onChange={e=>setSelectedId(e.target.value)} style={{...inputStyle,marginTop:7}}>{fields.map(f=><option key={f.id} value={f.id}>{f.fieldId || 'Untitled field'} · {f.crop || 'Crop'}</option>)}</select><button onClick={addField} style={{width:'100%',marginTop:9,border:'1px solid #356943',background:'#eff6e9',color:'#285336',padding:'10px 12px',borderRadius:9,fontWeight:950,cursor:'pointer'}}><Plus size={16} style={{verticalAlign:'middle',marginRight:5}}/>Add another field</button><div style={{marginTop:10,fontSize:12,color:'#657168'}}>Saved automatically on this device.</div></div>
-      </div>
+    {message&&<section style={{maxWidth:1180,margin:'auto',padding:'4px 18px'}}><div style={{background:'#fff7d8',border:'1px solid #d9c878',padding:'11px 13px',borderRadius:10,fontWeight:750}}>{message}</div></section>}
 
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10,marginTop:14}}>
-        <div style={card}><FileCheck2 size={23} color="#356943"/><div style={{fontSize:12,fontWeight:900,color:'#617067',marginTop:7}}>45Z / FD-CIC</div><strong style={{fontSize:31}}>{ready.z45}%</strong><div style={{fontSize:12,color:'#6a766f'}}>record readiness</div></div>
-        <div style={card}><ShieldCheck size={23} color="#356943"/><div style={{fontSize:12,fontWeight:900,color:'#617067',marginTop:7}}>ISCC / CARB</div><strong style={{fontSize:31}}>{Math.round((ready.iscc+ready.carb)/2)}%</strong><div style={{fontSize:12,color:'#6a766f'}}>combined readiness</div></div>
-        <div style={card}><Droplets size={23} color={water.score>=60?'#9a522d':'#356943'}/><div style={{fontSize:12,fontWeight:900,color:'#617067',marginTop:7}}>Water risk</div><strong style={{fontSize:31}}>{water.score}/100</strong><div style={{fontSize:12,color:'#6a766f'}}>{water.shortfall>0?`${water.shortfall.toFixed(1)} AF modeled gap`:'No modeled allocation gap'}</div></div>
-        <div style={card}><TrendingUp size={23} color="#356943"/><div style={{fontSize:12,fontWeight:900,color:'#617067',marginTop:7}}>Scenario upside</div><strong style={{fontSize:31}}>{money(upside.total)}</strong><div style={{fontSize:12,color:'#6a766f'}}>illustrative, not guaranteed</div></div>
-      </div>
+    <section style={{maxWidth:1180,margin:'auto',padding:'10px 18px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}} className="two">
+      <article style={cardStyle}><h2 style={{marginTop:0}}>1. Field identity</h2><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}} className="two"><Field>Producer<input style={inputStyle} value={active.producer} onChange={e=>patch('producer',e.target.value)}/></Field><Field>Farm / operation<input style={inputStyle} value={active.farm} onChange={e=>patch('farm',e.target.value)}/></Field><Field>Field ID<input style={inputStyle} value={active.fieldId} onChange={e=>patch('fieldId',e.target.value)}/></Field><Field>County, State<input style={inputStyle} value={active.countyState} onChange={e=>patch('countyState',e.target.value)} placeholder="San Juan County, NM"/></Field><Field>Crop<select style={inputStyle} value={active.crop} onChange={e=>patch('crop',e.target.value)}><option>Corn</option><option>Sorghum</option><option>Soybeans</option><option>Canola</option><option>Wheat</option><option>Other</option></select></Field><Field>Acres<input type="number" style={inputStyle} value={active.acres||''} onChange={e=>patch('acres',Number(e.target.value))}/></Field><Field>Harvest year<input type="number" style={inputStyle} value={active.harvestYear} onChange={e=>patch('harvestYear',Number(e.target.value))}/></Field><Field>Land-use history<input style={inputStyle} value={active.landUseHistory} onChange={e=>patch('landUseHistory',e.target.value)}/></Field></div></article>
+
+      <article style={cardStyle}><h2 style={{marginTop:0}}>2. Production & practices</h2><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}} className="two"><Field>Actual yield<input type="number" style={inputStyle} value={active.actualYield||''} onChange={e=>patch('actualYield',Number(e.target.value))}/></Field><Field>Benchmark yield<input type="number" style={inputStyle} value={active.benchmarkYield||''} onChange={e=>patch('benchmarkYield',Number(e.target.value))}/></Field><Field>Synthetic N, lb/acre<input type="number" style={inputStyle} value={active.syntheticN||''} onChange={e=>patch('syntheticN',Number(e.target.value))}/></Field><Field>Tillage<select style={inputStyle} value={active.tillage} onChange={e=>patch('tillage',e.target.value)}><option>Conventional</option><option>Reduced till</option><option>No-till</option></select></Field><Field>Cover crop<input style={inputStyle} value={active.coverCrop} onChange={e=>patch('coverCrop',e.target.value)}/></Field><Field>Manure / organic fertilizer<input style={inputStyle} value={active.manure} onChange={e=>patch('manure',e.target.value)}/></Field></div><div style={{display:'grid',gap:8,marginTop:13}}><Check checked={active.nitrificationInhibitor} onChange={v=>patch('nitrificationInhibitor',v)}>Nitrification inhibitor used</Check><Check checked={active.nutrientPlan} onChange={v=>patch('nutrientPlan',v)}>Nutrient-management plan on file</Check><Check checked={active.nutrientRecords} onChange={v=>patch('nutrientRecords',v)}>Application dates, methods and locations recorded</Check><Check checked={active.traceability} onChange={v=>patch('traceability',v)}>Feedstock quantity / chain-of-custody traceability ready</Check><Check checked={active.selfDeclaration} onChange={v=>patch('selfDeclaration',v)}>Producer self-declaration ready</Check><Check checked={active.sustainabilityAttestation} onChange={v=>patch('sustainabilityAttestation',v)}>Sustainability / eligibility attestation ready</Check></div></article>
+
+      <article style={{...cardStyle,border:'1px solid #bcd1df'}}><div style={{display:'flex',gap:9,alignItems:'center'}}><Droplets color="#316d8c"/><h2 style={{margin:0}}>3. Water Risk Engine</h2></div><p style={{color:'#60706a',fontSize:13}}>Add the factor most compliance charts leave out: whether the field can actually get the water it expects.</p><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}} className="two"><Field>Water source<input style={inputStyle} value={active.waterSource} onChange={e=>patch('waterSource',e.target.value)}/></Field><Field>Annual allocation, acre-ft<input type="number" style={inputStyle} value={active.annualAllocationAf||''} onChange={e=>patch('annualAllocationAf',Number(e.target.value))}/></Field><Field>Expected need, acre-ft<input type="number" style={inputStyle} value={active.expectedNeedAf||''} onChange={e=>patch('expectedNeedAf',Number(e.target.value))}/></Field><Field>Pumping cost / acre-ft<input type="number" style={inputStyle} value={active.pumpingCostPerAf||''} onChange={e=>patch('pumpingCostPerAf',Number(e.target.value))}/></Field><Field>Water-quality risk, 1-5<input min={1} max={5} type="number" style={inputStyle} value={active.waterQualityRisk} onChange={e=>patch('waterQualityRisk',Number(e.target.value))}/></Field><Field>Infrastructure risk, 1-5<input min={1} max={5} type="number" style={inputStyle} value={active.infrastructureRisk} onChange={e=>patch('infrastructureRisk',Number(e.target.value))}/></Field></div><div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginTop:13}} className="three"><div style={{background:'#edf5f8',padding:11,borderRadius:11}}><small>Modeled shortfall</small><strong style={{display:'block',fontSize:22}}>{waterGap.toFixed(1)} AF</strong></div><div style={{background:'#edf5f8',padding:11,borderRadius:11}}><small>Water risk</small><strong style={{display:'block',fontSize:22}}>{waterRisk}/100</strong></div><div style={{background:'#edf5f8',padding:11,borderRadius:11}}><small>Allocation coverage</small><strong style={{display:'block',fontSize:22}}>{active.expectedNeedAf?Math.min(100,active.annualAllocationAf/active.expectedNeedAf*100).toFixed(0):0}%</strong></div></div></article>
+
+      <article style={{...cardStyle,border:'1px solid #cad9bd'}}><div style={{display:'flex',gap:9,alignItems:'center'}}><TrendingUp color="#356943"/><h2 style={{margin:0}}>4. Revenue Optimizer</h2></div><p style={{color:'#60706a',fontSize:13}}>Use your own assumptions. Aridon shows a scenario, not a guaranteed premium or savings claim.</p><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}} className="two"><Field>Potential premium / yield unit<input type="number" step="0.01" style={inputStyle} value={active.premiumPerUnit||''} onChange={e=>patch('premiumPerUnit',Number(e.target.value))}/></Field><Field>Water savings / acre<input type="number" style={inputStyle} value={active.waterSavingsPerAcre||''} onChange={e=>patch('waterSavingsPerAcre',Number(e.target.value))}/></Field><Field>Input savings / acre<input type="number" style={inputStyle} value={active.inputSavingsPerAcre||''} onChange={e=>patch('inputSavingsPerAcre',Number(e.target.value))}/></Field></div><div style={{marginTop:14,background:'#ecf3e7',borderRadius:13,padding:14}}><small>Modeled field opportunity</small><strong style={{display:'block',fontSize:30,color:'#285b38'}}>{money(modeledRevenue)}</strong><span style={{fontSize:12,color:'#667169'}}>Premium + entered savings assumptions only.</span></div></article>
+
+      <article style={cardStyle}><div style={{display:'flex',gap:9,alignItems:'center'}}><FileCheck2 color="#356943"/><h2 style={{margin:0}}>5. Evidence Vault</h2></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9,marginTop:14}} className="two">{([['yield','Yield / scale records'],['nitrogen','Nitrogen purchase/application records'],['nutrient','Nutrient-management evidence'],['land','Land-use history evidence'],['gis','GIS boundary evidence'],['traceability','Delivery / chain-of-custody'],['water','Water allocation / meter evidence'],['attestation','Declarations / attestations']] as [EvidenceKey,string][]).map(([k,t])=><Check key={k} checked={active.evidence[k]} onChange={v=>evidence(k,v)}>{t}</Check>)}</div><div style={{marginTop:16,borderTop:'1px solid #edf0ea',paddingTop:14}}>{token?<><label style={{display:'inline-flex',alignItems:'center',gap:7,background:'#163d2a',color:'#fff',padding:'11px 13px',borderRadius:10,fontWeight:900,cursor:'pointer'}}><UploadCloud size={17}/>Upload private evidence<input type="file" style={{display:'none'}} onChange={e=>{const f=e.target.files?.[0];if(f)uploadEvidence(f);e.currentTarget.value=''}}/></label>{files.length>0&&<div style={{display:'grid',gap:7,marginTop:12}}>{files.map(f=><div key={f.id} style={{display:'flex',justifyContent:'space-between',gap:10,alignItems:'center',background:'#f7f8f4',padding:10,borderRadius:9}}><div><strong style={{fontSize:13}}>{f.label||f.customer_files?.filename}</strong><div style={{fontSize:11,color:'#6b766f'}}>{f.evidence_type} · {f.customer_files?.status}</div></div><button onClick={()=>privateDownload(f.customer_files?.id||'')} style={{border:'none',background:'transparent',color:'#285b38',fontWeight:900,cursor:'pointer'}}>Open</button></div>)}</div>}</>:<p style={{fontSize:13,color:'#667169',margin:0}}>Sign in to attach private PDFs, receipts, maps, scale tickets, images and other proof.</p>}</div></article>
+
+      <article style={cardStyle}><div style={{display:'flex',gap:9,alignItems:'center'}}><MapPinned color="#356943"/><h2 style={{margin:0}}>6. GIS Field Boundary</h2></div><div style={{marginTop:13}}><BoundaryMap geo={active.boundaryGeoJson}/></div><textarea value={boundaryText} onChange={e=>setBoundaryText(e.target.value)} rows={5} placeholder='{"type":"Polygon","coordinates":[...]}' style={{...inputStyle,resize:'vertical',marginTop:10,fontFamily:'monospace'}}/><div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}}><button onClick={applyBoundary} style={{border:'none',background:'#163d2a',color:'#fff',padding:'9px 11px',borderRadius:9,fontWeight:900,cursor:'pointer'}}>Apply GeoJSON</button><label style={{border:'1px solid #356943',color:'#285b38',padding:'9px 11px',borderRadius:9,fontWeight:900,cursor:'pointer'}}>Import .geojson<input type="file" accept=".json,.geojson,application/geo+json,application/json" style={{display:'none'}} onChange={e=>{const f=e.target.files?.[0];if(f)importGeo(f);e.currentTarget.value=''}}/></label></div></article>
     </section>
 
-    <section style={{maxWidth:1180,margin:'auto',padding:'16px',display:'grid',gap:16}}>
-      <div style={card}>
-        <div style={{display:'flex',gap:9,alignItems:'center'}}><Leaf size={24} color="#356943"/><div><div style={{fontSize:12,fontWeight:950,color:'#356943'}}>1 · UNIVERSAL FIELD RECORD</div><h2 style={{margin:'2px 0',fontSize:28}}>Enter it once.</h2></div></div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:10,marginTop:15}}>
-          <label style={labelStyle}>Field ID<input style={inputStyle} value={field.fieldId} onChange={e=>update('fieldId',e.target.value)}/></label>
-          <label style={labelStyle}>Farm<input style={inputStyle} value={field.farm} onChange={e=>update('farm',e.target.value)}/></label>
-          <label style={labelStyle}>Producer<input style={inputStyle} value={field.producer} onChange={e=>update('producer',e.target.value)}/></label>
-          <label style={labelStyle}>County / State<input style={inputStyle} value={field.countyState} onChange={e=>update('countyState',e.target.value)}/></label>
-          <label style={labelStyle}>Crop / feedstock<input style={inputStyle} value={field.crop} onChange={e=>update('crop',e.target.value)}/></label>
-          <label style={labelStyle}>Acres<input type="number" style={inputStyle} value={field.acres} onChange={e=>update('acres',Number(e.target.value))}/></label>
-          <label style={labelStyle}>Harvest year<input type="number" style={inputStyle} value={field.harvestYear} onChange={e=>update('harvestYear',Number(e.target.value))}/></label>
-          <label style={labelStyle}>Land-use history<input style={inputStyle} value={field.landUseHistory} onChange={e=>update('landUseHistory',e.target.value)}/></label>
-          <label style={labelStyle}>Actual yield / acre<input type="number" style={inputStyle} value={field.actualYield} onChange={e=>update('actualYield',Number(e.target.value))}/></label>
-          <label style={labelStyle}>Benchmark yield / acre<input type="number" style={inputStyle} value={field.benchmarkYield} onChange={e=>update('benchmarkYield',Number(e.target.value))}/></label>
-          <label style={labelStyle}>Synthetic N / acre<input type="number" style={inputStyle} value={field.syntheticN} onChange={e=>update('syntheticN',Number(e.target.value))}/></label>
-          <label style={labelStyle}>Manure / organic fertilizer<input style={inputStyle} value={field.manure} onChange={e=>update('manure',e.target.value)}/></label>
-          <label style={labelStyle}>Tillage<input style={inputStyle} value={field.tillage} onChange={e=>update('tillage',e.target.value)}/></label>
-          <label style={labelStyle}>Cover crop<input style={inputStyle} value={field.coverCrop} onChange={e=>update('coverCrop',e.target.value)}/></label>
-        </div>
-        <div style={{display:'flex',gap:14,flexWrap:'wrap',marginTop:14,fontSize:13}}>
-          {([['nitrificationInhibitor','Nitrification inhibitor'],['nutrientPlan','Nutrient management plan'],['nutrientRecords','Nutrient application records'],['gisBoundary','GIS boundary'],['traceability','Quantity & traceability'],['selfDeclaration','ISCC self-declaration'],['sustainabilityAttestation','CARB sustainability attestation']] as [keyof FieldRecord,string][]).map(([key,label])=><label key={String(key)} style={{display:'flex',gap:6,alignItems:'center'}}><input type="checkbox" checked={Boolean(field[key])} onChange={e=>update(key,e.target.checked as never)}/>{label}</label>)}
-        </div>
-      </div>
+    <section style={{maxWidth:1180,margin:'auto',padding:'4px 18px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}} className="two">
+      <article style={{...cardStyle,background:'#163d2a',color:'#fff'}}><div style={{display:'flex',gap:8,alignItems:'center',color:'#c8e2ac',fontSize:12,fontWeight:950}}><Sparkles size={19}/> EVA FIELD ANALYST</div><h2 style={{fontSize:29,margin:'8px 0'}}>What should happen next?</h2><p style={{color:'#dbe8df',lineHeight:1.6,fontSize:16}}>{eva}</p><div style={{display:'flex',gap:8,flexWrap:'wrap'}}>{token?<button disabled={busy} onClick={saveCloud} style={{border:'none',background:'#c8e2ac',color:'#163d2a',padding:'11px 13px',borderRadius:10,fontWeight:950,cursor:'pointer',display:'inline-flex',gap:6,alignItems:'center'}}><Save size={17}/>{busy?'Working…':'Save secure cloud record'}</button>:<Link href="/customer/login?next=/ag/farm-passport" style={{background:'#c8e2ac',color:'#163d2a',padding:'11px 13px',borderRadius:10,fontWeight:950,textDecoration:'none'}}>Sign in to continue</Link>}<select value={active.status||'draft'} onChange={e=>patch('status',e.target.value)} style={{padding:'10px 11px',borderRadius:10,border:'1px solid #ffffff44',background:'#fff',color:'#163d2a',fontWeight:850}}><option value="draft">Draft</option><option value="review_ready">Review ready</option><option value="submitted">Submitted</option></select></div></article>
 
-      <div style={card}>
-        <div style={{fontSize:12,fontWeight:950,color:'#356943'}}>2 · COMPLIANCE AUTOPILOT</div><h2 style={{fontSize:28,margin:'4px 0 14px'}}>See the gaps before a buyer, verifier or advisor does.</h2>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:10}}>
-          {[['45Z / USDA FD-CIC',ready.z45],['ISCC EU / RED III',ready.iscc],['CARB LCFS',ready.carb]].map(([name,value])=><div key={String(name)} style={{background:'#f7f8f3',border:'1px solid #dfe5dc',borderRadius:13,padding:14}}><strong>{name}</strong><div style={{height:9,background:'#e1e7de',borderRadius:99,overflow:'hidden',margin:'10px 0 7px'}}><div style={{height:'100%',width:`${value}%`,background:'#356943'}}/></div><div style={{fontSize:13,color:'#5c6961'}}>{value}% ready · owner/verifier review still required</div></div>)}
-        </div>
-      </div>
-
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:16}}>
-        <div style={card}><div style={{display:'flex',gap:8,alignItems:'center'}}><Droplets size={23} color="#356943"/><div style={{fontSize:12,fontWeight:950,color:'#356943'}}>3 · WATER SECURITY</div></div><h2 style={{fontSize:27,margin:'6px 0 12px'}}>Put water beside crop economics.</h2><div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:9}}>
-          <label style={labelStyle}>Water source<input style={inputStyle} value={field.waterSource} onChange={e=>update('waterSource',e.target.value)}/></label>
-          <label style={labelStyle}>Allocation (acre-feet)<input type="number" style={inputStyle} value={field.annualAllocationAf} onChange={e=>update('annualAllocationAf',Number(e.target.value))}/></label>
-          <label style={labelStyle}>Expected need (acre-feet)<input type="number" style={inputStyle} value={field.expectedNeedAf} onChange={e=>update('expectedNeedAf',Number(e.target.value))}/></label>
-          <label style={labelStyle}>Pumping cost / AF<input type="number" style={inputStyle} value={field.pumpingCostPerAf} onChange={e=>update('pumpingCostPerAf',Number(e.target.value))}/></label>
-          <label style={labelStyle}>Water quality risk 1-5<input type="range" min="1" max="5" value={field.waterQualityRisk} onChange={e=>update('waterQualityRisk',Number(e.target.value))}/><span>{field.waterQualityRisk}</span></label>
-          <label style={labelStyle}>Infrastructure risk 1-5<input type="range" min="1" max="5" value={field.infrastructureRisk} onChange={e=>update('infrastructureRisk',Number(e.target.value))}/><span>{field.infrastructureRisk}</span></label>
-        </div>{water.shortfall>0&&<div style={{marginTop:12,padding:11,borderRadius:10,background:'#fff3e9',border:'1px solid #e3c3a7',fontSize:13}}><AlertTriangle size={16} style={{verticalAlign:'middle',marginRight:5}}/>Modeled shortfall: <strong>{water.shortfall.toFixed(1)} acre-feet</strong> ({water.shortfallPct.toFixed(0)}% of expected need).</div>}</div>
-
-        <div style={card}><div style={{display:'flex',gap:8,alignItems:'center'}}><TrendingUp size={23} color="#356943"/><div style={{fontSize:12,fontWeight:950,color:'#356943'}}>4 · REVENUE OPTIMIZER</div></div><h2 style={{fontSize:27,margin:'6px 0 12px'}}>Turn compliance into a business case.</h2><div style={{display:'grid',gap:9}}><label style={labelStyle}>Illustrative buyer premium / yield unit<input type="number" step="0.01" style={inputStyle} value={field.premiumPerUnit} onChange={e=>update('premiumPerUnit',Number(e.target.value))}/></label><label style={labelStyle}>Water savings / acre<input type="number" style={inputStyle} value={field.waterSavingsPerAcre} onChange={e=>update('waterSavingsPerAcre',Number(e.target.value))}/></label><label style={labelStyle}>Input savings / acre<input type="number" style={inputStyle} value={field.inputSavingsPerAcre} onChange={e=>update('inputSavingsPerAcre',Number(e.target.value))}/></label></div><div style={{marginTop:13,display:'grid',gap:5,fontSize:13}}><div>Crop-market scenario: <strong>{money(upside.cropPremium)}</strong></div><div>Water savings scenario: <strong>{money(upside.water)}</strong></div><div>Input savings scenario: <strong>{money(upside.inputs)}</strong></div><div style={{fontSize:22,marginTop:4}}>Total modeled upside: <strong>{money(upside.total)}</strong></div></div><p style={{fontSize:11,color:'#6d7771',lineHeight:1.45}}>Scenario only. 45Z is a clean-fuel producer tax credit; any farm-level premium depends on contracts, program rules, verification and market terms.</p></div>
-      </div>
-
-      <div style={card}><div style={{fontSize:12,fontWeight:950,color:'#356943'}}>5 · EVIDENCE VAULT</div><h2 style={{fontSize:28,margin:'4px 0 12px'}}>Proof follows the field.</h2><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(210px,1fr))',gap:8}}>{([['yield','Yield / harvest record'],['nitrogen','Nitrogen / fertilizer receipt'],['nutrient','Nutrient application log'],['land','Land-use / eligibility proof'],['gis','GIS boundary file'],['traceability','Quantity / chain-of-custody record'],['water','Water meter / irrigation evidence'],['attestation','Signed declaration / attestation']] as [EvidenceKey,string][]).map(([key,label])=><button key={key} onClick={()=>toggleEvidence(key)} style={{textAlign:'left',display:'flex',gap:9,alignItems:'center',padding:12,borderRadius:10,border:`1px solid ${field.evidence[key]?'#9dbb90':'#d8ded5'}`,background:field.evidence[key]?'#eef6e9':'#fafaf7',cursor:'pointer'}}>{field.evidence[key]?<CheckCircle2 size={19} color="#356943"/>:<div style={{width:19,height:19,border:'2px solid #9ba69f',borderRadius:99}}/>}<strong style={{fontSize:13}}>{label}</strong></button>)}</div><p style={{fontSize:12,color:'#657168',marginBottom:0}}>This build tracks evidence readiness and exports the owner-reviewed package. Secure file storage and verifier-specific document exchange can sit on top of this record without changing the farmer's workflow.</p></div>
-
-      <div style={{...card,background:'#173f2c',color:'#fff',border:0}}><div style={{display:'flex',gap:8,alignItems:'center',color:'#c8e2ac'}}><Sparkles size={22}/><strong style={{fontSize:12}}>6 · EVA FIELD ADVISOR</strong></div><h2 style={{fontSize:29,margin:'7px 0 12px'}}>What needs attention next?</h2><div style={{display:'grid',gap:8}}>{eva.map((note,i)=><div key={note} style={{display:'flex',gap:9,alignItems:'flex-start',background:'#ffffff0d',padding:11,borderRadius:10,lineHeight:1.45}}><div style={{minWidth:27,height:27,borderRadius:99,background:'#c8e2ac',color:'#173f2c',display:'grid',placeItems:'center',fontWeight:950}}>{i+1}</div><span>{note}</span></div>)}</div><div style={{marginTop:12,fontSize:12,color:'#cbdccf'}}>Eva's guidance here is decision support, not certification. Final eligibility and submissions still require current program rules and the appropriate owner/verifier review.</div></div>
+      <article style={cardStyle}><div style={{display:'flex',gap:8,alignItems:'center'}}><Download color="#356943"/><h2 style={{margin:0}}>Framework Package Builder</h2></div><p style={{fontSize:13,color:'#60706a'}}>Build an owner-review package containing the fields, readiness, GIS boundary, water context and evidence index relevant to the selected pathway.</p><div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}><select value={framework} onChange={e=>setFramework(e.target.value)} style={{...inputStyle,width:'auto'}}><option value="45Z">45Z / FD-CIC</option><option value="ISCC">ISCC EU / RED III</option><option value="CARB">CARB LCFS</option></select><button disabled={busy||!token} onClick={exportPackage} style={{border:'none',background:'#163d2a',color:'#fff',padding:'10px 12px',borderRadius:9,fontWeight:900,cursor:'pointer'}}>Generate package</button></div><div style={{fontSize:12,color:'#69736d',marginTop:12}}>Aridon organizes records. A generated package is not a certification, verification decision, tax opinion or guarantee of eligibility.</div></article>
     </section>
 
-    <style jsx>{`@media(max-width:760px){.hero-grid{grid-template-columns:1fr!important}}`}</style>
+    <section style={{maxWidth:1180,margin:'auto',padding:'14px 18px 0'}}><article style={cardStyle}><div style={{display:'flex',gap:9,alignItems:'center'}}><Users color="#356943"/><h2 style={{margin:0}}>Buyer / Verifier / Auditor Access</h2></div><p style={{color:'#60706a',fontSize:13}}>Create a time-limited link. The reviewer does not receive your Aridon login and cannot browse the rest of your workspace.</p><div style={{display:'flex',gap:9,flexWrap:'wrap',alignItems:'center'}}><select value={shareRole} onChange={e=>setShareRole(e.target.value)} style={{...inputStyle,width:'auto'}}><option value="buyer">Buyer</option><option value="verifier">Verifier</option><option value="auditor">Auditor</option></select><Check checked={shareDocuments} onChange={setShareDocuments}>Include shared evidence documents</Check><button disabled={busy||!token} onClick={createShare} style={{border:'none',background:'#163d2a',color:'#fff',padding:'10px 12px',borderRadius:9,fontWeight:900,cursor:'pointer',display:'inline-flex',gap:6,alignItems:'center'}}><Link2 size={16}/>Create 14-day review link</button></div>{shareUrl&&<div style={{marginTop:12,display:'flex',gap:8,alignItems:'center',background:'#eef3ea',padding:10,borderRadius:10,overflow:'hidden'}}><code style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{shareUrl}</code><button onClick={()=>navigator.clipboard?.writeText(shareUrl)} style={{border:'none',background:'transparent',color:'#285b38',fontWeight:900,cursor:'pointer'}}><Copy size={16}/></button></div>}
+      {shares.length>0&&<div style={{display:'grid',gap:7,marginTop:14}}>{shares.map(s=><div key={s.id} style={{display:'flex',justifyContent:'space-between',gap:10,alignItems:'center',borderTop:'1px solid #edf0ea',paddingTop:9}}><div><strong style={{textTransform:'capitalize'}}>{s.role}</strong><span style={{fontSize:12,color:'#68736c'}}> · expires {new Date(s.expires_at).toLocaleDateString()} · {s.revoked_at?'revoked':s.last_accessed_at?'opened':'not opened'}</span></div>{!s.revoked_at&&<button onClick={()=>revokeShare(s.id)} style={{border:'none',background:'transparent',color:'#8a493b',fontWeight:900,cursor:'pointer'}}>Revoke</button>}</div>)}</div>}
+      {reviews.length>0&&<div style={{marginTop:16,background:'#f7f8f4',padding:14,borderRadius:12}}><strong>Returned reviews</strong><div style={{display:'grid',gap:8,marginTop:8}}>{reviews.map(r=><div key={r.id} style={{background:'#fff',padding:10,borderRadius:9}}><div style={{display:'flex',justifyContent:'space-between',gap:10}}><strong>{r.organization||r.reviewer_name||'Reviewer'}</strong><span style={{fontWeight:900,color:r.review_status==='accepted'?'#2d6a3e':'#6d6253'}}>{r.review_status.replace('_',' ')}</span></div>{r.notes&&<p style={{margin:'6px 0 0',fontSize:13,color:'#5c6961'}}>{r.notes}</p>}{Array.isArray(r.requested_items)&&r.requested_items.length>0&&<div style={{fontSize:12,color:'#6b766f',marginTop:5}}>Requested: {r.requested_items.join(' · ')}</div>}</div>)}</div></div>}</article></section>
+
+    <footer style={{maxWidth:1180,margin:'auto',padding:'22px 18px',fontSize:12,color:'#69736d',lineHeight:1.5}}>Farm Passport is an evidence and decision-support system. Program rules, approved models, verification procedures, market terms and tax treatment can change. Owners should obtain the applicable buyer, verifier, program administrator and tax guidance before making a regulated or financial claim.</footer>
+    <style jsx>{`@media(max-width:800px){.two,.three{grid-template-columns:1fr!important}} button:disabled{opacity:.55;cursor:not-allowed!important}`}</style>
   </main>;
 }
