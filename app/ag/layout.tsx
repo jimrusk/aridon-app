@@ -27,6 +27,7 @@ export default function AgLayout({ children }: { children: React.ReactNode }) {
       <div style={{ maxWidth: 1180, margin: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 13 }}><strong>ARIDON AG</strong> · Finance OS + regenerative agriculture capital planning.</span>
         <div style={{ display:'flex', gap:13, alignItems:'center', flexWrap:'wrap' }}>
+          <Link href="/ag/farm-passport/cloud" style={{ color: '#C8E2AC', fontWeight: 950, textDecoration: 'none', fontSize: 13 }}>Farm Passport Cloud →</Link>
           <Link href="/ag/rancher-network" style={{ color: '#C8E2AC', fontWeight: 900, textDecoration: 'none', fontSize: 13 }}>Rancher Network →</Link>
           <Link href="/ag/rd" style={{ color: '#C8E2AC', fontWeight: 900, textDecoration: 'none', fontSize: 13 }}>R&amp;D Portfolio →</Link>
           <Link href="/ag/rd/center" style={{ color: '#C8E2AC', fontWeight: 900, textDecoration: 'none', fontSize: 13 }}>R&amp;D Center Capital →</Link>
