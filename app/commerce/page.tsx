@@ -2,220 +2,106 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, BadgeCheck, Calculator, Copy, Factory, Search, ShoppingCart, Sparkles, Store, Truck, Users } from 'lucide-react';
+import { BadgeCheck, Boxes, Calculator, Copy, Factory, FileSpreadsheet, LayoutDashboard, Search, Send, ShoppingCart, Sparkles, Store, Users } from 'lucide-react';
+import { getBrowserClient } from '../../lib/supabase';
 
-type Plan = {
-  thesis: string;
-  idealCustomer: string;
-  supplierProfile: string[];
-  launchSteps: string[];
-  showroomSections: string[];
-  trafficPlan: string[];
-  outreachSubject: string;
-  outreachBody: string;
-  riskGates: string[];
-};
+type Plan = { thesis:string; idealCustomer:string; supplierProfile:string[]; launchSteps:string[]; showroomSections:string[]; trafficPlan:string[]; outreachSubject:string; outreachBody:string; riskGates:string[] };
+type Supplier = { id:string; name:string; website?:string; contact?:string; status:'Research'|'Qualified'|'Contacted'|'Approved'|'Rejected'; score:number; why_fit?:string; source_url?:string; evidence?:string[]; discovered_by_ai?:boolean };
+type Product = { id:string; supplier_id?:string|null; sku?:string; title:string; product_url?:string; supplier_cost?:number|null; selling_price?:number|null; freight_cost?:number|null; map_price?:number|null; availability?:string; warranty?:string; status:'Draft'|'Verified'|'Live'|'Paused'; source?:string };
+type Lead = { id:string; name:string; company?:string; email?:string; phone?:string; product_interest?:string; estimated_value?:number|null; stage:'New'|'Qualified'|'Quoted'|'Negotiating'|'Won'|'Lost'; next_step?:string; notes?:string };
+type Order = { id:string; lead_id?:string|null; product_id?:string|null; customer_name?:string; sale_price:number; supplier_cost:number; ad_cost:number; freight_cost:number; other_cost:number; status:'Pending'|'Paid'|'Ordered'|'Shipped'|'Completed'|'Refunded'|'Cancelled'; created_at?:string };
+type Showroom = { id:string; name:string; niche:string; headline?:string; subheadline?:string; sections?:Array<{type?:string;title?:string;body?:string;cta?:string}>; status:'Draft'|'Ready'|'Published'|'Archived'; created_at?:string };
+type Tab = 'suppliers'|'products'|'crm'|'orders'|'showroom';
 
-type Supplier = {
-  id: string;
-  name: string;
-  website: string;
-  contact: string;
-  status: 'Research' | 'Qualified' | 'Contacted' | 'Approved';
-};
+const categories=['Farm & ranch equipment','Greenhouses & controlled environment','Water & irrigation systems','Solar, storage & generators','Commercial kitchens & food equipment','Prefab buildings & industrial equipment'];
+const panel={background:'#0D1728',border:'1px solid #263956',borderRadius:18,padding:18} as const;
+const input={width:'100%',boxSizing:'border-box',background:'#08111E',color:'#F8FAFC',border:'1px solid #334866',borderRadius:11,padding:'11px 12px',fontSize:14} as const;
+const label={display:'block',color:'#9FB0C6',fontSize:11,fontWeight:900,marginBottom:6,textTransform:'uppercase',letterSpacing:.5} as const;
+const button={border:0,borderRadius:11,padding:'11px 14px',fontWeight:950,cursor:'pointer',background:'#9EF0CF',color:'#07130F'} as const;
+const secondary={...button,background:'#142238',color:'#F8FAFC',border:'1px solid #39516F'} as const;
+const money=(v:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(Number.isFinite(v)?v:0);
+const id=()=>crypto.randomUUID();
 
-const categories = [
-  'Farm & ranch equipment',
-  'Greenhouses & controlled environment',
-  'Water & irrigation systems',
-  'Solar, storage & generators',
-  'Commercial kitchens & food equipment',
-  'Prefab buildings & industrial equipment',
-];
+export default function CommercePage(){
+  const [niche,setNiche]=useState('Commercial greenhouses');
+  const [avgSale,setAvgSale]=useState(15000); const [supplierCostPct,setSupplierCostPct]=useState(68); const [adCost,setAdCost]=useState(850); const [freightReserve,setFreightReserve]=useState(900); const [returnReserve,setReturnReserve]=useState(250); const [targetOrders,setTargetOrders]=useState(5);
+  const [plan,setPlan]=useState<Plan|null>(null); const [loading,setLoading]=useState(''); const [error,setError]=useState(''); const [notice,setNotice]=useState('');
+  const [suppliers,setSuppliers]=useState<Supplier[]>([]); const [products,setProducts]=useState<Product[]>([]); const [leads,setLeads]=useState<Lead[]>([]); const [orders,setOrders]=useState<Order[]>([]); const [showrooms,setShowrooms]=useState<Showroom[]>([]);
+  const [token,setToken]=useState(''); const [tenantSlug,setTenantSlug]=useState(''); const [businessName,setBusinessName]=useState('Aridon'); const [cloud,setCloud]=useState(false); const [tab,setTab]=useState<Tab>('suppliers');
+  const [supplierForm,setSupplierForm]=useState({name:'',website:'',contact:''});
+  const [productForm,setProductForm]=useState({supplier_id:'',sku:'',title:'',product_url:'',supplier_cost:'',selling_price:'',freight_cost:'',availability:'',warranty:''});
+  const [leadForm,setLeadForm]=useState({name:'',company:'',email:'',phone:'',product_interest:'',estimated_value:'',next_step:''});
+  const [orderForm,setOrderForm]=useState({customer_name:'',lead_id:'',product_id:'',sale_price:'',supplier_cost:'',ad_cost:'',freight_cost:'',other_cost:''});
 
-const panel = { background: '#0D1728', border: '1px solid #263956', borderRadius: 18, padding: 20 } as const;
-const input = { width: '100%', boxSizing: 'border-box', background: '#08111E', color: '#F8FAFC', border: '1px solid #334866', borderRadius: 11, padding: '12px 13px', fontSize: 15 } as const;
-const label = { display: 'block', color: '#9FB0C6', fontSize: 12, fontWeight: 900, marginBottom: 6 } as const;
-const button = { border: 0, borderRadius: 11, padding: '12px 16px', fontWeight: 950, cursor: 'pointer', background: '#9EF0CF', color: '#07130F' } as const;
+  useEffect(()=>{(async()=>{try{const db=getBrowserClient(); const {data}=await db.auth.getSession(); const access=data.session?.access_token||''; if(access){setToken(access); await loadCloud(access);} else loadLocal();}catch{loadLocal();}})();},[]);
+  useEffect(()=>{try{localStorage.setItem('aridon-commerce-phase2',JSON.stringify({niche,avgSale,supplierCostPct,adCost,freightReserve,returnReserve,targetOrders,suppliers,products,leads,orders,showrooms}));}catch{}},[niche,avgSale,supplierCostPct,adCost,freightReserve,returnReserve,targetOrders,suppliers,products,leads,orders,showrooms]);
 
-export default function CommercePage() {
-  const [niche, setNiche] = useState('Commercial greenhouses');
-  const [avgSale, setAvgSale] = useState(15000);
-  const [supplierCostPct, setSupplierCostPct] = useState(68);
-  const [adCost, setAdCost] = useState(850);
-  const [freightReserve, setFreightReserve] = useState(900);
-  const [returnReserve, setReturnReserve] = useState(250);
-  const [targetOrders, setTargetOrders] = useState(5);
-  const [plan, setPlan] = useState<Plan | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [supplierName, setSupplierName] = useState('');
-  const [supplierWebsite, setSupplierWebsite] = useState('');
-  const [supplierContact, setSupplierContact] = useState('');
+  function loadLocal(){try{const saved=JSON.parse(localStorage.getItem('aridon-commerce-phase2')||'null'); if(saved){setNiche(saved.niche||niche);setAvgSale(saved.avgSale||15000);setSupplierCostPct(saved.supplierCostPct||68);setAdCost(saved.adCost||850);setFreightReserve(saved.freightReserve||900);setReturnReserve(saved.returnReserve||250);setTargetOrders(saved.targetOrders||5);setSuppliers(saved.suppliers||[]);setProducts(saved.products||[]);setLeads(saved.leads||[]);setOrders(saved.orders||[]);setShowrooms(saved.showrooms||[]);return;} const old=JSON.parse(localStorage.getItem('aridon-commerce-suppliers')||'[]'); if(Array.isArray(old))setSuppliers(old.map((s:any)=>({...s,score:s.score||50})));}catch{}}
+  async function loadCloud(access=token){if(!access)return; try{setLoading('sync'); const res=await fetch('/api/commerce/data',{headers:{Authorization:`Bearer ${access}`},cache:'no-store'}); const data=await res.json(); if(!res.ok)throw new Error(data.error||'Cloud sync failed.'); setCloud(true); setTenantSlug(data.tenant?.slug||''); setBusinessName(data.tenant?.businessName||'Aridon'); if(data.profile){setNiche(data.profile.niche||niche); const e=data.profile.economics||{};setAvgSale(Number(e.avgSale)||15000);setSupplierCostPct(Number(e.supplierCostPct)||68);setAdCost(Number(e.adCost)||850);setFreightReserve(Number(e.freightReserve)||900);setReturnReserve(Number(e.returnReserve)||250);setTargetOrders(Number(e.targetOrders)||5);} setSuppliers(data.suppliers||[]);setProducts(data.products||[]);setLeads(data.leads||[]);setOrders(data.orders||[]);setShowrooms(data.showrooms||[]);}catch(e:any){setCloud(false);setNotice(e?.message||'Using local mode.');loadLocal();}finally{setLoading('');}}
+  async function api(method:string,body:any){if(!token)throw new Error('Sign in to Aridon to use cloud actions.'); const res=await fetch('/api/commerce/data',{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({...body,slug:tenantSlug})}); const data=await res.json(); if(!res.ok)throw new Error(data.error||'Commerce action failed.'); return data;}
 
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem('aridon-commerce-suppliers');
-      if (saved) setSuppliers(JSON.parse(saved));
-    } catch {}
-  }, []);
+  const economics=useMemo(()=>{const supplierCost=avgSale*(supplierCostPct/100);const contribution=avgSale-supplierCost-adCost-freightReserve-returnReserve;const monthlyRevenue=avgSale*targetOrders;const monthlyContribution=contribution*targetOrders;return{grossMargin:100-supplierCostPct,contribution,contributionMargin:avgSale?contribution/avgSale*100:0,monthlyRevenue,monthlyContribution,breakEvenRoas:avgSale/Math.max(1,avgSale-supplierCost-freightReserve-returnReserve)}},[avgSale,supplierCostPct,adCost,freightReserve,returnReserve,targetOrders]);
+  const orderMetrics=useMemo(()=>{const included=orders.filter(o=>!['Refunded','Cancelled'].includes(o.status));const revenue=included.reduce((s,o)=>s+Number(o.sale_price||0),0);const profit=included.reduce((s,o)=>s+Number(o.sale_price||0)-Number(o.supplier_cost||0)-Number(o.ad_cost||0)-Number(o.freight_cost||0)-Number(o.other_cost||0),0);return{revenue,profit,margin:revenue?profit/revenue*100:0,orders:included.length}},[orders]);
 
-  useEffect(() => {
-    try { window.localStorage.setItem('aridon-commerce-suppliers', JSON.stringify(suppliers)); } catch {}
-  }, [suppliers]);
+  async function saveProfile(){if(!token){setNotice('Saved locally. Sign in to sync this workspace across devices.');return;} try{setLoading('profile');await api('POST',{entity:'profile',record:{niche,economics:{avgSale,supplierCostPct,adCost,freightReserve,returnReserve,targetOrders}}});setNotice('Commerce settings synced.');}catch(e:any){setError(e.message);}finally{setLoading('');}}
+  async function buildPlan(){try{setLoading('plan');setError('');const res=await fetch('/api/commerce/plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({niche,avgSale,supplierCostPct,adCost,freightReserve,returnReserve,targetOrders})});const data=await res.json();if(!res.ok)throw new Error(data.error||'Could not build plan.');setPlan(data.plan);}catch(e:any){setError(e.message);}finally{setLoading('');}}
+  async function discover(){if(!token){setError('Sign in to Aridon to run live supplier discovery.');return;}try{setLoading('discover');setError('');const res=await fetch('/api/commerce/discover',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({niche,slug:tenantSlug,geography:'United States'})});const data=await res.json();if(!res.ok)throw new Error(data.error||'Supplier discovery failed.');setSuppliers(v=>[...(data.suppliers||[]),...v]);setNotice(`${(data.suppliers||[]).length} supplier candidates added${data.duplicatesSkipped?`, ${data.duplicatesSkipped} duplicates skipped`:''}.`);setTab('suppliers');}catch(e:any){setError(e.message);}finally{setLoading('');}}
 
-  const economics = useMemo(() => {
-    const supplierCost = avgSale * (supplierCostPct / 100);
-    const contribution = avgSale - supplierCost - adCost - freightReserve - returnReserve;
-    const contributionMargin = avgSale ? (contribution / avgSale) * 100 : 0;
-    const grossMargin = 100 - supplierCostPct;
-    const monthlyRevenue = avgSale * targetOrders;
-    const monthlyContribution = contribution * targetOrders;
-    const breakEvenRoas = avgSale / Math.max(1, avgSale - supplierCost - freightReserve - returnReserve);
-    return { supplierCost, contribution, contributionMargin, grossMargin, monthlyRevenue, monthlyContribution, breakEvenRoas };
-  }, [avgSale, supplierCostPct, adCost, freightReserve, returnReserve, targetOrders]);
+  async function addEntity(entity:'supplier'|'product'|'lead'|'order',record:any,localSetter:(f:any)=>void){try{setError('');if(token){const data=await api('POST',{entity,record});localSetter((v:any[])=>[...(data.items||[]),...v]);}else localSetter((v:any[])=>[{id:id(),...record},...v]);}catch(e:any){setError(e.message);}}
+  async function patchEntity(entity:'supplier'|'product'|'lead'|'order',rowId:string,changes:any,setter:(f:any)=>void){try{if(token){const data=await api('PATCH',{entity,id:rowId,changes});setter((v:any[])=>v.map(x=>x.id===rowId?data.item:x));}else setter((v:any[])=>v.map(x=>x.id===rowId?{...x,...changes}:x));}catch(e:any){setError(e.message);}}
 
-  async function buildPlan() {
-    setLoading(true); setError('');
-    try {
-      const res = await fetch('/api/commerce/plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ niche, avgSale, supplierCostPct, adCost, freightReserve, returnReserve, targetOrders }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not build the plan.');
-      setPlan(data.plan);
-    } catch (e: any) {
-      setError(e?.message || 'Could not build the plan.');
-    } finally { setLoading(false); }
-  }
+  async function addSupplier(){if(!supplierForm.name.trim())return;await addEntity('supplier',{...supplierForm,name:supplierForm.name.trim(),status:'Research',score:50,evidence:[],discovered_by_ai:false},setSuppliers);setSupplierForm({name:'',website:'',contact:''});}
+  async function addProduct(){if(!productForm.title.trim())return;await addEntity('product',{...productForm,supplier_id:productForm.supplier_id||null,supplier_cost:num(productForm.supplier_cost),selling_price:num(productForm.selling_price),freight_cost:num(productForm.freight_cost),status:'Draft',source:'manual'},setProducts);setProductForm({supplier_id:'',sku:'',title:'',product_url:'',supplier_cost:'',selling_price:'',freight_cost:'',availability:'',warranty:''});}
+  async function addLead(){if(!leadForm.name.trim())return;await addEntity('lead',{...leadForm,estimated_value:num(leadForm.estimated_value),stage:'New'},setLeads);setLeadForm({name:'',company:'',email:'',phone:'',product_interest:'',estimated_value:'',next_step:''});}
+  async function addOrder(){const product=products.find(p=>p.id===orderForm.product_id);const lead=leads.find(l=>l.id===orderForm.lead_id);const record={customer_name:orderForm.customer_name||lead?.name||'',lead_id:orderForm.lead_id||null,product_id:orderForm.product_id||null,sale_price:num(orderForm.sale_price)||Number(product?.selling_price||0),supplier_cost:num(orderForm.supplier_cost)||Number(product?.supplier_cost||0),ad_cost:num(orderForm.ad_cost),freight_cost:num(orderForm.freight_cost)||Number(product?.freight_cost||0),other_cost:num(orderForm.other_cost),status:'Pending'};await addEntity('order',record,setOrders);setOrderForm({customer_name:'',lead_id:'',product_id:'',sale_price:'',supplier_cost:'',ad_cost:'',freight_cost:'',other_cost:''});}
 
-  function addSupplier() {
-    if (!supplierName.trim()) return;
-    setSuppliers(v => [{ id: crypto.randomUUID(), name: supplierName.trim(), website: supplierWebsite.trim(), contact: supplierContact.trim(), status: 'Research' }, ...v]);
-    setSupplierName(''); setSupplierWebsite(''); setSupplierContact('');
-  }
+  async function importCsv(file:File){try{const raw=await file.text();const rows=parseCsv(raw);if(!rows.length)throw new Error('No product rows found in CSV.');const mapped=rows.slice(0,100).map(r=>{const supplier=suppliers.find(s=>s.name.toLowerCase()===String(r.supplier_name||r.supplier||'').toLowerCase());return{supplier_id:supplier?.id||null,sku:r.sku||'',title:r.title||r.name||'Untitled product',product_url:r.product_url||r.url||'',supplier_cost:num(r.supplier_cost||r.cost),selling_price:num(r.selling_price||r.price),freight_cost:num(r.freight_cost||r.freight),map_price:num(r.map_price||r.map),availability:r.availability||'',warranty:r.warranty||'',status:'Draft',source:'csv-import'}});if(token){const data=await api('POST',{entity:'product',records:mapped});setProducts(v=>[...(data.items||[]),...v]);}else setProducts(v=>mapped.map(x=>({id:id(),...x} as Product)).concat(v));setNotice(`${mapped.length} products imported. Verify supplier rights, pricing and warranty before marking Live.`);}catch(e:any){setError(e.message);}}
 
-  function advanceSupplier(id: string) {
-    const order: Supplier['status'][] = ['Research','Qualified','Contacted','Approved'];
-    setSuppliers(v => v.map(s => s.id === id ? { ...s, status: order[Math.min(order.length - 1, order.indexOf(s.status) + 1)] } : s));
-  }
+  async function generateShowroom(){if(!token){setError('Sign in to generate and save an AI showroom.');return;}try{setLoading('showroom');const res=await fetch('/api/commerce/showroom',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({niche,slug:tenantSlug})});const data=await res.json();if(!res.ok)throw new Error(data.error||'Showroom generation failed.');setShowrooms(v=>[data.showroom,...v]);setNotice(`Showroom generated from ${data.approvedSuppliers} approved suppliers and ${data.verifiedProducts} verified products.`);setTab('showroom');}catch(e:any){setError(e.message);}finally{setLoading('');}}
+  async function copy(text:string){try{await navigator.clipboard.writeText(text);setNotice('Copied.');}catch{}}
 
-  async function copy(text: string) {
-    try { await navigator.clipboard.writeText(text); } catch {}
-  }
+  return <main style={{minHeight:'100vh',background:'#07101D',color:'#F8FAFC',fontFamily:'Arial,sans-serif',paddingBottom:90}}><section style={{maxWidth:1180,margin:'0 auto',padding:'24px 16px'}}>
+    <nav style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><Link href="/" style={{color:'#fff',textDecoration:'none',fontWeight:950}}>ARIDON</Link><div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}><span style={{fontSize:12,fontWeight:900,color:cloud?'#9EF0CF':'#F2C46D'}}>{cloud?'● Cloud synced':'● Local mode'}</span>{!token&&<Link href="/customer/login?next=/commerce" style={{...secondary,textDecoration:'none',padding:'8px 11px'}}>Sign in to sync</Link>}</div></nav>
+    <div style={{padding:'44px 0 24px'}}><div style={{color:'#9EF0CF',fontSize:12,fontWeight:950,letterSpacing:1.2}}>ARIDON COMMERCE ENGINE · PHASE 2</div><h1 style={{fontSize:'clamp(42px,8vw,78px)',lineHeight:.95,letterSpacing:-3,margin:'10px 0 16px'}}>From supplier discovery to margin dashboard.</h1><p style={{color:'#B8C4D5',fontSize:19,lineHeight:1.6,maxWidth:920}}>Research live manufacturers, score the channel fit, ingest product feeds, manage leads and quotes, track order economics, then generate a verified premium showroom from the products you are actually allowed to sell.</p></div>
 
-  return <main style={{ minHeight: '100vh', background: '#07101D', color: '#F8FAFC', fontFamily: 'Arial,sans-serif', paddingBottom: 84 }}>
-    <section style={{ maxWidth: 1180, margin: '0 auto', padding: '26px 18px 18px' }}>
-      <nav style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Link href="/" style={{ color: '#F8FAFC', textDecoration: 'none', fontWeight: 950 }}>ARIDON</Link>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <Link href="/business-os" style={{ color: '#B9C6D8', textDecoration: 'none', fontWeight: 850 }}>Business OS</Link>
-          <Link href="/sales-team" style={{ color: '#B9C6D8', textDecoration: 'none', fontWeight: 850 }}>Sales AI</Link>
-          <Link href="/email" style={{ color: '#B9C6D8', textDecoration: 'none', fontWeight: 850 }}>Email</Link>
-        </div>
-      </nav>
+    {error&&<Banner text={error} bad/>}{notice&&<Banner text={notice}/>} 
 
-      <div style={{ padding: '62px 0 34px', maxWidth: 980 }}>
-        <div style={{ color: '#9EF0CF', fontWeight: 950, fontSize: 12, letterSpacing: 1.2 }}>ARIDON COMMERCE ENGINE</div>
-        <h1 style={{ fontSize: 'clamp(46px,8vw,82px)', lineHeight: .94, letterSpacing: -3, margin: '12px 0 18px' }}>Build a high-ticket business without guessing your way through it.</h1>
-        <p style={{ maxWidth: 870, color: '#B8C4D5', fontSize: 20, lineHeight: 1.6 }}>Choose a market. Model the economics. Define the right supplier. Build the showroom, outreach and traffic plan. Keep every supplier approval and margin decision in one command center.</p>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 22 }}>
-          <button onClick={buildPlan} style={button}><Sparkles size={16} style={{ verticalAlign: 'middle', marginRight: 7 }}/>{loading ? 'Building…' : 'Build My Commerce Plan'}</button>
-          <a href="#supplier-command" style={{ ...button, background: 'transparent', color: '#F8FAFC', border: '1px solid #425675', textDecoration: 'none' }}>Supplier Command</a>
-        </div>
-      </div>
+    <section style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(290px,1fr))',gap:12}}><article style={panel}><div style={{display:'flex',gap:8,alignItems:'center'}}><Search size={19} color="#9EF0CF"/><strong>Market command</strong></div><div style={{display:'flex',gap:6,flexWrap:'wrap',margin:'12px 0'}}>{categories.map(c=><button key={c} onClick={()=>setNiche(c)} style={{border:'1px solid #34506B',background:niche===c?'#9EF0CF':'#101C2D',color:niche===c?'#07130F':'#DDE6F2',borderRadius:999,padding:'7px 9px',fontWeight:850,cursor:'pointer'}}>{c}</button>)}</div><label style={label}>Niche or product family</label><input value={niche} onChange={e=>setNiche(e.target.value)} style={input}/><div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:10}}><button onClick={saveProfile} style={secondary}>{loading==='profile'?'Saving…':'Save settings'}</button><button onClick={discover} style={button}><Search size={15} style={{verticalAlign:'middle',marginRight:5}}/>{loading==='discover'?'Scouting web…':'Discover suppliers'}</button></div></article>
+    <article style={panel}><div style={{display:'flex',gap:8,alignItems:'center'}}><Calculator size={19} color="#9EF0CF"/><strong>Unit economics</strong></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:12}}><Field name="Average sale" prefix="$" value={avgSale} set={setAvgSale}/><Field name="Supplier cost" suffix="%" value={supplierCostPct} set={setSupplierCostPct}/><Field name="Ad/order" prefix="$" value={adCost} set={setAdCost}/><Field name="Freight" prefix="$" value={freightReserve} set={setFreightReserve}/><Field name="Returns" prefix="$" value={returnReserve} set={setReturnReserve}/><Field name="Orders/mo" value={targetOrders} set={setTargetOrders}/></div><button onClick={buildPlan} style={{...button,marginTop:10}}><Sparkles size={15} style={{verticalAlign:'middle',marginRight:5}}/>{loading==='plan'?'Building…':'Build AI launch plan'}</button></article></section>
 
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(290px,1fr))', gap: 14 }}>
-        <article style={panel}>
-          <div style={{ display: 'flex', gap: 9, alignItems: 'center' }}><Search size={20} color="#9EF0CF"/><strong>1. Pick the lane</strong></div>
-          <p style={{ color: '#91A1B7', lineHeight: 1.55 }}>Start where purchase value is high enough to support human sales help, supplier margin and customer acquisition.</p>
-          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 14 }}>{categories.map(c => <button key={c} onClick={() => setNiche(c)} style={{ border: '1px solid #34506B', background: niche === c ? '#9EF0CF' : '#101C2D', color: niche === c ? '#07130F' : '#DDE6F2', borderRadius: 999, padding: '8px 10px', cursor: 'pointer', fontWeight: 850 }}>{c}</button>)}</div>
-          <label style={label}>Your niche or product family</label>
-          <input value={niche} onChange={e => setNiche(e.target.value)} style={input}/>
-        </article>
+    <section style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:8,marginTop:12}}><Metric t="Contribution/order" v={money(economics.contribution)}/><Metric t="Contribution margin" v={`${economics.contributionMargin.toFixed(1)}%`}/><Metric t="Revenue target" v={money(economics.monthlyRevenue)}/><Metric t="Order revenue" v={money(orderMetrics.revenue)}/><Metric t="Order profit" v={money(orderMetrics.profit)}/><Metric t="Actual margin" v={`${orderMetrics.margin.toFixed(1)}%`}/></section>
 
-        <article style={panel}>
-          <div style={{ display: 'flex', gap: 9, alignItems: 'center' }}><Calculator size={20} color="#9EF0CF"/><strong>2. Prove the economics</strong></div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 16 }}>
-            <Field n="Average sale" prefix="$" v={avgSale} set={setAvgSale}/>
-            <Field n="Supplier cost" suffix="%" v={supplierCostPct} set={setSupplierCostPct}/>
-            <Field n="Ad cost / order" prefix="$" v={adCost} set={setAdCost}/>
-            <Field n="Freight reserve" prefix="$" v={freightReserve} set={setFreightReserve}/>
-            <Field n="Returns reserve" prefix="$" v={returnReserve} set={setReturnReserve}/>
-            <Field n="Target orders / mo" v={targetOrders} set={setTargetOrders}/>
-          </div>
-        </article>
-      </section>
+    {plan&&<article style={{...panel,marginTop:12,borderColor:'#3C6F60'}}><div style={{display:'flex',justifyContent:'space-between',gap:10,alignItems:'flex-start',flexWrap:'wrap'}}><div><div style={{color:'#9EF0CF',fontSize:11,fontWeight:950}}>AI LAUNCH THESIS</div><h2 style={{margin:'5px 0'}}>{niche}</h2></div><button onClick={()=>copy(`Subject: ${plan.outreachSubject}\n\n${plan.outreachBody}`)} style={secondary}><Copy size={14} style={{verticalAlign:'middle',marginRight:5}}/>Copy supplier outreach</button></div><p style={{color:'#C5D1DF',lineHeight:1.6}}>{plan.thesis}</p><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:8}}>{plan.launchSteps.map((s,i)=><div key={i} style={{background:'#08111E',border:'1px solid #273A55',borderRadius:11,padding:11,color:'#C7D3E0'}}><b style={{color:'#9EF0CF'}}>{i+1}.</b> {s}</div>)}</div></article>}
 
-      <section style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10 }}>
-        <Metric t="Gross margin" v={`${economics.grossMargin.toFixed(1)}%`} />
-        <Metric t="Contribution / order" v={money(economics.contribution)} good={economics.contribution > 0}/>
-        <Metric t="Contribution margin" v={`${economics.contributionMargin.toFixed(1)}%`} good={economics.contributionMargin > 10}/>
-        <Metric t="Monthly revenue target" v={money(economics.monthlyRevenue)} />
-        <Metric t="Monthly contribution" v={money(economics.monthlyContribution)} good={economics.monthlyContribution > 0}/>
-        <Metric t="Break-even ROAS" v={`${economics.breakEvenRoas.toFixed(2)}x`} />
-      </section>
+    <div style={{display:'flex',gap:7,overflowX:'auto',padding:'18px 0 10px'}}>{([['suppliers','Suppliers',Factory],['products','Products',Boxes],['crm','Lead CRM',Users],['orders','Orders',ShoppingCart],['showroom','Showroom',Store]] as const).map(([key,name,Icon])=><button key={key} onClick={()=>setTab(key)} style={{...secondary,whiteSpace:'nowrap',background:tab===key?'#9EF0CF':'#142238',color:tab===key?'#07130F':'#F8FAFC'}}><Icon size={14} style={{verticalAlign:'middle',marginRight:5}}/>{name}</button>)}</div>
 
-      {error && <div style={{ marginTop: 14, padding: 14, background: '#3B1720', border: '1px solid #8A3349', borderRadius: 12 }}>{error}</div>}
-
-      {plan && <section style={{ marginTop: 18, display: 'grid', gap: 14 }}>
-        <article style={{ ...panel, borderColor: '#3E7A67' }}>
-          <div style={{ color: '#9EF0CF', fontWeight: 950, fontSize: 12 }}>AI MARKET THESIS</div>
-          <h2 style={{ marginBottom: 8 }}>{niche}</h2>
-          <p style={{ color: '#C0CDDD', lineHeight: 1.65, fontSize: 17 }}>{plan.thesis}</p>
-          <p style={{ color: '#9FB0C6', lineHeight: 1.6 }}><strong style={{ color: '#F8FAFC' }}>Ideal buyer:</strong> {plan.idealCustomer}</p>
-        </article>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 14 }}>
-          <PlanCard icon={<Factory size={20}/>} title="Supplier profile" items={plan.supplierProfile}/>
-          <PlanCard icon={<Store size={20}/>} title="Premium showroom" items={plan.showroomSections}/>
-          <PlanCard icon={<Users size={20}/>} title="Traffic & sales" items={plan.trafficPlan}/>
-          <PlanCard icon={<BadgeCheck size={20}/>} title="Risk gates" items={plan.riskGates}/>
-        </div>
-        <article style={panel}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}><h2 style={{ margin: 0 }}>7-step launch sequence</h2><ArrowRight size={20} color="#9EF0CF"/></div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(250px,1fr))', gap: 9, marginTop: 14 }}>{plan.launchSteps.map((x,i)=><div key={i} style={{ background:'#08111E',border:'1px solid #273A55',borderRadius:12,padding:13 }}><strong style={{color:'#9EF0CF'}}>{i+1}.</strong> <span style={{color:'#C6D1DF'}}>{x}</span></div>)}</div>
-        </article>
-        <article style={panel}>
-          <div style={{ display:'flex',justifyContent:'space-between',gap:10,alignItems:'center',flexWrap:'wrap' }}><div><div style={{color:'#9EF0CF',fontSize:12,fontWeight:950}}>SUPPLIER OUTREACH</div><h2 style={{margin:'4px 0'}}>{plan.outreachSubject}</h2></div><button onClick={()=>copy(`Subject: ${plan.outreachSubject}\n\n${plan.outreachBody}`)} style={{...button,background:'#15243A',color:'#F8FAFC',border:'1px solid #3B516F'}}><Copy size={15} style={{verticalAlign:'middle',marginRight:6}}/>Copy</button></div>
-          <div style={{ whiteSpace:'pre-wrap',background:'#08111E',border:'1px solid #273A55',borderRadius:12,padding:16,color:'#C5D1E0',lineHeight:1.65,marginTop:12 }}>{plan.outreachBody}</div>
-        </article>
-      </section>}
-
-      <section id="supplier-command" style={{ marginTop: 22 }}>
-        <div style={{ color:'#9EF0CF',fontWeight:950,fontSize:12,letterSpacing:1 }}>SUPPLIER COMMAND</div>
-        <h2 style={{ fontSize:'clamp(32px,5vw,48px)',margin:'8px 0 8px' }}>Turn manufacturers into an approved product pipeline.</h2>
-        <p style={{ color:'#9FB0C6',maxWidth:850,lineHeight:1.6 }}>Do not publish a supplier as “approved” until they confirm dealer terms, territory, pricing, freight, returns, warranty handling and any MAP policy.</p>
-        <div style={{ ...panel, marginTop: 14 }}>
-          <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:9 }}>
-            <div><label style={label}>Supplier / manufacturer</label><input value={supplierName} onChange={e=>setSupplierName(e.target.value)} style={input} placeholder="Company name"/></div>
-            <div><label style={label}>Website</label><input value={supplierWebsite} onChange={e=>setSupplierWebsite(e.target.value)} style={input} placeholder="https://…"/></div>
-            <div><label style={label}>Contact / notes</label><input value={supplierContact} onChange={e=>setSupplierContact(e.target.value)} style={input} placeholder="Name, email or next step"/></div>
-          </div>
-          <button onClick={addSupplier} style={{...button,marginTop:11}}>Add supplier candidate</button>
-        </div>
-        <div style={{ display:'grid',gap:9,marginTop:10 }}>
-          {suppliers.length === 0 ? <div style={{...panel,color:'#91A1B7'}}>No supplier candidates yet. Add the first manufacturer above, then move it through Research → Qualified → Contacted → Approved.</div> : suppliers.map(s=><article key={s.id} style={{...panel,display:'grid',gridTemplateColumns:'minmax(160px,2fr) minmax(120px,1fr) auto',gap:12,alignItems:'center'}}>
-            <div><strong>{s.name}</strong><div style={{color:'#8FA2BA',fontSize:13,marginTop:4}}>{s.website || 'Website not added'}{s.contact ? ` · ${s.contact}` : ''}</div></div>
-            <div><span style={{background:'#14253A',border:'1px solid #35516C',borderRadius:999,padding:'6px 9px',fontSize:12,fontWeight:900}}>{s.status}</span></div>
-            <button onClick={()=>advanceSupplier(s.id)} disabled={s.status==='Approved'} style={{...button,opacity:s.status==='Approved'?.55:1}}>{s.status==='Approved'?'Approved':'Advance'}</button>
-          </article>)}
-        </div>
-      </section>
-
-      <section style={{ marginTop: 22, display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:12 }}>
-        <Mini icon={<ShoppingCart/>} title="Showroom before inventory" text="Build around supplier-approved product feeds, strong category pages, financing options and consultative calls. Avoid pretending inventory or authorization exists before it does."/>
-        <Mini icon={<Truck/>} title="Freight is part of the product" text="Model lift-gate, residential delivery, damage claims, returns and warranty responsibility before paid traffic starts."/>
-        <Mini icon={<BadgeCheck/>} title="Aridon verification gate" text="Supplier claims, MAP rules, warranty terms and dealer status stay marked unverified until evidence is recorded."/>
-      </section>
-    </section>
-  </main>;
+    {tab==='suppliers'&&<SupplierTab suppliers={suppliers} form={supplierForm} setForm={setSupplierForm} add={addSupplier} patch={patchEntity} setSuppliers={setSuppliers} copy={copy} plan={plan}/>} 
+    {tab==='products'&&<ProductTab products={products} suppliers={suppliers} form={productForm} setForm={setProductForm} add={addProduct} patch={patchEntity} setProducts={setProducts} importCsv={importCsv}/>} 
+    {tab==='crm'&&<LeadTab leads={leads} form={leadForm} setForm={setLeadForm} add={addLead} patch={patchEntity} setLeads={setLeads}/>} 
+    {tab==='orders'&&<OrderTab orders={orders} leads={leads} products={products} form={orderForm} setForm={setOrderForm} add={addOrder} patch={patchEntity} setOrders={setOrders}/>} 
+    {tab==='showroom'&&<ShowroomTab showrooms={showrooms} generate={generateShowroom} loading={loading==='showroom'} products={products} suppliers={suppliers}/>} 
+  </section></main>;
 }
 
-function Field({n,v,set,prefix,suffix}:{n:string;v:number;set:(n:number)=>void;prefix?:string;suffix?:string}){return <div><label style={label}>{n}</label><div style={{display:'flex',alignItems:'center',gap:5}}>{prefix&&<span style={{color:'#9FB0C6'}}>{prefix}</span>}<input type="number" value={v} onChange={e=>set(Number(e.target.value))} style={input}/>{suffix&&<span style={{color:'#9FB0C6'}}>{suffix}</span>}</div></div>}
-function Metric({t,v,good}:{t:string;v:string;good?:boolean}){return <div style={{background:'#0D1728',border:`1px solid ${good===false?'#7B3344':'#263956'}`,borderRadius:14,padding:15}}><div style={{color:'#8FA2BA',fontSize:11,fontWeight:900}}>{t.toUpperCase()}</div><div style={{fontSize:27,fontWeight:950,marginTop:5,color:good===false?'#FF9AAE':'#F8FAFC'}}>{v}</div></div>}
-function PlanCard({icon,title,items}:{icon:React.ReactNode;title:string;items:string[]}){return <article style={panel}><div style={{display:'flex',gap:8,alignItems:'center',color:'#9EF0CF'}}>{icon}<strong style={{color:'#F8FAFC'}}>{title}</strong></div><ul style={{paddingLeft:20,color:'#B9C7D8',lineHeight:1.6}}>{items.map((x,i)=><li key={i} style={{marginTop:8}}>{x}</li>)}</ul></article>}
-function Mini({icon,title,text}:{icon:React.ReactNode;title:string;text:string}){return <article style={panel}><div style={{color:'#9EF0CF'}}>{icon}</div><h3>{title}</h3><p style={{color:'#9FB0C6',lineHeight:1.6}}>{text}</p></article>}
-function money(n:number){return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(Number.isFinite(n)?n:0)}
+function Field({name,prefix,suffix,value,set}:{name:string;prefix?:string;suffix?:string;value:number;set:(v:number)=>void}){return <div><label style={label}>{name}</label><div style={{display:'flex',gap:4,alignItems:'center'}}>{prefix&&<span style={{color:'#9FB0C6'}}>{prefix}</span>}<input type="number" value={value} onChange={e=>set(Number(e.target.value))} style={input}/>{suffix&&<span style={{color:'#9FB0C6'}}>{suffix}</span>}</div></div>}
+function Metric({t,v}:{t:string;v:string}){return <div style={{background:'#0D1728',border:'1px solid #263956',borderRadius:13,padding:12}}><div style={{fontSize:10,fontWeight:900,color:'#8FA2BA',textTransform:'uppercase'}}>{t}</div><div style={{fontSize:23,fontWeight:950,marginTop:4}}>{v}</div></div>}
+function Banner({text,bad=false}:{text:string;bad?:boolean}){return <div style={{marginBottom:10,padding:11,borderRadius:11,background:bad?'#3A1720':'#102D27',border:`1px solid ${bad?'#87384C':'#2F715F'}`,color:'#F5F7FA'}}>{text}</div>}
+function num(v:any){const n=Number(v);return Number.isFinite(n)?n:0}
+function Text({name,value,set,placeholder='',type='text'}:{name:string;value:string;set:(v:string)=>void;placeholder?:string;type?:string}){return <div><label style={label}>{name}</label><input type={type} value={value} onChange={e=>set(e.target.value)} placeholder={placeholder} style={input}/></div>}
+function Select({name,value,set,children}:{name:string;value:string;set:(v:string)=>void;children:React.ReactNode}){return <div><label style={label}>{name}</label><select value={value} onChange={e=>set(e.target.value)} style={input}>{children}</select></div>}
+
+function SupplierTab({suppliers,form,setForm,add,patch,setSuppliers,copy,plan}:{suppliers:Supplier[];form:any;setForm:any;add:()=>void;patch:any;setSuppliers:any;copy:any;plan:Plan|null}){return <section><article style={panel}><h2 style={{marginTop:0}}>Supplier Command</h2><p style={{color:'#9FB0C6'}}>Live discovery scores public evidence. Approval still requires your actual dealer terms, pricing, freight, warranty and MAP evidence.</p><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:8}}><Text name="Manufacturer" value={form.name} set={v=>setForm({...form,name:v})}/><Text name="Website" value={form.website} set={v=>setForm({...form,website:v})}/><Text name="Contact / notes" value={form.contact} set={v=>setForm({...form,contact:v})}/></div><button onClick={add} style={{...button,marginTop:9}}>Add candidate</button></article><div style={{display:'grid',gap:8,marginTop:9}}>{suppliers.length===0&&<Empty text="No suppliers yet. Use Discover suppliers above to scout the live web, or add one manually."/>}{suppliers.map(s=><article key={s.id} style={panel}><div style={{display:'flex',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}><div><div style={{display:'flex',gap:7,alignItems:'center',flexWrap:'wrap'}}><h3 style={{margin:0}}>{s.name}</h3><Score n={Number(s.score||0)}/>{s.discovered_by_ai&&<span style={{fontSize:10,color:'#9EF0CF',fontWeight:900}}>LIVE WEB SCOUT</span>}</div>{s.website&&<a href={s.website} target="_blank" rel="noreferrer" style={{color:'#8DC8FF',fontSize:13}}>{s.website}</a>}</div><select value={s.status} onChange={e=>patch('supplier',s.id,{status:e.target.value},setSuppliers)} style={{...input,width:'auto'}}>{['Research','Qualified','Contacted','Approved','Rejected'].map(x=><option key={x}>{x}</option>)}</select></div>{s.why_fit&&<p style={{color:'#C2CFDD',lineHeight:1.55}}>{s.why_fit}</p>}{Array.isArray(s.evidence)&&s.evidence.length>0&&<div style={{display:'grid',gap:5}}>{s.evidence.slice(0,3).map((e,i)=><div key={i} style={{fontSize:12,color:'#95A8BF'}}>• {e}</div>)}</div>}<div style={{display:'flex',gap:7,flexWrap:'wrap',marginTop:9}}>{s.source_url&&<a href={s.source_url} target="_blank" rel="noreferrer" style={{...secondary,textDecoration:'none',padding:'8px 10px'}}>Source</a>}{plan&&<button onClick={()=>copy(`Subject: ${plan.outreachSubject}\n\nHello ${s.name},\n\n${plan.outreachBody}`)} style={{...secondary,padding:'8px 10px'}}><Copy size={13} style={{verticalAlign:'middle',marginRight:4}}/>Copy outreach</button>}{s.contact&&/@/.test(s.contact)&&<a href={`mailto:${s.contact.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/)?.[0]||''}`} style={{...secondary,textDecoration:'none',padding:'8px 10px'}}><Send size={13} style={{verticalAlign:'middle',marginRight:4}}/>Email</a>}</div></article>)}</div></section>}
+function Score({n}:{n:number}){return <span style={{fontSize:11,fontWeight:950,border:'1px solid #41627C',borderRadius:999,padding:'4px 7px',color:n>=80?'#9EF0CF':'#F2C46D'}}>{Math.round(n)}/100</span>}
+
+function ProductTab({products,suppliers,form,setForm,add,patch,setProducts,importCsv}:{products:Product[];suppliers:Supplier[];form:any;setForm:any;add:()=>void;patch:any;setProducts:any;importCsv:(f:File)=>void}){return <section><article style={panel}><div style={{display:'flex',alignItems:'center',gap:7}}><FileSpreadsheet size={19} color="#9EF0CF"/><h2 style={{margin:0}}>Product Feed</h2></div><p style={{color:'#9FB0C6'}}>Import a CSV with columns such as supplier_name, sku, title, product_url, supplier_cost, selling_price, freight_cost, map_price, availability, warranty. Every import starts Draft.</p><input type="file" accept=".csv,text/csv" onChange={e=>{const f=e.target.files?.[0];if(f)importCsv(f)}} style={{...input,padding:9}}/><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:8,marginTop:10}}><Select name="Supplier" value={form.supplier_id} set={v=>setForm({...form,supplier_id:v})}><option value="">Unassigned</option>{suppliers.map(s=><option value={s.id} key={s.id}>{s.name}</option>)}</Select><Text name="SKU" value={form.sku} set={v=>setForm({...form,sku:v})}/><Text name="Product title" value={form.title} set={v=>setForm({...form,title:v})}/><Text name="Product URL" value={form.product_url} set={v=>setForm({...form,product_url:v})}/><Text name="Supplier cost" value={form.supplier_cost} set={v=>setForm({...form,supplier_cost:v})} type="number"/><Text name="Selling price" value={form.selling_price} set={v=>setForm({...form,selling_price:v})} type="number"/><Text name="Freight" value={form.freight_cost} set={v=>setForm({...form,freight_cost:v})} type="number"/><Text name="Availability" value={form.availability} set={v=>setForm({...form,availability:v})}/><Text name="Warranty" value={form.warranty} set={v=>setForm({...form,warranty:v})}/></div><button onClick={add} style={{...button,marginTop:9}}>Add product</button></article><div style={{display:'grid',gap:8,marginTop:9}}>{products.length===0&&<Empty text="No products yet. Import a supplier feed or add your first verified candidate product."/>}{products.map(p=>{const profit=Number(p.selling_price||0)-Number(p.supplier_cost||0)-Number(p.freight_cost||0);const supplier=suppliers.find(s=>s.id===p.supplier_id);return <article key={p.id} style={panel}><div style={{display:'flex',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}><div><h3 style={{margin:'0 0 4px'}}>{p.title}</h3><div style={{color:'#9FB0C6',fontSize:12}}>{p.sku||'No SKU'} · {supplier?.name||'Unassigned supplier'}</div></div><select value={p.status} onChange={e=>patch('product',p.id,{status:e.target.value},setProducts)} style={{...input,width:'auto'}}>{['Draft','Verified','Live','Paused'].map(x=><option key={x}>{x}</option>)}</select></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:7,marginTop:9}}><Mini t="Cost" v={money(Number(p.supplier_cost||0))}/><Mini t="Price" v={money(Number(p.selling_price||0))}/><Mini t="Freight" v={money(Number(p.freight_cost||0))}/><Mini t="Gross after freight" v={money(profit)}/></div>{p.product_url&&<a href={p.product_url} target="_blank" rel="noreferrer" style={{color:'#8DC8FF',fontSize:12}}>Open source product page</a>}</article>})}</div></section>}
+
+function LeadTab({leads,form,setForm,add,patch,setLeads}:{leads:Lead[];form:any;setForm:any;add:()=>void;patch:any;setLeads:any}){return <section><article style={panel}><h2 style={{marginTop:0}}>Lead & Quote CRM</h2><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:8}}><Text name="Name" value={form.name} set={v=>setForm({...form,name:v})}/><Text name="Company" value={form.company} set={v=>setForm({...form,company:v})}/><Text name="Email" value={form.email} set={v=>setForm({...form,email:v})}/><Text name="Phone" value={form.phone} set={v=>setForm({...form,phone:v})}/><Text name="Product interest" value={form.product_interest} set={v=>setForm({...form,product_interest:v})}/><Text name="Estimated value" value={form.estimated_value} set={v=>setForm({...form,estimated_value:v})} type="number"/><Text name="Next step" value={form.next_step} set={v=>setForm({...form,next_step:v})}/></div><button onClick={add} style={{...button,marginTop:9}}>Add lead</button></article><div style={{display:'grid',gap:8,marginTop:9}}>{leads.length===0&&<Empty text="No leads yet. Add inquiries, quote requests and prospects here."/>}{leads.map(l=><article key={l.id} style={panel}><div style={{display:'flex',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}><div><h3 style={{margin:0}}>{l.name}{l.company?` · ${l.company}`:''}</h3><div style={{color:'#9FB0C6',fontSize:12,marginTop:4}}>{l.product_interest||'No product selected'} · {money(Number(l.estimated_value||0))}</div></div><select value={l.stage} onChange={e=>patch('lead',l.id,{stage:e.target.value},setLeads)} style={{...input,width:'auto'}}>{['New','Qualified','Quoted','Negotiating','Won','Lost'].map(x=><option key={x}>{x}</option>)}</select></div><div style={{color:'#C1CDDA',fontSize:13,marginTop:8}}>Next: {l.next_step||'Set next action'}</div><div style={{display:'flex',gap:8,marginTop:8,flexWrap:'wrap'}}>{l.email&&<a href={`mailto:${l.email}`} style={{color:'#8DC8FF'}}>Email</a>}{l.phone&&<a href={`tel:${l.phone}`} style={{color:'#8DC8FF'}}>Call</a>}</div></article>)}</div></section>}
+
+function OrderTab({orders,leads,products,form,setForm,add,patch,setOrders}:{orders:Order[];leads:Lead[];products:Product[];form:any;setForm:any;add:()=>void;patch:any;setOrders:any}){return <section><article style={panel}><h2 style={{marginTop:0}}>Order & Margin Ledger</h2><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:8}}><Text name="Customer" value={form.customer_name} set={v=>setForm({...form,customer_name:v})}/><Select name="Lead" value={form.lead_id} set={v=>setForm({...form,lead_id:v})}><option value="">None</option>{leads.map(l=><option value={l.id} key={l.id}>{l.name}</option>)}</Select><Select name="Product" value={form.product_id} set={v=>setForm({...form,product_id:v})}><option value="">None</option>{products.map(p=><option value={p.id} key={p.id}>{p.title}</option>)}</Select><Text name="Sale price" value={form.sale_price} set={v=>setForm({...form,sale_price:v})} type="number"/><Text name="Supplier cost" value={form.supplier_cost} set={v=>setForm({...form,supplier_cost:v})} type="number"/><Text name="Ad cost" value={form.ad_cost} set={v=>setForm({...form,ad_cost:v})} type="number"/><Text name="Freight" value={form.freight_cost} set={v=>setForm({...form,freight_cost:v})} type="number"/><Text name="Other cost" value={form.other_cost} set={v=>setForm({...form,other_cost:v})} type="number"/></div><button onClick={add} style={{...button,marginTop:9}}>Add order</button></article><div style={{display:'grid',gap:8,marginTop:9}}>{orders.length===0&&<Empty text="No orders yet. The ledger will show real contribution profit instead of vanity revenue."/>}{orders.map(o=>{const profit=Number(o.sale_price||0)-Number(o.supplier_cost||0)-Number(o.ad_cost||0)-Number(o.freight_cost||0)-Number(o.other_cost||0);return <article key={o.id} style={panel}><div style={{display:'flex',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}><div><h3 style={{margin:0}}>{o.customer_name||'Customer order'}</h3><div style={{color:profit>=0?'#9EF0CF':'#FF9C9C',fontWeight:900,marginTop:5}}>Contribution {money(profit)}</div></div><select value={o.status} onChange={e=>patch('order',o.id,{status:e.target.value},setOrders)} style={{...input,width:'auto'}}>{['Pending','Paid','Ordered','Shipped','Completed','Refunded','Cancelled'].map(x=><option key={x}>{x}</option>)}</select></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))',gap:7,marginTop:9}}><Mini t="Sale" v={money(Number(o.sale_price||0))}/><Mini t="Supplier" v={money(Number(o.supplier_cost||0))}/><Mini t="Ads" v={money(Number(o.ad_cost||0))}/><Mini t="Freight" v={money(Number(o.freight_cost||0))}/></div></article>})}</div></section>}
+
+function ShowroomTab({showrooms,generate,loading,products,suppliers}:{showrooms:Showroom[];generate:()=>void;loading:boolean;products:Product[];suppliers:Supplier[]}){const latest=showrooms[0];const approved=suppliers.filter(s=>s.status==='Approved').length;const verified=products.filter(p=>p.status==='Verified'||p.status==='Live').length;return <section><article style={panel}><div style={{display:'flex',justifyContent:'space-between',gap:10,alignItems:'center',flexWrap:'wrap'}}><div><h2 style={{margin:'0 0 5px'}}>AI Premium Showroom</h2><p style={{color:'#9FB0C6',margin:0}}>Generator can use only approved suppliers and verified/live products.</p></div><button onClick={generate} style={button}><Sparkles size={15} style={{verticalAlign:'middle',marginRight:5}}/>{loading?'Generating…':'Generate showroom'}</button></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:7,marginTop:12}}><Mini t="Approved suppliers" v={String(approved)}/><Mini t="Verified products" v={String(verified)}/><Mini t="Showroom versions" v={String(showrooms.length)}/></div></article>{!latest?<Empty text="No showroom generated yet. Approve suppliers, verify products, then generate the buyer-facing structure."/>:<article style={{...panel,marginTop:9,borderColor:'#3C6F60'}}><div style={{color:'#9EF0CF',fontSize:11,fontWeight:950}}>{latest.status.toUpperCase()} SHOWROOM</div><h2 style={{fontSize:'clamp(30px,5vw,48px)',margin:'7px 0'}}>{latest.headline||latest.name}</h2><p style={{color:'#C3CEDB',fontSize:17,lineHeight:1.6}}>{latest.subheadline}</p><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:8}}>{(latest.sections||[]).map((s,i)=><div key={i} style={{background:'#08111E',border:'1px solid #2B415E',borderRadius:12,padding:14}}><div style={{fontSize:10,color:'#9EF0CF',fontWeight:900,textTransform:'uppercase'}}>{s.type||'section'}</div><h3>{s.title}</h3><p style={{color:'#AEBCCD',lineHeight:1.55}}>{s.body}</p>{s.cta&&<div style={{fontWeight:900,color:'#8DC8FF'}}>{s.cta}</div>}</div>)}</div></article>}</section>}
+
+function Mini({t,v}:{t:string;v:string}){return <div style={{background:'#08111E',border:'1px solid #263956',borderRadius:10,padding:9}}><div style={{fontSize:9,color:'#8FA2BA',fontWeight:900,textTransform:'uppercase'}}>{t}</div><div style={{fontWeight:950,marginTop:3}}>{v}</div></div>}
+function Empty({text}:{text:string}){return <div style={{...panel,color:'#91A1B7',marginTop:9}}>{text}</div>}
+
+function parseCsv(raw:string){const lines=raw.replace(/\r/g,'').split('\n').filter(x=>x.trim());if(lines.length<2)return[];const split=(line:string)=>{const out:string[]=[];let cur='';let q=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(q&&line[i+1]==='"'){cur+='"';i++;}else q=!q;}else if(c===','&&!q){out.push(cur.trim());cur='';}else cur+=c;}out.push(cur.trim());return out;};const headers=split(lines[0]).map(h=>h.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,''));return lines.slice(1).map(line=>{const vals=split(line);const row:Record<string,string>={};headers.forEach((h,i)=>row[h]=vals[i]||'');return row;}).filter(r=>Object.values(r).some(Boolean));}
