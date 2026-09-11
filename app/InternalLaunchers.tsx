@@ -44,6 +44,7 @@ export default function InternalLaunchers() {
     pathname.startsWith('/agent-supervisor') ||
     pathname.startsWith('/executive-ops') ||
     pathname.startsWith('/eva-chat') ||
+    pathname.startsWith('/eva-live') ||
     pathname.startsWith('/gridready')
   ) return null;
 
@@ -97,6 +98,7 @@ export default function InternalLaunchers() {
         <img src={EVA_AVATAR} alt="Eva" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', display: 'block' }} />
         <span>Eva</span>
       </Link>
+      <Link href="/eva-live" aria-label="Open Eva Live full-duplex voice" title="Talk with Eva Live" style={{ ...launcherStyle, background: '#9EF0CF' }}>🎙 Eva Live</Link>
       <Link href="/gridready" aria-label="Open Aridon GridReady data center qualification workspace" style={{ ...launcherStyle, background: '#9EF0CF' }}>⚡ GridReady</Link>
       <Link href="/relationship-brain" aria-label="Open Aridon Relationship Brain" style={{ ...launcherStyle, background: '#9EF0CF' }}>◎ Relationships</Link>
       <Link href="/property-intelligence" aria-label="Open nationwide property intelligence hunter" style={{ ...launcherStyle, background: '#FFE1A8' }}>⌂ Property</Link>
