@@ -97,18 +97,12 @@ export async function POST(request: NextRequest) {
       : ' Give the signed-in user one brief, warm greeting when the conversation begins.';
 
     const session = {
-      type: 'live',
       model: 'gpt-live-1',
       instructions:
         `You are Eva, Aridon's AI Command Advisor and Chief of Staff. Speak warmly, naturally, and concisely. ` +
         `Keep the conversation flowing and allow interruptions. When a request needs current facts, detailed reasoning, or web research, delegate it to the backend. ` +
         `Never claim that an email, call, purchase, calendar change, CRM update, deployment, or other external action happened unless the backend explicitly confirms it. ` +
         `If an unavailable action is requested, say what you can do now and what still needs to be connected.${greetingInstruction}`,
-      audio: {
-        output: {
-          voice: 'willow',
-        },
-      },
       delegation: {
         type: 'responses',
         responses: {
@@ -122,7 +116,6 @@ export async function POST(request: NextRequest) {
           tool_choice: 'auto',
         },
       },
-      store: false,
     };
 
     const safetyIdentifier = createHash('sha256').update(`aridon-live:${auth.user.id}`).digest('hex');
