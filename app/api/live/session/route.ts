@@ -46,6 +46,12 @@ function cleanFirstName(value: unknown) {
   return first.replace(/[^\p{L}\p{M}'-]/gu, '').slice(0, 40);
 }
 
+function normalizeSdp(value: unknown) {
+  if (typeof value !== 'string') return '';
+  const normalized = value.replace(/\r?\n/g, '\r\n');
+  return normalized.endsWith('\r\n') ? normalized : `${normalized}\r\n`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!sameOrigin(request)) {
@@ -69,8 +75,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => null) as { sdp?: unknown } | null;
-    const sdp = typeof body?.sdp === 'string' ? body.sdp.trim() : '';
-    if (!sdp || Buffer.byteLength(sdp, 'utf8') > MAX_SDP_BYTES) {
+    const sdp = normalizeSdp(body?.sdp);
+    if (
+      !sdp ||
+      !sdp.startsWith('v=0\r\n') ||
+      !sdp.includes('\r\nm=audio ') ||
+      Buffer.byteLength(sdp, 'utf8') > MAX_SDP_BYTES
+    ) {
       return Response.json({ error: 'A valid SDP offer is required.' }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
