@@ -53,6 +53,11 @@ export default function manifest(): MetadataRoute.Manifest {
         url: '/customer/assistant',
       },
       {
+        name: 'Eva Meeting Mode',
+        short_name: 'Eva Meeting',
+        url: '/eva-meeting',
+      },
+      {
         name: 'Company Account',
         short_name: 'Account',
         url: '/customer/account',
