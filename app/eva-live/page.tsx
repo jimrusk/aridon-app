@@ -14,18 +14,46 @@ type LiveEvent = {
   type?: string;
   session?: { id?: string };
   delta?: string;
+  start_ms?: number;
+  end_ms?: number;
+  delegation?: { id?: string; target?: string };
   error?: { message?: string };
-  event?: { type?: string };
+};
+
+type EvaWorkResponse = {
+  reply?: string;
+  workSummary?: string;
+  status?: string;
+  followUps?: string[];
+  autoExecuted?: unknown[];
+  approvalQueue?: unknown[];
+  sources?: Array<{ title?: string; url?: string }>;
+  error?: string;
+};
+
+type TranscriptPiece = {
+  speaker: 'USER' | 'EVA';
+  text: string;
+  startMs: number;
+  endMs: number;
 };
 
 type AuthState = 'checking' | 'ready' | 'signed-out';
 type ConnectionState = 'idle' | 'connecting' | 'live' | 'closing' | 'error';
 
 const MAX_CAPTION_CHARS = 6_000;
+const MAX_TRANSCRIPT_CHARS = 6_300;
+const MAX_SPOKEN_RESULT_CHARS = 1_850;
 
 function appendCaption(previous: string, fragment: string) {
   const next = previous + fragment;
   return next.length > MAX_CAPTION_CHARS ? next.slice(next.length - MAX_CAPTION_CHARS) : next;
+}
+
+function trimSpokenResult(value: string) {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= MAX_SPOKEN_RESULT_CHARS) return normalized;
+  return `${normalized.slice(0, MAX_SPOKEN_RESULT_CHARS - 1).trim()}…`;
 }
 
 async function waitForIce(connection: RTCPeerConnection) {
@@ -52,7 +80,7 @@ export default function EvaLivePage() {
   const [authState, setAuthState] = useState<AuthState>('checking');
   const [connectionState, setConnectionState] = useState<ConnectionState>('idle');
   const [status, setStatus] = useState('Checking your Aridon session…');
-  const [backendStatus, setBackendStatus] = useState('Live research is ready when Eva needs it.');
+  const [backendStatus, setBackendStatus] = useState('Aridon Work Mode is ready when Eva needs it.');
   const [userCaption, setUserCaption] = useState('');
   const [evaCaption, setEvaCaption] = useState('');
   const [muted, setMuted] = useState(false);
@@ -65,6 +93,9 @@ export default function EvaLivePage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const finalizedRef = useRef(false);
+  const accessTokenRef = useRef('');
+  const transcriptRef = useRef<TranscriptPiece[]>([]);
+  const delegationsRef = useRef(new Set<string>());
 
   useEffect(() => {
     let active = true;
@@ -101,6 +132,9 @@ export default function EvaLivePage() {
     try { peerRef.current?.close(); } catch {}
     peerRef.current = null;
     if (audioRef.current) audioRef.current.srcObject = null;
+    accessTokenRef.current = '';
+    transcriptRef.current = [];
+    delegationsRef.current.clear();
     setMuted(false);
     setMutePending(false);
     setSessionId('');
@@ -113,30 +147,121 @@ export default function EvaLivePage() {
     setStatus(message);
   }
 
+  function recordTranscript(speaker: TranscriptPiece['speaker'], fragment: string, startMs?: number, endMs?: number) {
+    if (!fragment) return;
+    const pieces = transcriptRef.current;
+    const start = Number.isFinite(startMs) ? Number(startMs) : (pieces.at(-1)?.endMs || Date.now());
+    const end = Number.isFinite(endMs) ? Number(endMs) : start;
+    const last = pieces.at(-1);
+
+    if (last && last.speaker === speaker && start <= last.endMs + 350) {
+      last.text += fragment;
+      last.endMs = Math.max(last.endMs, end);
+    } else {
+      pieces.push({ speaker, text: fragment, startMs: start, endMs: end });
+    }
+
+    if (pieces.length > 250) pieces.splice(0, pieces.length - 250);
+  }
+
+  function conversationForBackend() {
+    const transcript = [...transcriptRef.current]
+      .sort((a, b) => a.startMs - b.startMs)
+      .map((piece) => `${piece.speaker}: ${piece.text.trim()}`)
+      .filter((line) => !line.endsWith(':'))
+      .join('\n');
+    return transcript.slice(-MAX_TRANSCRIPT_CHARS);
+  }
+
+  function sendLiveAppend(channel: RTCDataChannel, type: 'session.thinking.append' | 'session.commentary.append', delegationId: string, content: string) {
+    if (channel.readyState !== 'open') return;
+    channel.send(JSON.stringify({
+      type,
+      event_id: `aridon_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      delegation_id: delegationId,
+      content,
+    }));
+  }
+
+  async function runAridonDelegation(delegationId: string, channel: RTCDataChannel) {
+    if (!delegationId || delegationsRef.current.has(delegationId)) return;
+    delegationsRef.current.add(delegationId);
+    setBackendStatus('Eva handed this request to Aridon Work Mode. Researching and checking what can actually be done…');
+    sendLiveAppend(channel, 'session.thinking.append', delegationId, 'Aridon Work Mode is processing the request. Do not claim any unconfirmed external action succeeded.');
+
+    try {
+      const transcript = conversationForBackend();
+      const token = accessTokenRef.current;
+      if (!token) throw new Error('Your Aridon sign-in expired.');
+      if (!transcript) throw new Error('The live transcript was not ready yet.');
+
+      const response = await fetch('/api/live/delegate', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ transcript }),
+        cache: 'no-store',
+      });
+      const result = await response.json().catch(() => ({})) as EvaWorkResponse;
+      if (!response.ok) throw new Error(result.error || 'Aridon Work Mode could not complete the delegated request.');
+
+      const completedCount = Array.isArray(result.autoExecuted) ? result.autoExecuted.length : 0;
+      const approvalCount = Array.isArray(result.approvalQueue) ? result.approvalQueue.length : 0;
+      const sourceCount = Array.isArray(result.sources) ? result.sources.length : 0;
+      const parts = [result.reply || result.workSummary || 'Aridon completed the delegated work.'];
+      if (completedCount > 0) parts.push(`Aridon confirmed ${completedCount} internal action${completedCount === 1 ? '' : 's'} completed.`);
+      if (approvalCount > 0) parts.push(`${approvalCount} consequential action${approvalCount === 1 ? ' is' : 's are'} prepared and waiting for owner approval in Aridon. Do not say ${approvalCount === 1 ? 'it was' : 'they were'} executed.`);
+      if (sourceCount > 0) parts.push(`The work record includes ${sourceCount} web source${sourceCount === 1 ? '' : 's'}.`);
+
+      const spokenResult = trimSpokenResult(parts.join(' '));
+      sendLiveAppend(channel, 'session.commentary.append', delegationId, spokenResult);
+      setBackendStatus(approvalCount > 0
+        ? `Work complete. ${approvalCount} action${approvalCount === 1 ? '' : 's'} waiting for your approval.`
+        : completedCount > 0
+          ? `Work complete. ${completedCount} internal action${completedCount === 1 ? '' : 's'} confirmed.`
+          : 'Work complete. Eva has the verified result.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Aridon Work Mode could not complete this request.';
+      sendLiveAppend(channel, 'session.commentary.append', delegationId, trimSpokenResult(`Aridon could not complete that delegated work: ${message}. Do not claim any unconfirmed action succeeded.`));
+      setBackendStatus(message);
+    } finally {
+      window.setTimeout(() => delegationsRef.current.delete(delegationId), 60_000);
+    }
+  }
+
   function handleLiveEvent(event: LiveEvent, channel: RTCDataChannel) {
     if (event.type === 'session.started') {
       finalizedRef.current = false;
       setConnectionState('live');
       setSessionId(event.session?.id || 'live');
       setStatus('Eva Live is connected. Talk normally and interrupt whenever you need to.');
-      setBackendStatus('Live research is ready when Eva needs it.');
+      setBackendStatus('Aridon Work Mode is ready for research and connected business work.');
 
       channel.send(JSON.stringify({
         type: 'session.instructions.append',
         event_id: `eva_opening_${Date.now()}`,
         delegation_id: null,
-        content: 'Begin the conversation now. Give the brief greeting requested in your startup instructions, then pause and listen to the user.',
+        content: 'Begin the conversation now. Give the brief greeting requested in your startup instructions, then pause and listen. Delegate current research and Aridon business work instead of guessing or pretending an action happened.',
       }));
       return;
     }
 
     if (event.type === 'session.input_transcript.delta' && typeof event.delta === 'string') {
       setUserCaption((previous) => appendCaption(previous, event.delta || ''));
+      recordTranscript('USER', event.delta, event.start_ms, event.end_ms);
       return;
     }
 
     if (event.type === 'session.output_transcript.delta' && typeof event.delta === 'string') {
       setEvaCaption((previous) => appendCaption(previous, event.delta || ''));
+      recordTranscript('EVA', event.delta, event.start_ms, event.end_ms);
+      return;
+    }
+
+    if (event.type === 'session.delegation.created' && event.delegation?.target === 'client' && event.delegation.id) {
+      void runAridonDelegation(event.delegation.id, channel);
       return;
     }
 
@@ -152,22 +277,12 @@ export default function EvaLivePage() {
       return;
     }
 
-    if (event.type === 'response.event') {
-      const nestedType = event.event?.type || '';
-      if (nestedType.includes('web_search') || nestedType.includes('tool')) {
-        setBackendStatus('Eva is checking the live web and reasoning in the background…');
-      } else if (nestedType.includes('completed') || nestedType.includes('done')) {
-        setBackendStatus('Research complete. Eva is bringing it into the conversation.');
-      }
-      return;
-    }
-
     if (event.type === 'session.closed') {
       finalizedRef.current = true;
       cleanupConnection();
       setConnectionState('idle');
       setStatus('Conversation ended. Start another whenever you are ready.');
-      setBackendStatus('Live research is ready when Eva needs it.');
+      setBackendStatus('Aridon Work Mode is ready when Eva needs it.');
       return;
     }
 
@@ -186,11 +301,13 @@ export default function EvaLivePage() {
 
     setConnectionState('connecting');
     setStatus('Connecting Eva Live…');
-    setBackendStatus('Preparing Eva and the research backend…');
+    setBackendStatus('Preparing Eva and Aridon Work Mode…');
     setUserCaption('');
     setEvaCaption('');
     setMuted(false);
     setMutePending(false);
+    transcriptRef.current = [];
+    delegationsRef.current.clear();
     finalizedRef.current = false;
 
     try {
@@ -201,6 +318,7 @@ export default function EvaLivePage() {
         throw new Error('Your Aridon session has expired. Sign in again to use Eva Live.');
       }
       setAuthState('ready');
+      accessTokenRef.current = data.session.access_token;
 
       const connection = new RTCPeerConnection();
       peerRef.current = connection;
@@ -322,7 +440,7 @@ export default function EvaLivePage() {
           <div>
             <div style={{ color: '#9EF0CF', fontSize: 11, fontWeight: 950, letterSpacing: '.14em' }}>ARIDON · EVA LIVE</div>
             <h1 style={{ margin: '7px 0 5px', fontSize: 'clamp(34px,6vw,62px)' }}>A real conversation with Eva.</h1>
-            <p style={{ color: '#AAB9CA', margin: 0, maxWidth: 760, lineHeight: 1.6 }}>GPT-Live gives Eva full-duplex voice: she can listen while speaking, handle interruptions, and delegate current-information questions to a stronger research backend.</p>
+            <p style={{ color: '#AAB9CA', margin: 0, maxWidth: 760, lineHeight: 1.6 }}>GPT-Live gives Eva full-duplex voice while Aridon Work Mode handles current research, company context, tasks, and approval-controlled business actions.</p>
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <Link href="/avatars" style={navLink}>Classic Voice</Link>
@@ -372,7 +490,7 @@ export default function EvaLivePage() {
             </div>
 
             <div style={{ marginTop: 13, padding: 13, borderRadius: 13, background: '#0A1624', border: '1px solid #20344A' }}>
-              <div style={{ color: '#9EF0CF', fontSize: 10, fontWeight: 950 }}>BACKEND</div>
+              <div style={{ color: '#9EF0CF', fontSize: 10, fontWeight: 950 }}>ARIDON WORK MODE</div>
               <div style={{ marginTop: 6, color: '#AAB9CA', lineHeight: 1.5 }}>{backendStatus}</div>
             </div>
           </div>
@@ -382,9 +500,9 @@ export default function EvaLivePage() {
           <div style={{ color: '#66D9EF', fontSize: 10, fontWeight: 950, letterSpacing: '.12em' }}>WHAT THIS VERSION CAN DO</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))', gap: 10, marginTop: 11 }}>
             <Feature title="Natural interruption" text="Talk over Eva or change direction without waiting for a stop-and-start voice turn." />
-            <Feature title="Current research" text="Eva can delegate questions that need fresh public information to the reasoning backend with web search." />
-            <Feature title="Secure session creation" text="The OpenAI project key stays on the Aridon server. Live sessions require a signed-in Aridon user." />
-            <Feature title="Safe action boundary" text="Eva will not claim an email, call, CRM update, deployment, or other action happened unless a connected backend confirms it." />
+            <Feature title="Current research" text="Eva can hand current-information questions to Aridon Work Mode, which can research the live web and return verified results." />
+            <Feature title="Company work" text="Delegated requests can use the signed-in Aridon workspace, create safe internal tasks, and prepare supported external actions." />
+            <Feature title="Owner approval gates" text="Emails and calendar actions produced by Work Mode remain queued for owner approval. Eva only announces confirmed execution." />
           </div>
         </section>
       </div>

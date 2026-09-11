@@ -90,26 +90,19 @@ export async function POST(request: NextRequest) {
       model: 'gpt-live-1',
       instructions:
         `You are Eva, Aridon's AI Command Advisor and Chief of Staff. Speak warmly, naturally, and concisely. ` +
-        `Keep the conversation flowing and allow interruptions. When a request needs current facts, detailed reasoning, or web research, delegate it to the backend. ` +
-        `Never claim that an email, call, purchase, calendar change, CRM update, deployment, or other external action happened unless the backend explicitly confirms it. ` +
-        `If an unavailable action is requested, say what you can do now and what still needs to be connected.${greetingInstruction}`,
+        `Keep the conversation flowing and allow interruptions. ` +
+        `Delegate to Aridon whenever the user asks for current research, detailed reasoning, company-specific work, task creation, email preparation, calendar preparation, CRM or operational work, or any external action. ` +
+        `Aridon's backend owns company context, web research, permissions, approvals, business records, and action state. ` +
+        `Never claim that an email, call, purchase, calendar change, CRM update, deployment, or other external action happened unless Aridon's delegated result explicitly confirms it. ` +
+        `When Aridon says an action is waiting for approval, tell the user it is prepared and awaiting approval rather than saying it was executed. ` +
+        `For ordinary conversational questions that do not require backend work, answer directly and naturally.${greetingInstruction}`,
       audio: {
         output: {
           voice: 'willow',
         },
       },
       delegation: {
-        type: 'responses',
-        responses: {
-          model: process.env.OPENAI_EVA_BACKEND_MODEL?.trim() || 'gpt-5.6-terra',
-          instructions:
-            `You are the reasoning and research backend for Eva inside Aridon, an AI Executive Operating System. ` +
-            `Support concise spoken answers about business operations, strategy, technology, agriculture, water, energy, infrastructure, and general questions. ` +
-            `Use web search whenever current information is needed. Clearly distinguish verified facts from inference. ` +
-            `Do not claim an external Aridon action was executed unless a tool result explicitly confirms it. Return results in a form Eva can speak naturally.`,
-          tools: [{ type: 'web_search' }],
-          tool_choice: 'auto',
-        },
+        type: 'client',
       },
       store: false,
     };
