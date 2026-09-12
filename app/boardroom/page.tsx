@@ -13,11 +13,32 @@ type BoardroomResult = {
   demo?: boolean;
 };
 
+type Executive = (typeof executives)[number];
+
 const examples = [
   'Should we hire another salesperson now or wait three months?',
   'We have ten warm leads but follow-up is inconsistent. What should the team do this week?',
   'Review our next product launch and tell me what could derail it before we spend more money.',
 ];
+
+function ExecutivePortrait({ executive, name, size = 52 }: { executive?: Executive; name?: string; size?: number }) {
+  const label = executive?.name || name || 'Executive';
+  const initialText = executive?.icon || label.slice(0, 1).toUpperCase();
+  const color = executive?.color || '#9EF0CF';
+  return (
+    <span style={{ ...portraitWrap, width: size, height: size, borderRadius: Math.max(12, Math.round(size * .28)), borderColor: `${color}88`, background: `${color}20` }}>
+      <span style={{ ...portraitFallback, color, fontSize: Math.max(14, Math.round(size * .34)) }}>{initialText}</span>
+      {executive?.avatar ? (
+        <img
+          src={executive.avatar}
+          alt={`${label} portrait`}
+          style={portraitImage}
+          onError={(event) => { event.currentTarget.style.display = 'none'; }}
+        />
+      ) : null}
+    </span>
+  );
+}
 
 export default function BoardroomPage() {
   const [question, setQuestion] = useState(examples[0]);
@@ -75,8 +96,11 @@ export default function BoardroomPage() {
         <section style={roster}>
           {executives.map((executive) => (
             <div key={executive.id} style={{ ...rosterCard, borderColor: `${executive.color}66` }}>
-              <span style={{ ...initial, background: `${executive.color}22`, color: executive.color }}>{executive.icon}</span>
-              <div><strong>{executive.name}</strong><small>{executive.abbr} · {executive.role}</small></div>
+              <ExecutivePortrait executive={executive} size={58} />
+              <div style={{ minWidth: 0 }}>
+                <strong style={{ display: 'block', fontSize: 15 }}>{executive.name}</strong>
+                <small style={{ ...mutedSmall, display: 'block', marginTop: 3 }}>{executive.abbr} · {executive.role}</small>
+              </div>
             </div>
           ))}
         </section>
@@ -100,7 +124,7 @@ export default function BoardroomPage() {
           </aside>
         </section>
 
-        {!result && <section style={empty}><div style={{ fontSize: 34 }}>◆</div><h2>One question in. A leadership decision out.</h2><p>Finance, operations, revenue, strategy, technology, marketing, risk and executive coordination can all weigh in without making you manage eight separate chats.</p></section>}
+        {!result && <section style={empty}><div style={{ fontSize: 34 }}>◆</div><h2>One question in. A leadership decision out.</h2><p>Finance, operations, revenue, strategy, technology, marketing, risk, agriculture, water and energy, research, and executive coordination can all weigh in without making you manage separate chats.</p></section>}
 
         {result && (
           <section style={{ display: 'grid', gap: 16 }}>
@@ -115,7 +139,10 @@ export default function BoardroomPage() {
                 const executive = teamMap.get(member.name);
                 return (
                   <article key={`${member.name}-${member.role}`} style={{ ...panel, borderTop: `3px solid ${executive?.color || '#9EF0CF'}` }}>
-                    <div style={memberHead}><span style={{ ...initial, background: `${executive?.color || '#9EF0CF'}22`, color: executive?.color || '#9EF0CF' }}>{executive?.icon || member.name.slice(0, 1)}</span><div><h3 style={{ margin: 0 }}>{member.name}</h3><small style={mutedSmall}>{member.role}</small></div></div>
+                    <div style={memberHead}>
+                      <ExecutivePortrait executive={executive} name={member.name} size={56} />
+                      <div><h3 style={{ margin: 0 }}>{member.name}</h3><small style={mutedSmall}>{member.role}</small></div>
+                    </div>
                     <p style={{ lineHeight: 1.6 }}>{member.position}</p>
                     {!!member.actions?.length && <><strong>Recommended moves</strong><ul>{member.actions.map((item) => <li key={item}>{item}</li>)}</ul></>}
                     {!!member.risks?.length && <><strong>Watch-outs</strong><ul>{member.risks.map((item) => <li key={item}>{item}</li>)}</ul></>}
@@ -142,9 +169,11 @@ const headerActions = { display: 'flex', gap: 9, flexWrap: 'wrap' as const };
 const eyebrow = { color: '#9EF0CF', fontWeight: 950, fontSize: 12, letterSpacing: 1.1 };
 const h1 = { fontSize: 'clamp(42px,8vw,78px)', lineHeight: .95, margin: '10px 0 18px', letterSpacing: -2 };
 const lead = { maxWidth: 800, color: '#BDC7D8', fontSize: 18, lineHeight: 1.65 };
-const roster = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))', gap: 8, margin: '24px 0' };
-const rosterCard = { display: 'flex', gap: 10, alignItems: 'center', border: '1px solid #283856', background: '#0D1728', borderRadius: 12, padding: '10px 12px' };
-const initial = { width: 34, height: 34, borderRadius: 10, display: 'grid', placeItems: 'center', fontWeight: 950, flexShrink: 0 };
+const roster = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 10, margin: '24px 0' };
+const rosterCard = { display: 'flex', gap: 12, alignItems: 'center', border: '1px solid #283856', background: '#0D1728', borderRadius: 14, padding: '10px 12px', minHeight: 78 };
+const portraitWrap = { position: 'relative' as const, display: 'grid', placeItems: 'center', overflow: 'hidden', border: '1px solid #3A4A67', flexShrink: 0 };
+const portraitFallback = { position: 'absolute' as const, inset: 0, display: 'grid', placeItems: 'center', fontWeight: 950 };
+const portraitImage = { position: 'absolute' as const, inset: 0, width: '100%', height: '100%', objectFit: 'cover' as const, zIndex: 1 };
 const inputGrid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.55fr) minmax(280px,.65fr)', gap: 14, marginBottom: 18 };
 const panel = { background: '#0D1728', border: '1px solid #263754', borderRadius: 18, padding: 20 };
 const sectionLabel = { color: '#9EF0CF', fontWeight: 950, fontSize: 11, letterSpacing: .9 };
@@ -163,4 +192,4 @@ const errorBox = { marginTop: 12, background: '#31171B', border: '1px solid #6D3
 const empty = { textAlign: 'center' as const, padding: '42px 20px', border: '1px dashed #30415F', borderRadius: 18, color: '#B7C3D5' };
 const decisionCard = { background: '#132B26', border: '1px solid #2E6959', borderRadius: 18, padding: 22 };
 const resultGrid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 12 };
-const memberHead = { display: 'flex', gap: 10, alignItems: 'center' };
+const memberHead = { display: 'flex', gap: 12, alignItems: 'center' };
