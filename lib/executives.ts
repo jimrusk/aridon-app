@@ -57,7 +57,7 @@ export const executives = [
   },
   {
     id: 'ledger', name: 'Ledger', role: 'Chief Revenue Officer', abbr: 'CRO',
-    avatar: '/executives/eva.jpg', icon: 'L', color: '#1ABC9C',
+    avatar: '/executives/ledger.jpg', icon: 'L', color: '#1ABC9C',
     tagline: 'Owns revenue growth, sales execution, pricing, pipeline performance, and customer expansion.',
     expertise: ['Revenue Strategy', 'Sales Operations', 'Pricing Strategy', 'Pipeline Management', 'Customer Expansion'],
     tone: 'numbers-first, commercial, decisive',
