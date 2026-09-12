@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getBrowserClient } from '../../../../lib/supabase';
+import { executives } from '../../../../lib/executives';
 
 type Provider = { provider: string; label: string; model: string; enabled: boolean; specialty: string };
 type Memory = { id: string; executive_id: string; memory_type: string; summary: string; confidence: number | string; source: string; last_reinforced_at: string };
@@ -13,6 +14,32 @@ type Receipt = { id: string; runId: string; objective: string; state: string; is
 type Metrics = { activeOutcomes: number; activeWorkers: number; councilRuns: number; verifiedReceipts: number; awaitingApproval: number; memoryItems: number };
 type Data = { businessName: string; slug: string; router: { mode: string; providers: Provider[]; routes: Array<{ task: string; preferred: string; fallback: string }> }; memory: { memories: Memory[]; reflections: Array<{ id: string; reflection: string; confidence: number | string; created_at: string }> }; outcomes: Outcome[]; workers: Worker[]; receipts: Receipt[]; metrics: Metrics };
 type CouncilResult = { synthesis: string; members: Array<{ seat: string; purpose: string; provider: string; model: string; answer: string }>; sources: Array<{ title: string; url: string }> };
+
+function executiveFor(value: string) {
+  const key = String(value || '').trim().toLowerCase();
+  return executives.find((item) => item.id.toLowerCase() === key || item.name.toLowerCase() === key)
+    || executives.find((item) => item.name === 'Eva')
+    || executives[0];
+}
+
+function ExecutivePortrait({ name, size = 50 }: { name: string; size?: number }) {
+  const executive = executiveFor(name);
+  const [failed, setFailed] = useState(false);
+  return (
+    <div style={{ width: size, height: size, borderRadius: Math.round(size * .28), overflow: 'hidden', flexShrink: 0, display: 'grid', placeItems: 'center', background: executive.color, border: '2px solid rgba(20,32,54,.08)', boxShadow: '0 7px 18px rgba(20,32,54,.12)' }}>
+      {!failed ? (
+        <img
+          src={executive.avatar}
+          alt={`${executive.name} portrait`}
+          onError={() => setFailed(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+      ) : (
+        <span style={{ fontSize: Math.max(17, Math.round(size * .38)), fontWeight: 950, color: '#fff' }}>{executive.icon}</span>
+      )}
+    </div>
+  );
+}
 
 export default function AridonOnePage({ params }: { params: { slug: string } }) {
   const router = useRouter();
@@ -131,6 +158,29 @@ export default function AridonOnePage({ params }: { params: { slug: string } }) 
         <Metric label="Needs approval" value={String(data?.metrics.awaitingApproval || 0)} detail="Owner stays in control" />
       </section>
 
+      <section style={{ ...panel, marginTop: 14 }}>
+        <div style={label}>ARIDON EXECUTIVE TEAM</div>
+        <div style={sectionHead}>
+          <div>
+            <h2 style={h2}>Your executives, visible and on duty.</h2>
+            <p style={muted}>Each executive keeps a defined lane while Eva coordinates decisions and cross-functional work.</p>
+          </div>
+          <span style={pill}>{executives.length} EXECUTIVES</span>
+        </div>
+        <div style={executiveGrid}>
+          {executives.map((executive) => (
+            <div key={executive.id} style={executiveCard}>
+              <ExecutivePortrait name={executive.name} size={62} />
+              <div style={{ minWidth: 0 }}>
+                <strong style={{ display: 'block', fontSize: 14 }}>{executive.name}</strong>
+                <div style={{ ...small, color: executive.color, fontWeight: 900 }}>{executive.abbr}</div>
+                <div style={{ ...small, marginTop: 3, lineHeight: 1.35 }}>{executive.role}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section style={{...panel,marginTop:14}}>
         <div style={label}>INTELLIGENCE ROUTER</div>
         <div style={sectionHead}><div><h2 style={h2}>Use the best engine for the job.</h2><p style={muted}>Aridon owns the company memory, permissions, outcomes and execution layer. The model is replaceable.</p></div><span style={pill}>{enabledProviders.length} ONLINE</span></div>
@@ -185,7 +235,10 @@ export default function AridonOnePage({ params }: { params: { slug: string } }) 
         <article style={panel}>
           <div style={label}>PERSISTENT EXECUTIVES</div><h2 style={h2}>Workers that keep the thread.</h2>
           {(data?.workers || []).length ? <div style={stack}>{data!.workers.slice(0,8).map((worker)=><div key={worker.id} style={row}>
-            <div><strong>{worker.name}</strong><div style={small}>{worker.executive} · {worker.cycle_count}/{worker.max_cycles} cycles · {worker.provider}</div></div>
+            <div style={workerIdentity}>
+              <ExecutivePortrait name={worker.executive} size={48} />
+              <div><strong>{worker.name}</strong><div style={small}>{worker.executive} · {worker.cycle_count}/{worker.max_cycles} cycles · {worker.provider}</div></div>
+            </div>
             <span style={status(worker.status)}>{worker.status.replace('_',' ').toUpperCase()}</span>
           </div>)}</div> : <Empty text="No persistent workers yet."/>}
         </article>
@@ -195,8 +248,13 @@ export default function AridonOnePage({ params }: { params: { slug: string } }) 
         <article style={panel}>
           <div style={label}>EXECUTIVE MEMORY</div><h2 style={h2}>Eva keeps the useful lessons.</h2>
           {(data?.memory.memories || []).length ? <div style={stack}>{data!.memory.memories.slice(0,10).map((memory)=><div key={memory.id} style={memoryCard}>
-            <div style={{display:'flex',justifyContent:'space-between',gap:8}}><strong>{memory.memory_type.replaceAll('_',' ')}</strong><span style={small}>{Math.round(Number(memory.confidence||0)*100)}%</span></div>
-            <p style={{...small,lineHeight:1.55,margin:'6px 0 0'}}>{memory.summary}</p>
+            <div style={memoryIdentity}>
+              <ExecutivePortrait name={memory.executive_id} size={42} />
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:'flex',justifyContent:'space-between',gap:8}}><strong>{memory.memory_type.replaceAll('_',' ')}</strong><span style={small}>{Math.round(Number(memory.confidence||0)*100)}%</span></div>
+                <p style={{...small,lineHeight:1.55,margin:'6px 0 0'}}>{memory.summary}</p>
+              </div>
+            </div>
           </div>)}</div> : <Empty text="Memory is ready. Council and Outcome Mode will start filling it."/>}
         </article>
 
@@ -256,6 +314,10 @@ const chip={fontSize:10,fontWeight:850,background:'#E8EEF9',color:'#24416C',bord
 const sourceLink={fontSize:12,color:'#2C6A57',textDecoration:'none'} as const;
 const stack={display:'grid',gap:8,marginTop:10} as const;
 const row={display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',padding:'11px 0',borderBottom:'1px solid #EDF1EF'} as const;
+const executiveGrid={display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(175px,1fr))',gap:10} as const;
+const executiveCard={display:'flex',gap:10,alignItems:'center',border:'1px solid #E4EAE7',borderRadius:15,padding:10,background:'#FBFCFC',minHeight:82} as const;
+const workerIdentity={display:'flex',gap:10,alignItems:'center',minWidth:0} as const;
+const memoryIdentity={display:'flex',gap:10,alignItems:'flex-start'} as const;
 const memoryCard={border:'1px solid #E4EAE7',borderRadius:13,padding:11,background:'#FBFCFC'} as const;
 const receiptCard={border:'1px solid #E4EAE7',borderRadius:13,padding:11,background:'#FBFCFC'} as const;
 const receiptStats={display:'flex',gap:10,flexWrap:'wrap',fontSize:11,color:'#66768A',margin:'10px 0'} as const;
