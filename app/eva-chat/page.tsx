@@ -19,6 +19,16 @@ type EvaWorkResponse = {
   error?: string;
 };
 
+const EVA_OPERATOR_POLICY = `EVA OWNER OPERATING POLICY
+- Default to execution, not clarification.
+- Do not present A/B/C/D menus or ask the owner to define ordinary implementation choices when a reasonable, reversible decision can be made from company context.
+- If the owner says "do it", "build it", "send it", "contact them", "research it", or gives a short follow-up such as "B", resolve that instruction against the recent conversation and continue the mission.
+- Make the best reasonable assumption, state it briefly only when material, and proceed.
+- Ask a question only when the missing fact makes safe execution genuinely impossible, such as an unknown recipient for a consequential external action or a legally required owner decision.
+- Never ask again for information or a choice that appears in the recent conversation, Company Brain, project/task history, or durable memory.
+- Return results: what was completed, what was executed automatically, what is queued for approval, and any true blocker.
+- Preserve continuity across turns. Treat recent conversation below as active mission memory.`;
+
 export default function EvaChatPage() {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([
@@ -56,6 +66,26 @@ export default function EvaChatPage() {
 
       setToken(accessToken);
       setAccount(result as Account);
+
+      try {
+        const historyResponse = await fetch(`/api/customer/assistant?slug=${encodeURIComponent(result.tenant.slug)}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          cache: 'no-store',
+        });
+        const historyData = await historyResponse.json().catch(() => ({}));
+        if (historyResponse.ok && Array.isArray(historyData.history) && historyData.history.length) {
+          const restored = historyData.history
+            .slice(-24)
+            .map((item: any) => ({
+              role: item.role === 'assistant' ? 'assistant' as const : 'user' as const,
+              content: typeof item.content === 'string' ? item.content : '',
+            }))
+            .filter((item: Message) => item.content.trim());
+          if (restored.length) setMessages(restored);
+        }
+      } catch {
+        // Eva can still work from the current session if historical loading is unavailable.
+      }
     });
   }, [router]);
 
@@ -95,6 +125,12 @@ export default function EvaChatPage() {
 
     try {
       if (workMode) {
+        const recentConversation = next
+          .slice(-18)
+          .map((message) => `${message.role === 'user' ? 'OWNER' : 'EVA'}: ${message.content}`)
+          .join('\n\n');
+        const objective = `${EVA_OPERATOR_POLICY}\n\nRECENT ACTIVE CONVERSATION\n${recentConversation}\n\nCURRENT OWNER INSTRUCTION\n${text}\n\nContinue the existing mission from this context. Do the work now instead of asking the owner to choose among routine options.`;
+
         const response = await fetch('/api/customer/eva-work', {
           method: 'POST',
           headers: {
@@ -103,7 +139,7 @@ export default function EvaChatPage() {
           },
           body: JSON.stringify({
             slug: account.tenant.slug,
-            objective: text,
+            objective,
           }),
         });
         const data = await response.json().catch(() => ({})) as EvaWorkResponse;
@@ -168,7 +204,7 @@ export default function EvaChatPage() {
             <div>
               <div style={{ fontSize: '13px', letterSpacing: '.14em', color: '#F0A27A', fontWeight: 900 }}>EVA · {account.tenant.business_name.toUpperCase()}</div>
               <h1 style={{ margin: '2px 0 4px', fontSize: '34px' }}>Eva Command Workspace</h1>
-              <div style={{ color: '#9BA8C6' }}>GPT‑5.6 · live research · persistent missions · Action Fabric</div>
+              <div style={{ color: '#9BA8C6' }}>GPT‑5.6 · execute-first · persistent conversation · persistent missions · Action Fabric</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '9px', flexWrap: 'wrap' }}>
@@ -180,10 +216,10 @@ export default function EvaChatPage() {
 
         <section style={{ marginBottom: '12px', background: 'rgba(18,24,41,.78)', border: '1px solid #26314F', borderRadius: '16px', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
           <div>
-            <div style={{ fontWeight: 900 }}>{workMode ? 'Work Mode' : 'Chat Mode'}</div>
+            <div style={{ fontWeight: 900 }}>{workMode ? 'Work Mode · Execute First' : 'Chat Mode'}</div>
             <div style={{ color: '#9BA8C6', fontSize: '13px', marginTop: '3px' }}>
               {workMode
-                ? 'Eva researches, creates persistent work, executes safe internal tasks, and queues external actions for approval.'
+                ? 'Eva remembers the active conversation, makes routine decisions herself, researches, executes safe internal work, and only stops for a true approval or blocker.'
                 : 'Eva answers conversationally with live web research enabled.'}
             </div>
           </div>
@@ -204,7 +240,7 @@ export default function EvaChatPage() {
                 <div style={{ background: message.role === 'user' ? '#233454' : '#181F33', border: message.role === 'assistant' ? '1px solid #26314F' : 'none', padding: '13px 15px', borderRadius: '16px', lineHeight: 1.55, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{message.content}</div>
               </div>
             ))}
-            {busy && <div style={{ color: '#9BA8C6', paddingLeft: '44px' }}>{workMode ? 'Eva is working the mission…' : 'Eva is researching and thinking…'}</div>}
+            {busy && <div style={{ color: '#9BA8C6', paddingLeft: '44px' }}>{workMode ? 'Eva is executing the mission…' : 'Eva is researching and thinking…'}</div>}
           </div>
 
           <div style={{ display: 'flex', gap: '10px', marginTop: '14px', alignItems: 'stretch' }}>
@@ -217,10 +253,10 @@ export default function EvaChatPage() {
                   send();
                 }
               }}
-              placeholder={workMode ? 'Tell Eva what outcome you want. Example: Research this company, build the approach, and prepare the next actions.' : 'Ask Eva anything…'}
+              placeholder={workMode ? 'Tell Eva what to accomplish. Short commands are enough: Do it. Send it. Build it. Contact them.' : 'Ask Eva anything…'}
               style={{ flex: 1, minHeight: '88px', resize: 'vertical', background: '#0B1020', color: '#fff', border: '1px solid #26314F', borderRadius: '14px', padding: '12px' }}
             />
-            <button onClick={send} disabled={busy || !input.trim()} style={{ minWidth: '110px', border: 0, borderRadius: '14px', background: '#D45A2A', color: '#fff', fontWeight: 900, cursor: busy ? 'wait' : 'pointer', opacity: busy || !input.trim() ? .55 : 1 }}>{workMode ? 'Work' : 'Send'}</button>
+            <button onClick={send} disabled={busy || !input.trim()} style={{ minWidth: '110px', border: 0, borderRadius: '14px', background: '#D45A2A', color: '#fff', fontWeight: 900, cursor: busy ? 'wait' : 'pointer', opacity: busy || !input.trim() ? .55 : 1 }}>{workMode ? 'Execute' : 'Send'}</button>
           </div>
           {lastStatus && <div style={{ marginTop: '9px', color: lastStatus === 'error' ? '#FF9B9B' : '#8FA2C7', fontSize: '12px' }}>Last run: {lastStatus.replaceAll('_', ' ')}</div>}
         </section>
