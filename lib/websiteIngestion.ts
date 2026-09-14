@@ -3,8 +3,8 @@ import { isIP } from 'node:net';
 
 const MAX_PAGES = 6;
 const MAX_CANDIDATES = 18;
-const MAX_BYTES_PER_PAGE = 450_000;
-const REQUEST_TIMEOUT_MS = 4_500;
+const MAX_BYTES_PER_PAGE = 1_500_000;
+const REQUEST_TIMEOUT_MS = 6_500;
 const MAX_TEXT_PER_PAGE = 7_500;
 
 export type WebsitePageSnapshot = {
@@ -95,8 +95,6 @@ async function assertPublicUrl(url: URL) {
 }
 
 async function readLimitedText(response: Response, controller: AbortController) {
-  const contentLength = Number(response.headers.get('content-length') || 0);
-  if (contentLength > MAX_BYTES_PER_PAGE) throw new Error('The website page is too large for beta ingestion.');
   if (!response.body) return '';
 
   const reader = response.body.getReader();
@@ -107,12 +105,22 @@ async function readLimitedText(response: Response, controller: AbortController) 
     const { done, value } = await reader.read();
     if (done) break;
     if (!value) continue;
-    total += value.byteLength;
-    if (total > MAX_BYTES_PER_PAGE) {
+
+    const remaining = MAX_BYTES_PER_PAGE - total;
+    if (remaining <= 0) {
       controller.abort();
-      throw new Error('The website page is too large for beta ingestion.');
+      break;
     }
+
+    if (value.byteLength > remaining) {
+      chunks.push(value.slice(0, remaining));
+      total += remaining;
+      controller.abort();
+      break;
+    }
+
     chunks.push(value);
+    total += value.byteLength;
   }
 
   const combined = new Uint8Array(total);
@@ -139,7 +147,7 @@ async function fetchHtml(startUrl: URL, siteRoot: URL) {
         redirect: 'manual',
         signal: controller.signal,
         headers: {
-          'User-Agent': 'AridonBusinessOSBeta/0.3 (+website-ingestion)',
+          'User-Agent': 'AridonBusinessOSBeta/0.5 (+website-ingestion)',
           Accept: 'text/html,application/xhtml+xml',
         },
         cache: 'no-store',
