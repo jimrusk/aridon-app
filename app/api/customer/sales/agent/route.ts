@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticatedCustomer, customerTenantForUser, subscriptionAllowsAccess } from '../../../../../lib/customerAuth';
+import { researchScoutProspects, websiteDomain } from '../../../../../lib/scoutProspecting';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -99,7 +100,32 @@ export async function POST(request: NextRequest) {
       const exclusions = text(body?.exclusions, 2000);
       if (!website && !offer) return NextResponse.json({ error: 'Add a company website or describe what the business sells.' }, { status: 400, headers: NO_STORE });
 
-      const prompt = `You are Scout, an AI sales strategist building a durable sales profile for ${membership.tenant.business_name}.\nUse current public web research when a website is provided. Never invent customers, revenue, certifications, case studies, pricing, people, or proof. Treat company-supplied claims as claims until independently verified.\n\nBUSINESS: ${membership.tenant.business_name}\nINDUSTRY: ${membership.tenant.industry || 'not specified'}\nWEBSITE: ${website || 'not supplied'}\nOWNER DESCRIPTION / OFFER: ${offer || 'not supplied'}\nSALES GOAL: ${goal || 'not supplied'}\nTARGET GEOGRAPHY: ${geography || 'not supplied'}\nEXCLUSIONS: ${exclusions || 'none supplied'}\n\nReturn JSON only with this exact shape:\n{\n  "company_summary":"",\n  "offer_summary":"",\n  "ideal_customer_profile":"",\n  "buyer_roles":[""],\n  "industries":[""],\n  "geographies":[""],\n  "differentiators":[""],\n  "proof_points":[""],\n  "trigger_events":[""],\n  "disqualifiers":[""],\n  "messaging_angles":[""]\n}\nKeep each list practical. Proof points must only include evidence actually found or supplied.`;
+      const prompt = `You are Scout, an AI sales strategist building a durable sales profile for ${membership.tenant.business_name}.
+Use current public web research when a website is provided. Never invent customers, revenue, certifications, case studies, pricing, people, or proof. Treat company-supplied claims as claims until independently verified.
+
+BUSINESS: ${membership.tenant.business_name}
+INDUSTRY: ${membership.tenant.industry || 'not specified'}
+WEBSITE: ${website || 'not supplied'}
+OWNER DESCRIPTION / OFFER: ${offer || 'not supplied'}
+SALES GOAL: ${goal || 'not supplied'}
+TARGET GEOGRAPHY: ${geography || 'not supplied'}
+EXCLUSIONS: ${exclusions || 'none supplied'}
+
+Return JSON only with this exact shape:
+{
+  "company_summary":"",
+  "offer_summary":"",
+  "ideal_customer_profile":"",
+  "buyer_roles":[""],
+  "industries":[""],
+  "geographies":[""],
+  "differentiators":[""],
+  "proof_points":[""],
+  "trigger_events":[""],
+  "disqualifiers":[""],
+  "messaging_angles":[""]
+}
+Keep each list practical. Proof points must only include evidence actually found or supplied.`;
       const result = await askScout(prompt, Boolean(website));
       const j = result.json;
       const payload = {
@@ -131,44 +157,75 @@ export async function POST(request: NextRequest) {
       const { data: profile, error: profileError } = await auth.db.from('customer_sales_profiles').select('*').eq('tenant_id', tenantId).maybeSingle();
       if (profileError) throw profileError;
       if (!profile) return NextResponse.json({ error: 'Teach Scout about the business first.' }, { status: 400, headers: NO_STORE });
+
       const count = Math.max(3, Math.min(20, Number(body?.count) || 10));
       const focus = text(body?.focus, 3000);
-      const prompt = `You are Scout, finding high-fit B2B organizations for a customer. Use current public web research. Return real companies, agencies, nonprofits, utilities, institutions, or other organizations only. Do not invent organizations. Do not invent personal names or email addresses. Prefer a credible official website and a concrete reason the organization fits now.\n\nSELLER: ${membership.tenant.business_name}\nPROFILE: ${JSON.stringify(profile).slice(0, 18000)}\nADDITIONAL SEARCH FOCUS: ${focus || 'Use the saved ICP and buying triggers.'}\nNUMBER OF PROSPECTS: ${count}\n\nReturn JSON only:\n{\n "prospects":[\n  {"company_name":"","website":"","location":"","fit_score":0,"fit_reason":"","trigger_event":"","recommended_buyer_role":"","research_notes":"","personalization":"","source_urls":[""]}\n ]\n}\nRules: fit_score is 0-100. personalization is one truthful sentence that could support an opening email, based only on public evidence. source_urls must support the prospect or trigger. Exclude weak matches.`;
-      const result = await askScout(prompt, true);
-      const rawProspects = Array.isArray(result.json.prospects) ? result.json.prospects.slice(0, count) : [];
+      const intent = text(body?.intent, 40) || 'customer';
+      const qualificationThreshold = Math.max(50, Math.min(95, Number(body?.qualificationThreshold) || 75));
+      const requiredSignals = stringArray(body?.requiredSignals, 12);
+      const exclusions = stringArray(body?.exclusions, 16);
+
+      const result = await researchScoutProspects({
+        sellerName: membership.tenant.business_name,
+        industry: membership.tenant.industry,
+        sellerProfile: profile as Record<string, unknown>,
+        count,
+        focus,
+        intent,
+        qualificationThreshold,
+        requiredSignals,
+        exclusions,
+      });
+
+      const { data: existingLeads, error: existingError } = await auth.db.from('customer_sales_leads').select('website').eq('tenant_id', tenantId);
+      if (existingError) throw existingError;
+      const seenDomains = new Set((existingLeads || []).map((lead) => websiteDomain(lead.website)).filter(Boolean));
       const prospects: Record<string, unknown>[] = [];
-      for (const raw of rawProspects) {
-        if (!raw || typeof raw !== 'object') continue;
-        const item = raw as Record<string, unknown>;
-        const companyName = text(item.company_name, 180);
-        if (!companyName) continue;
-        const website = text(item.website, 500);
-        if (website) {
-          const { data: existing } = await auth.db.from('customer_sales_leads').select('id').eq('tenant_id', tenantId).eq('website', website).limit(1);
-          if (existing?.length) continue;
-        }
+
+      for (const item of result.prospects) {
+        const domain = websiteDomain(item.website);
+        if (domain && seenDomains.has(domain)) continue;
+
         const payload = {
           tenant_id: tenantId,
-          company_name: companyName,
-          website: website || null,
-          location: text(item.location, 180) || null,
-          recommended_buyer_role: text(item.recommended_buyer_role, 180) || null,
-          fit_score: Math.max(0, Math.min(100, Number(item.fit_score) || 0)),
-          fit_reason: text(item.fit_reason, 2500) || null,
-          trigger_event: text(item.trigger_event, 2000) || null,
-          research_notes: text(item.research_notes, 4000) || null,
-          personalization: text(item.personalization, 2000) || null,
-          source_urls: stringArray(item.source_urls, 12),
-          source_type: 'scout_web_research',
+          company_name: item.company_name,
+          website: item.website || null,
+          location: item.location || null,
+          recommended_buyer_role: item.recommended_buyer_role || null,
+          fit_score: item.fit_score,
+          priority_tier: item.priority_tier,
+          score_breakdown: item.score_breakdown,
+          fit_reason: item.fit_reason || null,
+          trigger_event: item.trigger_event || null,
+          buying_signals: item.buying_signals,
+          evidence_quality: item.score_breakdown.evidence_quality * 4,
+          research_notes: item.research_notes || null,
+          personalization: item.personalization || null,
+          source_urls: item.source_urls,
+          source_type: 'scout_web_research_v2',
           status: 'researched',
           created_by: auth.user.id,
         };
         const { data, error } = await auth.db.from('customer_sales_leads').insert(payload).select('*').single();
         if (error) throw error;
+        if (domain) seenDomains.add(domain);
         prospects.push(data as Record<string, unknown>);
       }
-      await auth.db.from('customer_sales_events').insert({ tenant_id: tenantId, user_id: auth.user.id, event_name: 'prospects_researched', event_data: { requested: count, saved: prospects.length } });
-      return NextResponse.json({ prospects, source_urls: result.sources }, { headers: NO_STORE });
+
+      await auth.db.from('customer_sales_events').insert({
+        tenant_id: tenantId,
+        user_id: auth.user.id,
+        event_name: 'prospects_researched_v2',
+        event_data: {
+          requested: count,
+          saved: prospects.length,
+          intent,
+          qualification_threshold: qualificationThreshold,
+          required_signals: requiredSignals,
+          exclusions,
+        },
+      });
+      return NextResponse.json({ prospects, source_urls: result.source_urls, qualification_threshold: qualificationThreshold }, { headers: NO_STORE });
     }
 
     if (action === 'build_sequence') {
@@ -177,14 +234,31 @@ export async function POST(request: NextRequest) {
       const objective = text(body?.objective, 3000) || 'Start a relevant business conversation and earn a qualified meeting.';
       const [profileResult, leadsResult] = await Promise.all([
         auth.db.from('customer_sales_profiles').select('*').eq('tenant_id', tenantId).maybeSingle(),
-        auth.db.from('customer_sales_leads').select('id,company_name,website,location,recommended_buyer_role,fit_score,fit_reason,trigger_event,research_notes,personalization').eq('tenant_id', tenantId).in('id', leadIds),
+        auth.db.from('customer_sales_leads').select('id,company_name,website,location,recommended_buyer_role,fit_score,priority_tier,fit_reason,trigger_event,buying_signals,research_notes,personalization,source_urls').eq('tenant_id', tenantId).in('id', leadIds),
       ]);
       if (profileResult.error) throw profileResult.error;
       if (leadsResult.error) throw leadsResult.error;
       if (!profileResult.data) return NextResponse.json({ error: 'Teach Scout about the business first.' }, { status: 400, headers: NO_STORE });
       if (!leadsResult.data?.length) return NextResponse.json({ error: 'The selected prospects could not be loaded.' }, { status: 400, headers: NO_STORE });
 
-      const prompt = `You are Scout, building a restrained B2B email sequence. Write for relevance and credibility, not volume spam. Never fabricate proof, urgency, relationships, or customer results. Use short plain-text emails. Use placeholders only from this set: {{firstName}}, {{companyName}}, {{jobTitle}}, {{personalization}}. Include a simple opt-out sentence in the final step.\n\nSELLER PROFILE: ${JSON.stringify(profileResult.data).slice(0, 17000)}\nSELECTED PROSPECT SAMPLE: ${JSON.stringify(leadsResult.data).slice(0, 14000)}\nOBJECTIVE: ${objective}\n\nReturn JSON only:\n{\n "name":"",\n "audience_summary":"",\n "sequence":[\n  {"step":1,"delay_days":0,"subject":"","body":"","purpose":""},\n  {"step":2,"delay_days":3,"subject":"","body":"","purpose":""},\n  {"step":3,"delay_days":5,"subject":"","body":"","purpose":""},\n  {"step":4,"delay_days":7,"subject":"","body":"","purpose":""}\n ]\n}\nKeep each body under 130 words and each subject under 60 characters.`;
+      const prompt = `You are Scout, building a restrained B2B email sequence. Write for relevance and credibility, not volume spam. Never fabricate proof, urgency, relationships, or customer results. Use short plain-text emails. Use placeholders only from this set: {{firstName}}, {{companyName}}, {{jobTitle}}, {{personalization}}. Include a simple opt-out sentence in the final step.
+
+SELLER PROFILE: ${JSON.stringify(profileResult.data).slice(0, 17000)}
+SELECTED PROSPECT SAMPLE: ${JSON.stringify(leadsResult.data).slice(0, 14000)}
+OBJECTIVE: ${objective}
+
+Return JSON only:
+{
+ "name":"",
+ "audience_summary":"",
+ "sequence":[
+  {"step":1,"delay_days":0,"subject":"","body":"","purpose":""},
+  {"step":2,"delay_days":3,"subject":"","body":"","purpose":""},
+  {"step":3,"delay_days":5,"subject":"","body":"","purpose":""},
+  {"step":4,"delay_days":7,"subject":"","body":"","purpose":""}
+ ]
+}
+Keep each body under 130 words and each subject under 60 characters.`;
       const result = await askScout(prompt, false);
       const sequence = Array.isArray(result.json.sequence) ? result.json.sequence.slice(0, 6) : [];
       if (!sequence.length) throw new Error('Scout did not produce a usable sequence.');

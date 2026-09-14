@@ -1,5 +1,4 @@
--- Private Business OS: Scout Prospecting Agent schema
--- Run after customer-os-schema.sql. All records remain tenant-scoped.
+-- Scout Prospecting Agent v2: Leama-inspired evidence-first qualification and recurring research.
 
 create table if not exists customer_sales_profiles (
   id uuid default gen_random_uuid() primary key,
@@ -34,12 +33,8 @@ create table if not exists customer_sales_leads (
   contact_title text,
   recommended_buyer_role text,
   fit_score integer default 0 check (fit_score between 0 and 100),
-  priority_tier text default 'C',
-  score_breakdown jsonb default '{}'::jsonb,
   fit_reason text,
   trigger_event text,
-  buying_signals jsonb default '[]'::jsonb,
-  evidence_quality integer default 0 check (evidence_quality between 0 and 100),
   research_notes text,
   personalization text,
   source_urls jsonb default '[]'::jsonb,
@@ -98,6 +93,11 @@ create table if not exists customer_sales_events (
   created_at timestamptz default now()
 );
 
+alter table customer_sales_leads add column if not exists priority_tier text default 'C';
+alter table customer_sales_leads add column if not exists score_breakdown jsonb default '{}'::jsonb;
+alter table customer_sales_leads add column if not exists buying_signals jsonb default '[]'::jsonb;
+alter table customer_sales_leads add column if not exists evidence_quality integer default 0;
+
 create table if not exists customer_sales_watches (
   id uuid default gen_random_uuid() primary key,
   tenant_id uuid not null references customer_tenants(id) on delete cascade,
@@ -119,11 +119,6 @@ create table if not exists customer_sales_watches (
   updated_at timestamptz default now()
 );
 
-alter table customer_sales_leads add column if not exists priority_tier text default 'C';
-alter table customer_sales_leads add column if not exists score_breakdown jsonb default '{}'::jsonb;
-alter table customer_sales_leads add column if not exists buying_signals jsonb default '[]'::jsonb;
-alter table customer_sales_leads add column if not exists evidence_quality integer default 0;
-
 create index if not exists customer_sales_leads_tenant_idx on customer_sales_leads(tenant_id, created_at desc);
 create index if not exists customer_sales_leads_fit_idx on customer_sales_leads(tenant_id, fit_score desc);
 create index if not exists customer_sales_campaigns_tenant_idx on customer_sales_campaigns(tenant_id, created_at desc);
@@ -140,7 +135,3 @@ alter table customer_sales_integrations enable row level security;
 alter table customer_sales_suppressions enable row level security;
 alter table customer_sales_events enable row level security;
 alter table customer_sales_watches enable row level security;
-
--- No anonymous direct-browser policies. Authenticated customer routes verify tenant membership
--- on the server before reading or writing sales data. Integration credentials are encrypted
--- before storage and are never returned to the browser.

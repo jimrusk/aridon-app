@@ -7,6 +7,10 @@ function text(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
 
+function stringArray(value: unknown, limit = 12) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean).slice(0, limit) : [];
+}
+
 async function membershipFor(request: NextRequest) {
   const auth = await authenticatedCustomer(request);
   if (!auth.ok) return { response: NextResponse.json({ error: auth.error }, { status: auth.status, headers: NO_STORE }) };
@@ -25,15 +29,16 @@ export async function GET(request: NextRequest) {
     const { auth, membership } = gate;
     const tenantId = membership.tenant.id;
 
-    const [profileResult, leadsResult, campaignsResult, eventsResult, integrationResult] = await Promise.all([
+    const [profileResult, leadsResult, campaignsResult, eventsResult, integrationResult, watchesResult] = await Promise.all([
       auth.db.from('customer_sales_profiles').select('*').eq('tenant_id', tenantId).maybeSingle(),
       auth.db.from('customer_sales_leads').select('*').eq('tenant_id', tenantId).order('fit_score', { ascending: false }).order('created_at', { ascending: false }).limit(200),
       auth.db.from('customer_sales_campaigns').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(30),
       auth.db.from('customer_sales_events').select('id,event_name,event_data,created_at').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(30),
       auth.db.from('customer_sales_integrations').select('provider,status,metadata,updated_at').eq('tenant_id', tenantId).eq('provider', 'instantly').maybeSingle(),
+      auth.db.from('customer_sales_watches').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(20),
     ]);
 
-    for (const result of [profileResult, leadsResult, campaignsResult, eventsResult, integrationResult]) {
+    for (const result of [profileResult, leadsResult, campaignsResult, eventsResult, integrationResult, watchesResult]) {
       if (result.error) throw result.error;
     }
 
@@ -43,6 +48,7 @@ export async function GET(request: NextRequest) {
       leads: leadsResult.data || [],
       campaigns: campaignsResult.data || [],
       events: eventsResult.data || [],
+      watches: watchesResult.data || [],
       instantly: integrationResult.data ? { connected: integrationResult.data.status === 'connected', ...integrationResult.data } : { connected: false },
     }, { headers: NO_STORE });
   } catch (error) {
@@ -65,6 +71,8 @@ export async function POST(request: NextRequest) {
     if (!companyName) return NextResponse.json({ error: 'Company name is required.' }, { status: 400, headers: NO_STORE });
     if (contactEmail && !/^\S+@\S+\.\S+$/.test(contactEmail)) return NextResponse.json({ error: 'Enter a valid business email.' }, { status: 400, headers: NO_STORE });
 
+    const fitScore = Math.max(0, Math.min(100, Number(body?.fit_score) || 50));
+    const tier = text(body?.priority_tier, 1).toUpperCase();
     const payload = {
       tenant_id: membership.tenant.id,
       company_name: companyName,
@@ -74,12 +82,16 @@ export async function POST(request: NextRequest) {
       contact_email: contactEmail || null,
       contact_title: text(body?.contact_title, 180) || null,
       recommended_buyer_role: text(body?.recommended_buyer_role, 180) || null,
-      fit_score: Math.max(0, Math.min(100, Number(body?.fit_score) || 50)),
+      fit_score: fitScore,
+      priority_tier: ['A','B','C'].includes(tier) ? tier : fitScore >= 85 ? 'A' : fitScore >= 70 ? 'B' : 'C',
+      score_breakdown: body?.score_breakdown && typeof body.score_breakdown === 'object' ? body.score_breakdown : {},
       fit_reason: text(body?.fit_reason, 2000) || null,
       trigger_event: text(body?.trigger_event, 1500) || null,
+      buying_signals: stringArray(body?.buying_signals, 8),
+      evidence_quality: Math.max(0, Math.min(100, Number(body?.evidence_quality) || 0)),
       research_notes: text(body?.research_notes, 4000) || null,
       personalization: text(body?.personalization, 2000) || null,
-      source_urls: Array.isArray(body?.source_urls) ? body.source_urls.filter((item: unknown) => typeof item === 'string').slice(0, 12) : [],
+      source_urls: stringArray(body?.source_urls, 12),
       source_type: text(body?.source_type, 80) || 'manual',
       status: text(body?.status, 60) || 'researched',
       created_by: auth.user.id,

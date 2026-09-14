@@ -11,6 +11,10 @@
       "schedule": "0 12 * * *"
     },
     {
+      "path": "/api/cron/scout-prospecting",
+      "schedule": "20 12 * * *"
+    },
+    {
       "path": "/api/cron/cloud-workers",
       "schedule": "*/5 * * * *"
     },
