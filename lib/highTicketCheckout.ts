@@ -20,12 +20,13 @@ export const highTicketOffers = {
   },
   actionPlan: {
     key: 'action-plan',
-    name: 'Aridon Action Plan',
+    name: 'Aridon Action Blueprint',
+    stripeName: 'Aridon Action Plan',
     price: '$497',
     priceDetail: 'one time',
     href: 'https://book.stripe.com/4gM7sKeU73iPdo28NQ4AU0i',
     type: 'one-time',
-    summary: 'A decision-ready 90-day roadmap that turns the scan into prioritized growth, follow-up, conversion, competitive, and automation actions.',
+    summary: 'A decision-ready 90-day roadmap that converts the free scan into prioritized revenue, conversion, follow-up, trust, AI, automation, and execution actions.',
   },
   implementationSprint: {
     key: 'implementation-sprint',
