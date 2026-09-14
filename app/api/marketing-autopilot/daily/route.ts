@@ -3,6 +3,8 @@ import { cronRequestAuthorized, operatorRequestAuthorized } from '../../../../li
 import { runMarketingAutopilot } from '../../../../lib/marketingAutopilot';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const maxDuration = 60;
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
@@ -14,9 +16,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const website = process.env.MARKETING_AUTOPILOT_TARGET_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://aridon-v02.vercel.app';
-    const report = await runMarketingAutopilot({ businessName: 'Aridon', website, trigger: 'daily', persist: true });
+    const persistDaily = process.env.MARKETING_AUTOPILOT_PERSIST_DAILY === 'true';
+    const report = await runMarketingAutopilot({ businessName: 'Aridon', website, trigger: 'daily', persist: persistDaily });
     return NextResponse.json({
       ok: true,
+      persisted: Boolean(report.persisted),
       runId: report.runId || null,
       healthScore: report.healthScore,
       headline: report.headline,
