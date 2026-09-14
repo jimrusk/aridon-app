@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticatedCustomer, customerTenantForUser, subscriptionAllowsAccess } from '../../../../../lib/customerAuth';
+import { getServerClient } from '../../../../../lib/supabase';
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
 
@@ -28,13 +29,14 @@ export async function GET(request: NextRequest) {
     if ('response' in gate) return gate.response;
     const { auth, membership } = gate;
     const tenantId = membership.tenant.id;
+    const serverDb = getServerClient();
 
     const [profileResult, leadsResult, campaignsResult, eventsResult, integrationResult, watchesResult] = await Promise.all([
       auth.db.from('customer_sales_profiles').select('*').eq('tenant_id', tenantId).maybeSingle(),
       auth.db.from('customer_sales_leads').select('*').eq('tenant_id', tenantId).order('fit_score', { ascending: false }).order('created_at', { ascending: false }).limit(200),
       auth.db.from('customer_sales_campaigns').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(30),
       auth.db.from('customer_sales_events').select('id,event_name,event_data,created_at').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(30),
-      auth.db.from('customer_sales_integrations').select('provider,status,metadata,updated_at').eq('tenant_id', tenantId).eq('provider', 'instantly').maybeSingle(),
+      serverDb.from('customer_sales_integrations').select('provider,status,metadata,updated_at').eq('tenant_id', tenantId).eq('provider', 'instantly').maybeSingle(),
       auth.db.from('customer_sales_watches').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(20),
     ]);
 

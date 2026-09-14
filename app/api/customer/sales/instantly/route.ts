@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authenticatedCustomer, customerTenantForUser, subscriptionAllowsAccess } from '../../../../../lib/customerAuth';
 import { disconnectCustomerIntegration, getCustomerIntegrationSecret, saveCustomerIntegration } from '../../../../../lib/customerIntegrations';
 import { addInstantlyLead, instantlyAnalytics, listInstantlyCampaigns } from '../../../../../lib/instantly';
+import { getServerClient } from '../../../../../lib/supabase';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -29,8 +30,9 @@ export async function GET(request: NextRequest) {
   try {
     const access = await gate(request);
     if ('response' in access) return access.response;
-    const { auth, membership } = access;
-    const integration = await getCustomerIntegrationSecret(auth.db, membership.tenant.id, 'instantly');
+    const { membership } = access;
+    const serverDb = getServerClient();
+    const integration = await getCustomerIntegrationSecret(serverDb, membership.tenant.id, 'instantly');
     if (!integration) return NextResponse.json({ connected: false, campaigns: [], analytics: null }, { headers: NO_STORE });
 
     const [campaigns, analytics] = await Promise.all([
@@ -54,6 +56,7 @@ export async function POST(request: NextRequest) {
     const access = await gate(request);
     if ('response' in access) return access.response;
     const { auth, membership } = access;
+    const serverDb = getServerClient();
     if (!request.headers.get('content-type')?.includes('application/json')) return NextResponse.json({ error: 'Content-Type must be application/json.' }, { status: 415, headers: NO_STORE });
     const body = await request.json();
     const action = text(body?.action, 40);
@@ -63,13 +66,13 @@ export async function POST(request: NextRequest) {
       const apiKey = text(body?.apiKey, 1000);
       if (apiKey.length < 20) return NextResponse.json({ error: 'Enter a valid Instantly API v2 key.' }, { status: 400, headers: NO_STORE });
       const campaigns = await listInstantlyCampaigns(apiKey);
-      await saveCustomerIntegration(auth.db, tenantId, auth.user.id, 'instantly', apiKey, { campaign_count_at_connect: campaigns.length });
+      await saveCustomerIntegration(serverDb, tenantId, auth.user.id, 'instantly', apiKey, { campaign_count_at_connect: campaigns.length });
       await auth.db.from('customer_sales_events').insert({ tenant_id: tenantId, user_id: auth.user.id, event_name: 'instantly_connected', event_data: { campaigns: campaigns.length } });
       return NextResponse.json({ connected: true, campaigns: campaigns.map((campaign) => ({ id: campaign.id, name: campaign.name, status: campaign.status })) }, { headers: NO_STORE });
     }
 
     if (action === 'disconnect') {
-      await disconnectCustomerIntegration(auth.db, tenantId, 'instantly');
+      await disconnectCustomerIntegration(serverDb, tenantId, 'instantly');
       await auth.db.from('customer_sales_events').insert({ tenant_id: tenantId, user_id: auth.user.id, event_name: 'instantly_disconnected', event_data: {} });
       return NextResponse.json({ connected: false }, { headers: NO_STORE });
     }
@@ -80,7 +83,7 @@ export async function POST(request: NextRequest) {
       const leadIds = Array.isArray(body?.leadIds) ? body.leadIds.filter((item: unknown): item is string => typeof item === 'string').slice(0, 100) : [];
       if (!campaignId || !leadIds.length) return NextResponse.json({ error: 'Choose an Instantly campaign and at least one prospect.' }, { status: 400, headers: NO_STORE });
 
-      const integration = await getCustomerIntegrationSecret(auth.db, tenantId, 'instantly');
+      const integration = await getCustomerIntegrationSecret(serverDb, tenantId, 'instantly');
       if (!integration) return NextResponse.json({ error: 'Connect Instantly first.' }, { status: 400, headers: NO_STORE });
       const { data: leads, error: leadError } = await auth.db.from('customer_sales_leads').select('*').eq('tenant_id', tenantId).in('id', leadIds);
       if (leadError) throw leadError;
