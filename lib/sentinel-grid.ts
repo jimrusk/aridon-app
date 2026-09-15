@@ -57,7 +57,7 @@ type Rule = {
 
 const RULES: Rule[] = [
   { category: 'safeguard-evasion', weight: 18, reason: 'Attempts to bypass, disable, or conceal safety controls.', pattern: /\b(bypass|disable|evade|jailbreak|ignore\s+(the\s+)?(rules|policy|safety)|hide\s+(my\s+)?intent|avoid\s+detection)\b/i },
-  { category: 'credential-theft', weight: 28, reason: 'Seeks credentials, secrets, tokens, or account access.', pattern: /\b(steal|harvest|capture|exfiltrate)\b.{0,40}\b(password|credential|token|cookie|api\s*key|session)\b/i },
+  { category: 'credential-theft', weight: 28, reason: 'Seeks credentials, secrets, tokens, or account access.', pattern: /\b(steal|harvest|capture|exfiltrate)\b.{0,40}\b(passwords?|credentials?|tokens?|cookies?|api\s*keys?|sessions?|secrets?)\b/i },
   { category: 'phishing-social-engineering', weight: 22, reason: 'Potential credential phishing or deceptive impersonation behavior.', pattern: /\b(phish|phishing|credential\s+page|fake\s+login|impersonat(e|ion))\b/i },
   { category: 'intrusion-exploitation', weight: 24, reason: 'Potential unauthorized intrusion or exploit activity.', pattern: /\b(exploit|remote\s+code\s+execution|privilege\s+escalation|lateral\s+movement|persistence|initial\s+access)\b/i },
   { category: 'malware', weight: 30, reason: 'Potential malware, ransomware, credential stealer, or destructive payload behavior.', pattern: /\b(ransomware|credential\s+stealer|keylogger|malware|botnet|wipe\s+(the\s+)?disk|encrypt\s+victim)\b/i },
