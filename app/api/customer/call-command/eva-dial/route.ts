@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Record the consent or relationship basis before Eva calls.' }, { status: 409, headers: NO_STORE });
     }
 
-    const signalWireCredentials = await loadSignalWireCredentials(membership.tenant.id);
+    const signalWireCredentials = await loadSignalWireCredentials(membership.tenant.id, db);
     const provider = signalWireCredentials ? 'signalwire' : voiceProvider();
     if (!provider) {
       return NextResponse.json({ error: 'Eva voice calling is not connected yet. Enter the SignalWire Space, Project ID, API token, and From number on Eva’s Call Console.' }, { status: 503, headers: NO_STORE });
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
 
     const call = await response.json().catch(() => ({})) as { sid?: string; status?: string; message?: string };
     if (!response.ok || !call.sid) throw new Error(call.message || `${providerLabel} returned ${response.status}.`);
-    if (providerLabel === 'signalwire') await markSignalWireVerified(membership.tenant.id);
+    if (providerLabel === 'signalwire') await markSignalWireVerified(membership.tenant.id, db);
 
     const now = new Date().toISOString();
     await db.from('customer_call_targets').update({ call_status: 'dialing', last_call_at: now }).eq('tenant_id', membership.tenant.id).eq('id', targetId);
