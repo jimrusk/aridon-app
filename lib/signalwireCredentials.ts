@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { getServerClient } from './supabase';
 
 export type SignalWireCredentials = {
@@ -71,9 +72,13 @@ function envCredentials(): SignalWireCredentials | null {
   return { space, projectId, apiToken, fromNumber };
 }
 
-async function storedRow(tenantId: string) {
-  const db = getServerClient();
-  const result = await db
+function integrationDb(db?: SupabaseClient) {
+  return db || getServerClient();
+}
+
+async function storedRow(tenantId: string, db?: SupabaseClient) {
+  const client = integrationDb(db);
+  const result = await client
     .from('customer_direct_integrations')
     .select('id,encrypted_secret,status,metadata,last_verified_at')
     .eq('tenant_id', tenantId)
@@ -91,8 +96,8 @@ async function storedRow(tenantId: string) {
   };
 }
 
-export async function loadSignalWireCredentials(tenantId: string): Promise<SignalWireCredentials | null> {
-  const row = await storedRow(tenantId);
+export async function loadSignalWireCredentials(tenantId: string, db?: SupabaseClient): Promise<SignalWireCredentials | null> {
+  const row = await storedRow(tenantId, db);
   if (row?.status !== 'disconnected' && row?.encrypted_secret) {
     try {
       const parsed = JSON.parse(decrypt(row.encrypted_secret)) as SignalWireCredentials;
@@ -108,8 +113,8 @@ export async function loadSignalWireCredentials(tenantId: string): Promise<Signa
   return envCredentials();
 }
 
-export async function signalWireConnectionStatus(tenantId: string) {
-  const row = await storedRow(tenantId);
+export async function signalWireConnectionStatus(tenantId: string, db?: SupabaseClient) {
+  const row = await storedRow(tenantId, db);
   let stored: SignalWireCredentials | null = null;
   if (row?.status !== 'disconnected' && row?.encrypted_secret) {
     try {
@@ -145,8 +150,9 @@ export async function saveSignalWireCredentials(args: {
   projectId: unknown;
   apiToken: unknown;
   fromNumber: unknown;
-}) {
-  const existing = await loadSignalWireCredentials(args.tenantId);
+}, db?: SupabaseClient) {
+  const client = integrationDb(db);
+  const existing = await loadSignalWireCredentials(args.tenantId, client);
   const space = normalizeSignalWireSpace(args.space);
   const projectId = clean(args.projectId, 200);
   const apiToken = clean(args.apiToken, 600) || existing?.apiToken || '';
@@ -160,8 +166,7 @@ export async function saveSignalWireCredentials(args: {
 
   const credentials: SignalWireCredentials = { space, projectId, apiToken, fromNumber };
   const encryptedSecret = encrypt(JSON.stringify(credentials));
-  const db = getServerClient();
-  const current = await storedRow(args.tenantId);
+  const current = await storedRow(args.tenantId, client);
   const values = {
     label: 'Eva voice calling',
     encrypted_secret: encryptedSecret,
@@ -171,10 +176,10 @@ export async function saveSignalWireCredentials(args: {
   };
 
   if (current?.id) {
-    const result = await db.from('customer_direct_integrations').update(values).eq('id', current.id).eq('tenant_id', args.tenantId).select('id').single();
+    const result = await client.from('customer_direct_integrations').update(values).eq('id', current.id).eq('tenant_id', args.tenantId).select('id').single();
     if (result.error) throw result.error;
   } else {
-    const result = await db.from('customer_direct_integrations').insert({
+    const result = await client.from('customer_direct_integrations').insert({
       tenant_id: args.tenantId,
       created_by: args.userId,
       provider: 'signalwire',
@@ -182,14 +187,14 @@ export async function saveSignalWireCredentials(args: {
     }).select('id').single();
     if (result.error) throw result.error;
   }
-  return signalWireConnectionStatus(args.tenantId);
+  return signalWireConnectionStatus(args.tenantId, client);
 }
 
-export async function disconnectSignalWire(tenantId: string) {
-  const row = await storedRow(tenantId);
+export async function disconnectSignalWire(tenantId: string, db?: SupabaseClient) {
+  const client = integrationDb(db);
+  const row = await storedRow(tenantId, client);
   if (!row?.id) return;
-  const db = getServerClient();
-  const result = await db.from('customer_direct_integrations').update({
+  const result = await client.from('customer_direct_integrations').update({
     status: 'disconnected',
     encrypted_secret: null,
     metadata: {},
@@ -198,11 +203,11 @@ export async function disconnectSignalWire(tenantId: string) {
   if (result.error) throw result.error;
 }
 
-export async function markSignalWireVerified(tenantId: string) {
-  const row = await storedRow(tenantId);
+export async function markSignalWireVerified(tenantId: string, db?: SupabaseClient) {
+  const client = integrationDb(db);
+  const row = await storedRow(tenantId, client);
   if (!row?.id || row.status === 'disconnected') return;
-  const db = getServerClient();
   const now = new Date().toISOString();
-  const result = await db.from('customer_direct_integrations').update({ last_verified_at: now, updated_at: now }).eq('id', row.id).eq('tenant_id', tenantId);
+  const result = await client.from('customer_direct_integrations').update({ last_verified_at: now, updated_at: now }).eq('id', row.id).eq('tenant_id', tenantId);
   if (result.error) console.error('Could not mark SignalWire verified', result.error);
 }
