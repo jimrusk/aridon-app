@@ -30,24 +30,46 @@ export async function GET(request: NextRequest) {
     const membership = await customerTenantForUser(auth.user.id, slug, auth.token);
     if (!membership) return NextResponse.json({ error: 'You do not have access to this workspace.' }, { status: 403, headers: NO_STORE });
     if (!subscriptionAllowsAccess(membership.tenant.subscription_status)) return NextResponse.json({ error: 'This workspace is not active.' }, { status: 402, headers: NO_STORE });
+
     const db = auth.db;
-    const [campaigns, targets, events, signalwire] = await Promise.all([
+    const [campaignsResult, targetsResult, eventsResult, signalwireResult] = await Promise.allSettled([
       db.from('customer_call_campaigns').select('*').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(20),
       db.from('customer_call_targets').select('*').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(100),
       db.from('customer_call_events').select('*').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(100),
       signalWireConnectionStatus(membership.tenant.id),
     ]);
-    for (const result of [campaigns, targets, events]) if (result.error) throw result.error;
+
+    const campaigns = campaignsResult.status === 'fulfilled' && !campaignsResult.value.error
+      ? campaignsResult.value.data || []
+      : [];
+    const targets = targetsResult.status === 'fulfilled' && !targetsResult.value.error
+      ? targetsResult.value.data || []
+      : [];
+    const events = eventsResult.status === 'fulfilled' && !eventsResult.value.error
+      ? eventsResult.value.data || []
+      : [];
+
+    if (campaignsResult.status === 'rejected') console.error('Eva Call Console campaigns load failed', campaignsResult.reason);
+    else if (campaignsResult.value.error) console.error('Eva Call Console campaigns query failed', campaignsResult.value.error);
+    if (targetsResult.status === 'rejected') console.error('Eva Call Console targets load failed', targetsResult.reason);
+    else if (targetsResult.value.error) console.error('Eva Call Console targets query failed', targetsResult.value.error);
+    if (eventsResult.status === 'rejected') console.error('Eva Call Console events load failed', eventsResult.reason);
+    else if (eventsResult.value.error) console.error('Eva Call Console events query failed', eventsResult.value.error);
+
+    if (signalwireResult.status === 'rejected') throw signalwireResult.reason;
+    const signalwire = signalwireResult.value;
     const fallbackProvider = voiceProvider();
+
     return NextResponse.json({
       configured: signalwire.configured || voiceConfigured(),
       provider: signalwire.configured ? 'signalwire' : fallbackProvider,
       connection: { signalwire, twilio: twilioConnectionStatus() },
-      campaigns: campaigns.data || [],
-      targets: targets.data || [],
-      events: events.data || [],
+      campaigns,
+      targets,
+      events,
     }, { headers: NO_STORE });
   } catch (error) {
+    console.error('Eva Call Console GET failed', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to load Call Command.' }, { status: 500, headers: NO_STORE });
   }
 }
@@ -154,6 +176,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Unknown Call Command action.' }, { status: 400, headers: NO_STORE });
   } catch (error) {
+    console.error('Eva Call Console POST failed', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Call Command could not complete the request.' }, { status: 500, headers: NO_STORE });
   }
 }
