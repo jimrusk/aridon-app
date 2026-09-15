@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { EVA_AVATAR } from '../../lib/evaIdentity';
 import { getBrowserClient } from '../../lib/supabase';
@@ -20,10 +20,22 @@ type Target = {
   do_not_call: boolean;
 };
 type Event = { id: string; target_id?: string | null; status: string; mode: string; summary?: string | null; created_at: string };
-type Payload = { configured: boolean; provider?: 'signalwire' | 'twilio' | null; campaigns: Campaign[]; targets: Target[]; events: Event[] };
+type ConnectionStatus = {
+  signalwire: { space: boolean; projectId: boolean; apiToken: boolean; fromNumber: boolean };
+  twilio: { accountSid: boolean; authToken: boolean; fromNumber: boolean };
+};
+type Payload = {
+  configured: boolean;
+  provider?: 'signalwire' | 'twilio' | null;
+  connection?: ConnectionStatus;
+  campaigns: Campaign[];
+  targets: Target[];
+  events: Event[];
+};
 
 const EVA_PHONE = '(602) 529-4059';
 const EVA_EMAIL = 'aridoninfo@aridon.info';
+const DEFAULT_OBJECTIVE = 'Introduce Aridon, explain the relevant opportunity, answer questions, and ask whether a short follow-up meeting would be useful.';
 
 export default function EvaCallsPage() {
   const router = useRouter();
@@ -32,13 +44,13 @@ export default function EvaCallsPage() {
   const [data, setData] = useState<Payload | null>(null);
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
-  const [company, setCompany] = useState('');
-  const [contact, setContact] = useState('');
-  const [phone, setPhone] = useState('');
-  const [state, setState] = useState('');
-  const [consentBasis, setConsentBasis] = useState('');
   const [consentConfirmed, setConsentConfirmed] = useState(false);
-  const [objective, setObjective] = useState('Introduce Aridon, explain the relevant opportunity, answer questions, and ask whether a short follow-up meeting would be useful.');
+  const companyRef = useRef<HTMLInputElement>(null);
+  const contactRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const stateRef = useRef<HTMLInputElement>(null);
+  const consentBasisRef = useRef<HTMLTextAreaElement>(null);
+  const objectiveRef = useRef<HTMLTextAreaElement>(null);
 
   async function load(access: string, slug: string) {
     const response = await fetch(`/api/customer/call-command?slug=${encodeURIComponent(slug)}`, {
@@ -98,8 +110,13 @@ export default function EvaCallsPage() {
   async function addTarget() {
     setBusy('add'); setMessage('');
     try {
-      if (!company.trim() || !phone.trim()) throw new Error('Company and phone number are required.');
-      if (!consentConfirmed || consentBasis.trim().length < 8) throw new Error('Record why this person has agreed to receive an AI voice call.');
+      const company = companyRef.current?.value.trim() || '';
+      const contact = contactRef.current?.value.trim() || '';
+      const phone = phoneRef.current?.value.trim() || '';
+      const state = stateRef.current?.value.trim() || '';
+      const consentBasis = consentBasisRef.current?.value.trim() || '';
+      if (!company || !phone) throw new Error('Company and phone number are required.');
+      if (!consentConfirmed || consentBasis.length < 8) throw new Error('Record why this person has agreed to receive an AI voice call.');
       const campaignId = await ensureEvaCampaign();
       const payload = await post({ action: 'add_target', campaignId, companyName: company, contactName: contact, phone, state, source: 'eva_call_console', consentBasis });
       if (payload.target?.id) {
@@ -110,7 +127,12 @@ export default function EvaCallsPage() {
           reason: `AI voice permission/relationship basis recorded: ${consentBasis}`,
         });
       }
-      setCompany(''); setContact(''); setPhone(''); setState(''); setConsentBasis(''); setConsentConfirmed(false);
+      if (companyRef.current) companyRef.current.value = '';
+      if (contactRef.current) contactRef.current.value = '';
+      if (phoneRef.current) phoneRef.current.value = '';
+      if (stateRef.current) stateRef.current.value = '';
+      if (consentBasisRef.current) consentBasisRef.current.value = '';
+      setConsentConfirmed(false);
       setMessage('Added to Eva’s approved call queue.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not add the call target.');
@@ -123,6 +145,7 @@ export default function EvaCallsPage() {
     if (!account || !token) return;
     setBusy(target.id); setMessage('');
     try {
+      const objective = objectiveRef.current?.value.trim() || DEFAULT_OBJECTIVE;
       const response = await fetch('/api/customer/call-command/eva-dial', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -156,6 +179,13 @@ export default function EvaCallsPage() {
   }
 
   const providerName = data.provider === 'signalwire' ? 'SignalWire' : data.provider === 'twilio' ? 'Twilio fallback' : 'Not connected';
+  const sw = data.connection?.signalwire;
+  const missingSignalWire = sw ? [
+    !sw.space ? 'Space name' : '',
+    !sw.projectId ? 'Project ID' : '',
+    !sw.apiToken ? 'API token' : '',
+    !sw.fromNumber ? 'From number' : '',
+  ].filter(Boolean) : [];
 
   return (
     <main style={page}>
@@ -166,7 +196,7 @@ export default function EvaCallsPage() {
             <div>
               <div style={eyebrow}>EVA · ARIDON CALL CONSOLE</div>
               <h1 style={h1}>Eva’s phone desk</h1>
-              <p style={lead}>Eva uses Aridon’s own call engine. No Autocalls subscription, and SignalWire is now the preferred carrier.</p>
+              <p style={lead}>Eva uses Aridon’s own call engine. SignalWire is the preferred carrier.</p>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -185,9 +215,16 @@ export default function EvaCallsPage() {
 
         {!data.configured && (
           <section style={setupBox}>
-            <div style={eyebrow}>ONE-TIME SIGNALWIRE CONNECTION</div>
-            <h2 style={h2}>Keep the 602 number in Google Voice.</h2>
-            <p style={muted}>In SignalWire, verify <strong>{EVA_PHONE}</strong> under Phone Numbers → Verified. SignalWire calls the number and gives you a verification code. Then Aridon needs the SignalWire Space name, Project ID, API Token, and the verified caller ID +16025294059. No new phone number is required.</p>
+            <div style={eyebrow}>SIGNALWIRE CONNECTION CHECK</div>
+            <h2 style={h2}>Aridon can see exactly what is missing now.</h2>
+            <div style={connectionGrid}>
+              <div style={connectionItem}><strong>{sw?.space ? '✓' : '✕'} Space name</strong></div>
+              <div style={connectionItem}><strong>{sw?.projectId ? '✓' : '✕'} Project ID</strong></div>
+              <div style={connectionItem}><strong>{sw?.apiToken ? '✓' : '✕'} API token</strong></div>
+              <div style={connectionItem}><strong>{sw?.fromNumber ? '✓' : '✕'} From number</strong></div>
+            </div>
+            <p style={muted}>{missingSignalWire.length ? `Still missing in Aridon production: ${missingSignalWire.join(', ')}.` : 'The SignalWire fields are present, but the provider is still not reporting ready. We will trace the provider check next.'}</p>
+            <p style={muted}>Your SignalWire account can be active while Aridon still says “Not connected” if one of these production settings is absent. The actual secret values are never displayed here.</p>
           </section>
         )}
 
@@ -199,22 +236,22 @@ export default function EvaCallsPage() {
         </section>
 
         <section style={twoCol}>
-          <article style={panel}>
+          <article style={panel} data-no-translate="true">
             <div style={label}>ADD CALL</div>
             <h2 style={h2}>Who should Eva call?</h2>
-            <input style={input} placeholder="Company or organization" value={company} onChange={(e) => setCompany(e.target.value)} />
-            <input style={input} placeholder="Contact name" value={contact} onChange={(e) => setContact(e.target.value)} />
-            <input style={input} placeholder="Phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            <input style={input} placeholder="State" value={state} onChange={(e) => setState(e.target.value)} />
-            <textarea style={{ ...input, minHeight: 92 }} placeholder="Why is an AI call permitted?" value={consentBasis} onChange={(e) => setConsentBasis(e.target.value)} />
+            <input ref={companyRef} style={input} placeholder="Company or organization" autoComplete="off" />
+            <input ref={contactRef} style={input} placeholder="Contact name" autoComplete="off" />
+            <input ref={phoneRef} style={input} placeholder="Phone number" inputMode="tel" autoComplete="tel" />
+            <input ref={stateRef} style={input} placeholder="State" autoComplete="address-level1" />
+            <textarea ref={consentBasisRef} style={{ ...input, minHeight: 92 }} placeholder="Why is an AI call permitted?" />
             <label style={checkRow}><input type="checkbox" checked={consentConfirmed} onChange={(e) => setConsentConfirmed(e.target.checked)} /><span>I confirm this contact has a recorded basis for an AI voice call.</span></label>
             <button style={button} disabled={busy === 'add'} onClick={() => void addTarget()}>{busy === 'add' ? 'Adding…' : 'Add to Eva queue'}</button>
           </article>
 
-          <article style={panel}>
+          <article style={panel} data-no-translate="true">
             <div style={label}>CALL OBJECTIVE</div>
             <h2 style={h2}>What should Eva accomplish?</h2>
-            <textarea style={{ ...input, minHeight: 190 }} value={objective} onChange={(e) => setObjective(e.target.value)} />
+            <textarea ref={objectiveRef} style={{ ...input, minHeight: 190 }} defaultValue={DEFAULT_OBJECTIVE} />
             <p style={muted}>Eva identifies herself as an AI assistant with Aridon, explains the purpose of the call, honors stop requests, and does not make binding pricing, legal, investment, or contractual commitments.</p>
           </article>
         </section>
@@ -258,12 +295,14 @@ const identityBar = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,min
 const identityLabel = { display: 'block', color: '#8390A5', fontSize: 10, fontWeight: 900, letterSpacing: 1, marginBottom: 4 };
 const stats = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10, marginBottom: 14 };
 const stat = { background: '#111C2C', border: '1px solid #26364D', borderRadius: 14, padding: 15, display: 'grid', gap: 4 };
-const twoCol = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(330px,1fr))', gap: 14, marginBottom: 14 };
-const panel = { background: '#F6F3EB', color: '#171717', borderRadius: 18, padding: 20, border: '1px solid #D7D0C3' };
+const twoCol = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 14, marginBottom: 14 };
+const panel = { position: 'relative' as const, zIndex: 3, pointerEvents: 'auto' as const, background: '#F6F3EB', color: '#171717', borderRadius: 18, padding: 20, border: '1px solid #D7D0C3' };
 const darkPanel = { background: '#0D1728', color: '#fff', borderRadius: 18, padding: 20, border: '1px solid #26364D' };
 const setupBox = { background: '#FFF0CD', color: '#392B0F', border: '1px solid #E5C36B', borderRadius: 16, padding: 18, marginBottom: 14 };
+const connectionGrid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 8, margin: '10px 0 12px' };
+const connectionItem = { background: 'rgba(255,255,255,.58)', border: '1px solid #E2C783', borderRadius: 10, padding: 10, fontSize: 13 };
 const label = { fontSize: 11, fontWeight: 950, letterSpacing: 1 };
-const input = { width: '100%', boxSizing: 'border-box' as const, padding: '12px 13px', borderRadius: 10, border: '1px solid #CFC6B8', margin: '0 0 9px', background: '#fff', resize: 'vertical' as const };
+const input = { width: '100%', boxSizing: 'border-box' as const, padding: '13px', borderRadius: 10, border: '1px solid #BEB5A7', margin: '0 0 10px', background: '#fff', color: '#111', fontSize: 16, lineHeight: 1.35, resize: 'vertical' as const, pointerEvents: 'auto' as const, touchAction: 'manipulation' as const, WebkitUserSelect: 'text' as const, userSelect: 'text' as const, opacity: 1 };
 const checkRow = { display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 13, lineHeight: 1.5, margin: '8px 0 14px' };
 const button = { background: '#0C5D49', color: '#fff', border: 0, borderRadius: 10, padding: '12px 15px', fontWeight: 900, cursor: 'pointer' };
 const callButton = { background: '#D45A2A', color: '#fff', border: 0, borderRadius: 10, padding: '11px 14px', fontWeight: 950, cursor: 'pointer' };
