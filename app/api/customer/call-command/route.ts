@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status, headers: NO_STORE });
     const slug = clean(request.nextUrl.searchParams.get('slug'), 80);
     if (!slug) return NextResponse.json({ error: 'Workspace is required.' }, { status: 400, headers: NO_STORE });
-    const membership = await customerTenantForUser(auth.user.id, slug);
+    const membership = await customerTenantForUser(auth.user.id, slug, auth.token);
     if (!membership) return NextResponse.json({ error: 'You do not have access to this workspace.' }, { status: 403, headers: NO_STORE });
     if (!subscriptionAllowsAccess(membership.tenant.subscription_status)) return NextResponse.json({ error: 'This workspace is not active.' }, { status: 402, headers: NO_STORE });
     const db = auth.db;
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const slug = clean(body?.slug, 80);
     const action = clean(body?.action, 40);
-    const membership = await customerTenantForUser(auth.user.id, slug);
+    const membership = await customerTenantForUser(auth.user.id, slug, auth.token);
     if (!membership) return NextResponse.json({ error: 'You do not have access to this workspace.' }, { status: 403, headers: NO_STORE });
     if (!subscriptionAllowsAccess(membership.tenant.subscription_status)) return NextResponse.json({ error: 'This workspace is not active.' }, { status: 402, headers: NO_STORE });
     const db = auth.db;
