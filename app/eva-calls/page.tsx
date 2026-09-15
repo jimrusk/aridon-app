@@ -19,8 +19,19 @@ type Target = {
   do_not_call: boolean;
 };
 type Event = { id: string; target_id?: string | null; status: string; mode: string; summary?: string | null; created_at: string };
+type SignalWireConnection = {
+  configured?: boolean;
+  source?: 'saved' | 'environment' | null;
+  space: boolean;
+  projectId: boolean;
+  apiToken: boolean;
+  fromNumber: boolean;
+  values?: { space?: string; projectId?: string; fromNumber?: string };
+  apiTokenSaved?: boolean;
+  lastVerifiedAt?: string | null;
+};
 type ConnectionStatus = {
-  signalwire: { space: boolean; projectId: boolean; apiToken: boolean; fromNumber: boolean };
+  signalwire: SignalWireConnection;
   twilio: { accountSid: boolean; authToken: boolean; fromNumber: boolean };
 };
 type Payload = {
@@ -54,6 +65,11 @@ export default function EvaCallsPage() {
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
 
+  const [swSpace, setSwSpace] = useState('');
+  const [swProjectId, setSwProjectId] = useState('');
+  const [swApiToken, setSwApiToken] = useState('');
+  const [swFromNumber, setSwFromNumber] = useState('');
+
   const [company, setCompany] = useState('');
   const [contact, setContact] = useState('');
   const [phone, setPhone] = useState('');
@@ -69,7 +85,14 @@ export default function EvaCallsPage() {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || 'Unable to load Eva Call Console.');
-    setData({ ...EMPTY_DATA, ...(payload as Payload) });
+    const next = { ...EMPTY_DATA, ...(payload as Payload) };
+    setData(next);
+    const values = next.connection?.signalwire?.values;
+    if (values) {
+      setSwSpace(values.space || '');
+      setSwProjectId(values.projectId || '');
+      setSwFromNumber(values.fromNumber || '');
+    }
   }
 
   async function bootstrap() {
@@ -119,7 +142,7 @@ export default function EvaCallsPage() {
   );
 
   async function post(body: Record<string, unknown>) {
-    if (!token || !account) throw new Error('Sign in to Aridon before saving call changes.');
+    if (!token || !account) throw new Error('Sign in to Aridon before saving changes.');
     const response = await fetch('/api/customer/call-command', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -129,6 +152,49 @@ export default function EvaCallsPage() {
     if (!response.ok) throw new Error(payload.error || 'Call Console action failed.');
     await load(token, account.tenant.slug);
     return payload;
+  }
+
+  async function saveSignalWire() {
+    setBusy('signalwire');
+    setMessage('');
+    try {
+      if (!swSpace.trim() || !swProjectId.trim() || !swFromNumber.trim()) {
+        throw new Error('Enter the SignalWire Space name, Project ID, and From number.');
+      }
+      if (!swApiToken.trim() && !data.connection?.signalwire?.apiTokenSaved) {
+        throw new Error('Enter the SignalWire API token the first time you connect.');
+      }
+      const payload = await post({
+        action: 'save_signalwire',
+        space: swSpace.trim(),
+        projectId: swProjectId.trim(),
+        apiToken: swApiToken.trim(),
+        fromNumber: swFromNumber.trim(),
+      });
+      setSwApiToken('');
+      setMessage(payload.message || 'SignalWire settings saved securely.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'SignalWire settings could not be saved.');
+    } finally {
+      setBusy('');
+    }
+  }
+
+  async function disconnectSignalWire() {
+    setBusy('signalwire-disconnect');
+    setMessage('');
+    try {
+      const payload = await post({ action: 'disconnect_signalwire' });
+      setSwSpace('');
+      setSwProjectId('');
+      setSwApiToken('');
+      setSwFromNumber('');
+      setMessage(payload.message || 'SignalWire disconnected from this workspace.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'SignalWire could not be disconnected.');
+    } finally {
+      setBusy('');
+    }
   }
 
   async function ensureEvaCampaign() {
@@ -239,7 +305,7 @@ export default function EvaCallsPage() {
             <div>
               <div style={eyebrow}>EVA · ARIDON CALL CONSOLE</div>
               <h1 style={h1}>Eva’s phone desk</h1>
-              <p style={lead}>The call desk stays editable even while Aridon checks the workspace and phone carrier.</p>
+              <p style={lead}>Connect SignalWire here, then Eva can use the same desk to place live calls.</p>
             </div>
           </div>
           <div style={navRow}>
@@ -264,16 +330,79 @@ export default function EvaCallsPage() {
           <div><span style={identityLabel}>VOICE CARRIER</span><strong>{providerName}</strong></div>
         </section>
 
-        <section style={setupBox}>
-          <div style={eyebrow}>SIGNALWIRE CONNECTION CHECK</div>
-          <h2 style={h2}>{data.configured ? 'SignalWire is ready.' : 'SignalWire is not ready inside Aridon yet.'}</h2>
+        <section style={setupBox} data-no-translate="true">
+          <div style={eyebrow}>CONNECT SIGNALWIRE</div>
+          <h2 style={h2}>{sw?.configured ? 'SignalWire settings are saved and ready to test.' : 'Enter your SignalWire settings here.'}</h2>
+          <p style={setupCopy}>These are real setup fields now. Your API token is encrypted before it is stored and is never sent back to the browser.</p>
+
+          <div style={signalWireFields}>
+            <div>
+              <label style={fieldLabel}>SignalWire Space name</label>
+              <input
+                style={input}
+                value={swSpace}
+                onChange={(e) => setSwSpace(e.target.value)}
+                placeholder="yourspace"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <div style={fieldHelp}>Use the part before <strong>.signalwire.com</strong>. A full Space URL also works.</div>
+            </div>
+            <div>
+              <label style={fieldLabel}>Project ID</label>
+              <input
+                style={input}
+                value={swProjectId}
+                onChange={(e) => setSwProjectId(e.target.value)}
+                placeholder="Project ID"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+            <div>
+              <label style={fieldLabel}>API token</label>
+              <input
+                style={input}
+                type="password"
+                value={swApiToken}
+                onChange={(e) => setSwApiToken(e.target.value)}
+                placeholder={sw?.apiTokenSaved ? 'Saved securely • enter only to replace' : 'API token'}
+                autoComplete="new-password"
+                spellCheck={false}
+              />
+            </div>
+            <div>
+              <label style={fieldLabel}>From number</label>
+              <input
+                style={input}
+                value={swFromNumber}
+                onChange={(e) => setSwFromNumber(e.target.value)}
+                placeholder="+16025294059"
+                inputMode="tel"
+                autoComplete="tel"
+              />
+              <div style={fieldHelp}>Use the SignalWire number or verified caller ID Eva should call from.</div>
+            </div>
+          </div>
+
+          <div style={signalWireActions}>
+            <button type="button" style={button} disabled={busy === 'signalwire' || authState !== 'connected'} onClick={() => void saveSignalWire()}>
+              {busy === 'signalwire' ? 'Saving…' : sw?.configured ? 'Save SignalWire changes' : 'Save & connect SignalWire'}
+            </button>
+            {sw?.source === 'saved' && (
+              <button type="button" style={danger} disabled={busy === 'signalwire-disconnect'} onClick={() => void disconnectSignalWire()}>
+                {busy === 'signalwire-disconnect' ? 'Disconnecting…' : 'Disconnect saved SignalWire'}
+              </button>
+            )}
+          </div>
+
           <div style={connectionGrid}>
             <div style={connectionItem}><strong>{sw ? (sw.space ? '✓' : '✕') : '…'} Space name</strong></div>
             <div style={connectionItem}><strong>{sw ? (sw.projectId ? '✓' : '✕') : '…'} Project ID</strong></div>
             <div style={connectionItem}><strong>{sw ? (sw.apiToken ? '✓' : '✕') : '…'} API token</strong></div>
             <div style={connectionItem}><strong>{sw ? (sw.fromNumber ? '✓' : '✕') : '…'} From number</strong></div>
           </div>
-          <p style={muted}>These indicators only show whether Aridon can see each setting. Secret values are never displayed on this screen.</p>
+          <p style={muted}>{sw?.lastVerifiedAt ? `Last successful SignalWire call verification: ${new Date(sw.lastVerifiedAt).toLocaleString()}.` : sw?.configured ? 'Credentials are stored. The first successful Eva call will mark the connection verified.' : 'Fill the four fields above and tap Save & connect SignalWire.'}</p>
         </section>
 
         <section style={stats}>
@@ -373,6 +502,10 @@ const statusStrip = { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 
 const identityBar = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10, background: '#101827', border: '1px solid #28364C', borderRadius: 16, padding: 14, marginBottom: 12 };
 const identityLabel = { display: 'block', color: '#8390A5', fontSize: 10, fontWeight: 900, letterSpacing: 1, marginBottom: 4 };
 const setupBox = { background: '#FFF0CD', color: '#392B0F', border: '1px solid #E5C36B', borderRadius: 16, padding: 18, marginBottom: 12 };
+const setupCopy = { color: '#584821', fontSize: 14, lineHeight: 1.55, margin: '0 0 14px' };
+const signalWireFields = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: '4px 12px' };
+const signalWireActions = { display: 'flex', gap: 9, flexWrap: 'wrap' as const, margin: '2px 0 14px' };
+const fieldHelp = { fontSize: 12, color: '#756446', lineHeight: 1.45, margin: '-5px 0 11px' };
 const connectionGrid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 8, marginBottom: 8 };
 const connectionItem = { background: 'rgba(255,255,255,.55)', borderRadius: 10, padding: 10 };
 const stats = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(145px,1fr))', gap: 10, marginBottom: 12 };
