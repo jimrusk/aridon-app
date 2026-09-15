@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticatedCustomer, customerTenantForUser, subscriptionAllowsAccess } from '../../../../lib/customerAuth';
 import { voiceConfigured, voiceProvider } from '../../../../lib/outboundCalling';
+import {
+  disconnectSignalWire,
+  saveSignalWireCredentials,
+  signalWireConnectionStatus,
+} from '../../../../lib/signalwireCredentials';
 
 export const runtime = 'nodejs';
 const NO_STORE = { 'Cache-Control': 'no-store' };
@@ -8,19 +13,11 @@ const NO_STORE = { 'Cache-Control': 'no-store' };
 function clean(value: unknown, max = 200) { return typeof value === 'string' ? value.trim().slice(0, max) : ''; }
 function digits(value: string) { return value.replace(/[^+\d]/g, '').slice(0, 20); }
 function envPresent(name: string) { return Boolean(process.env[name]?.trim()); }
-function voiceConnectionStatus() {
+function twilioConnectionStatus() {
   return {
-    signalwire: {
-      space: envPresent('SIGNALWIRE_SPACE'),
-      projectId: envPresent('SIGNALWIRE_PROJECT_ID'),
-      apiToken: envPresent('SIGNALWIRE_API_TOKEN'),
-      fromNumber: envPresent('SIGNALWIRE_FROM_NUMBER'),
-    },
-    twilio: {
-      accountSid: envPresent('TWILIO_ACCOUNT_SID'),
-      authToken: envPresent('TWILIO_AUTH_TOKEN'),
-      fromNumber: envPresent('TWILIO_FROM_NUMBER') || envPresent('TWILIO_PHONE_NUMBER'),
-    },
+    accountSid: envPresent('TWILIO_ACCOUNT_SID'),
+    authToken: envPresent('TWILIO_AUTH_TOKEN'),
+    fromNumber: envPresent('TWILIO_FROM_NUMBER') || envPresent('TWILIO_PHONE_NUMBER'),
   };
 }
 
@@ -34,16 +31,18 @@ export async function GET(request: NextRequest) {
     if (!membership) return NextResponse.json({ error: 'You do not have access to this workspace.' }, { status: 403, headers: NO_STORE });
     if (!subscriptionAllowsAccess(membership.tenant.subscription_status)) return NextResponse.json({ error: 'This workspace is not active.' }, { status: 402, headers: NO_STORE });
     const db = auth.db;
-    const [campaigns, targets, events] = await Promise.all([
+    const [campaigns, targets, events, signalwire] = await Promise.all([
       db.from('customer_call_campaigns').select('*').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(20),
       db.from('customer_call_targets').select('*').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(100),
       db.from('customer_call_events').select('*').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(100),
+      signalWireConnectionStatus(membership.tenant.id),
     ]);
     for (const result of [campaigns, targets, events]) if (result.error) throw result.error;
+    const fallbackProvider = voiceProvider();
     return NextResponse.json({
-      configured: voiceConfigured(),
-      provider: voiceProvider(),
-      connection: voiceConnectionStatus(),
+      configured: signalwire.configured || voiceConfigured(),
+      provider: signalwire.configured ? 'signalwire' : fallbackProvider,
+      connection: { signalwire, twilio: twilioConnectionStatus() },
       campaigns: campaigns.data || [],
       targets: targets.data || [],
       events: events.data || [],
@@ -66,6 +65,24 @@ export async function POST(request: NextRequest) {
     if (!subscriptionAllowsAccess(membership.tenant.subscription_status)) return NextResponse.json({ error: 'This workspace is not active.' }, { status: 402, headers: NO_STORE });
     const db = auth.db;
     const tenantId = membership.tenant.id;
+
+    if (action === 'save_signalwire') {
+      const connection = await saveSignalWireCredentials({
+        tenantId,
+        userId: auth.user.id,
+        space: body?.space,
+        projectId: body?.projectId,
+        apiToken: body?.apiToken,
+        fromNumber: body?.fromNumber,
+      });
+      return NextResponse.json({ ok: true, connection, message: 'SignalWire settings saved securely. Eva will validate them on the first successful call.' }, { headers: NO_STORE });
+    }
+
+    if (action === 'disconnect_signalwire') {
+      await disconnectSignalWire(tenantId);
+      const connection = await signalWireConnectionStatus(tenantId);
+      return NextResponse.json({ ok: true, connection, message: 'Saved SignalWire settings were disconnected from this Aridon workspace.' }, { headers: NO_STORE });
+    }
 
     if (action === 'create_campaign') {
       const name = clean(body?.name, 120);
@@ -129,8 +146,10 @@ export async function POST(request: NextRequest) {
       if (target.error) throw target.error;
       const allowed = target.data.compliance_status === 'allowed_human_b2b' || target.data.compliance_status === 'allowed_ai_opt_in';
       if (!allowed || target.data.do_not_call) return NextResponse.json({ error: 'Ethos compliance gate has not approved this target.' }, { status: 409, headers: NO_STORE });
-      if (!voiceConfigured()) return NextResponse.json({ ready: false, blockedBy: 'provider_credentials', connection: voiceConnectionStatus(), message: 'Voice credentials are not configured yet. SignalWire is preferred for Eva because it can use a verified external caller ID.' }, { status: 200, headers: NO_STORE });
-      return NextResponse.json({ ready: true, provider: voiceProvider(), target: target.data, next: 'Provider is configured. Create the outbound call only after a human starts the call or the target has allowed_ai_opt_in status.' }, { headers: NO_STORE });
+      const signalwire = await signalWireConnectionStatus(tenantId);
+      const configured = signalwire.configured || voiceConfigured();
+      if (!configured) return NextResponse.json({ ready: false, blockedBy: 'provider_credentials', connection: { signalwire, twilio: twilioConnectionStatus() }, message: 'Voice credentials are not configured yet. Enter the SignalWire settings on Eva’s Call Console.' }, { status: 200, headers: NO_STORE });
+      return NextResponse.json({ ready: true, provider: signalwire.configured ? 'signalwire' : voiceProvider(), target: target.data, next: 'Provider is configured. Create the outbound call only after a human starts the call or the target has allowed_ai_opt_in status.' }, { headers: NO_STORE });
     }
 
     return NextResponse.json({ error: 'Unknown Call Command action.' }, { status: 400, headers: NO_STORE });
