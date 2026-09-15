@@ -20,6 +20,10 @@ import {
   connectedExecutiveActor,
   externalActionsEnabled,
 } from './executiveOps';
+import {
+  deliverabilityInputFromPayload,
+  scoreDeliverability,
+} from './deliverability';
 
 export const ACTION_ADAPTER_KEYS = ['manual', 'internal_task', 'email_send', 'calendar_create'] as const;
 export type ActionAdapterKey = (typeof ACTION_ADAPTER_KEYS)[number];
@@ -193,8 +197,28 @@ async function sendGoogleEmail(request: NextRequest, action: ActionFabricRecord)
   if (!encryptedRefreshToken) {
     throw new ActionFabricBlockedError('Google Workspace is not connected for this session.', 409, 'connection_required');
   }
-  const accessToken = await refreshGoogleAccessToken(decryptToken(encryptedRefreshToken));
   const connectedEmail = request.cookies.get(GMAIL_EMAIL_COOKIE)?.value || '';
+  const preflight = scoreDeliverability(deliverabilityInputFromPayload({
+    payload,
+    sender: connectedEmail,
+    recipient: to,
+    subject,
+    body: messageBody,
+  }));
+  if (preflight.action === 'stop') {
+    await auditExecutiveAction({
+      actorEmail: connectedEmail,
+      executive: action.executive,
+      action: 'action_fabric_email_blocked_deliverability',
+      channel: 'gmail',
+      target: to,
+      approved: true,
+      metadata: { actionId: action.id, subject, deliverabilityScore: preflight.score, deliverabilityStatus: preflight.status, deliverabilityIssues: preflight.issues.map((issue) => issue.code) },
+    });
+    throw new ActionFabricBlockedError('Deliverability Sentinel blocked this email until the hard-stop condition is corrected.', 422, 'deliverability_stop');
+  }
+
+  const accessToken = await refreshGoogleAccessToken(decryptToken(encryptedRefreshToken));
   const encodedSubject = `=?UTF-8?B?${Buffer.from(subject, 'utf8').toString('base64')}?=`;
   const headers = [
     `To: ${to}`,
@@ -223,9 +247,9 @@ async function sendGoogleEmail(request: NextRequest, action: ActionFabricRecord)
     channel: 'gmail',
     target: to,
     approved: true,
-    metadata: { actionId: action.id, subject, messageId: data.id, threadId: data.threadId || '' },
+    metadata: { actionId: action.id, subject, messageId: data.id, threadId: data.threadId || '', deliverabilityScore: preflight.score, deliverabilityStatus: preflight.status, deliverabilityIssues: preflight.issues.map((issue) => issue.code) },
   });
-  return { adapter: 'email_send', provider: 'google', sent: true, to, subject, messageId: data.id, threadId: data.threadId || '', sentAt };
+  return { adapter: 'email_send', provider: 'google', sent: true, to, subject, messageId: data.id, threadId: data.threadId || '', sentAt, deliverability: preflight };
 }
 
 async function sendMicrosoftEmail(request: NextRequest, action: ActionFabricRecord) {
@@ -235,6 +259,27 @@ async function sendMicrosoftEmail(request: NextRequest, action: ActionFabricReco
   const body = text(payload.body, 50_000);
   if (!validEmail(to) || !subject || !body) {
     throw new ActionFabricBlockedError('Email actions require a valid recipient, subject, and body.', 400, 'invalid_payload');
+  }
+
+  const actorEmail = request.cookies.get(MS_EMAIL_COOKIE)?.value || '';
+  const preflight = scoreDeliverability(deliverabilityInputFromPayload({
+    payload,
+    sender: actorEmail,
+    recipient: to,
+    subject,
+    body,
+  }));
+  if (preflight.action === 'stop') {
+    await auditExecutiveAction({
+      actorEmail,
+      executive: action.executive,
+      action: 'action_fabric_email_blocked_deliverability',
+      channel: 'outlook',
+      target: to,
+      approved: true,
+      metadata: { actionId: action.id, subject, deliverabilityScore: preflight.score, deliverabilityStatus: preflight.status, deliverabilityIssues: preflight.issues.map((issue) => issue.code) },
+    });
+    throw new ActionFabricBlockedError('Deliverability Sentinel blocked this email until the hard-stop condition is corrected.', 422, 'deliverability_stop');
   }
 
   const accessToken = await microsoftAccessToken(request);
@@ -250,7 +295,6 @@ async function sendMicrosoftEmail(request: NextRequest, action: ActionFabricReco
     }),
   });
 
-  const actorEmail = request.cookies.get(MS_EMAIL_COOKIE)?.value || '';
   const sentAt = new Date().toISOString();
   await auditExecutiveAction({
     actorEmail,
@@ -259,9 +303,9 @@ async function sendMicrosoftEmail(request: NextRequest, action: ActionFabricReco
     channel: 'outlook',
     target: to,
     approved: true,
-    metadata: { actionId: action.id, subject },
+    metadata: { actionId: action.id, subject, deliverabilityScore: preflight.score, deliverabilityStatus: preflight.status, deliverabilityIssues: preflight.issues.map((issue) => issue.code) },
   });
-  return { adapter: 'email_send', provider: 'microsoft', sent: true, to, subject, sentAt };
+  return { adapter: 'email_send', provider: 'microsoft', sent: true, to, subject, sentAt, deliverability: preflight };
 }
 
 async function sendEmail(request: NextRequest, action: ActionFabricRecord) {
