@@ -4,6 +4,7 @@ import { getServerClient } from '../../../../lib/supabase';
 import { researchScoutProspects, websiteDomain } from '../../../../lib/scoutProspecting';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
