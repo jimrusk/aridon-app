@@ -20,9 +20,16 @@ function clean(value: unknown, max = 300) {
 }
 
 export function normalizeSignalWireSpace(value: unknown) {
-  return clean(value, 160)
-    .replace(/^https?:\/\//i, '')
-    .replace(/\.signalwire\.com\/?$/i, '')
+  const raw = clean(value, 160);
+  if (!raw) return '';
+
+  const withoutProtocol = raw.replace(/^https?:\/\//i, '').trim();
+  const host = withoutProtocol.split(/[\/?#]/, 1)[0].trim().replace(/\.$/, '');
+  const match = host.match(/^([a-z0-9][a-z0-9-]*)\.signalwire\.com(?::\d+)?$/i);
+  if (match) return match[1];
+
+  return host
+    .replace(/\.signalwire\.com(?::\d+)?$/i, '')
     .replace(/\/$/, '');
 }
 
@@ -192,7 +199,7 @@ export async function saveSignalWireCredentials(args: {
 
 export async function disconnectSignalWire(tenantId: string, db?: SupabaseClient) {
   const client = integrationDb(db);
-  const row = await storedRow(tenantId, client);
+  const row = await storedRow(tenantId, db);
   if (!row?.id) return;
   const result = await client.from('customer_direct_integrations').update({
     status: 'disconnected',
@@ -205,7 +212,7 @@ export async function disconnectSignalWire(tenantId: string, db?: SupabaseClient
 
 export async function markSignalWireVerified(tenantId: string, db?: SupabaseClient) {
   const client = integrationDb(db);
-  const row = await storedRow(tenantId, client);
+  const row = await storedRow(tenantId, db);
   if (!row?.id || row.status === 'disconnected') return;
   const now = new Date().toISOString();
   const result = await client.from('customer_direct_integrations').update({ last_verified_at: now, updated_at: now }).eq('id', row.id).eq('tenant_id', tenantId);
