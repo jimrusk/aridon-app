@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       db.from('customer_call_campaigns').select('*').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(20),
       db.from('customer_call_targets').select('*').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(100),
       db.from('customer_call_events').select('*').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(100),
-      signalWireConnectionStatus(membership.tenant.id),
+      signalWireConnectionStatus(membership.tenant.id, db),
     ]);
 
     const campaigns = campaignsResult.status === 'fulfilled' && !campaignsResult.value.error
@@ -96,13 +96,13 @@ export async function POST(request: NextRequest) {
         projectId: body?.projectId,
         apiToken: body?.apiToken,
         fromNumber: body?.fromNumber,
-      });
+      }, db);
       return NextResponse.json({ ok: true, connection, message: 'SignalWire settings saved securely. Eva will validate them on the first successful call.' }, { headers: NO_STORE });
     }
 
     if (action === 'disconnect_signalwire') {
-      await disconnectSignalWire(tenantId);
-      const connection = await signalWireConnectionStatus(tenantId);
+      await disconnectSignalWire(tenantId, db);
+      const connection = await signalWireConnectionStatus(tenantId, db);
       return NextResponse.json({ ok: true, connection, message: 'Saved SignalWire settings were disconnected from this Aridon workspace.' }, { headers: NO_STORE });
     }
 
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
       if (target.error) throw target.error;
       const allowed = target.data.compliance_status === 'allowed_human_b2b' || target.data.compliance_status === 'allowed_ai_opt_in';
       if (!allowed || target.data.do_not_call) return NextResponse.json({ error: 'Ethos compliance gate has not approved this target.' }, { status: 409, headers: NO_STORE });
-      const signalwire = await signalWireConnectionStatus(tenantId);
+      const signalwire = await signalWireConnectionStatus(tenantId, db);
       const configured = signalwire.configured || voiceConfigured();
       if (!configured) return NextResponse.json({ ready: false, blockedBy: 'provider_credentials', connection: { signalwire, twilio: twilioConnectionStatus() }, message: 'Voice credentials are not configured yet. Enter the SignalWire settings on Eva’s Call Console.' }, { status: 200, headers: NO_STORE });
       return NextResponse.json({ ready: true, provider: signalwire.configured ? 'signalwire' : voiceProvider(), target: target.data, next: 'Provider is configured. Create the outbound call only after a human starts the call or the target has allowed_ai_opt_in status.' }, { headers: NO_STORE });
