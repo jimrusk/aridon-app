@@ -7,6 +7,22 @@ const NO_STORE = { 'Cache-Control': 'no-store' };
 
 function clean(value: unknown, max = 200) { return typeof value === 'string' ? value.trim().slice(0, max) : ''; }
 function digits(value: string) { return value.replace(/[^+\d]/g, '').slice(0, 20); }
+function envPresent(name: string) { return Boolean(process.env[name]?.trim()); }
+function voiceConnectionStatus() {
+  return {
+    signalwire: {
+      space: envPresent('SIGNALWIRE_SPACE'),
+      projectId: envPresent('SIGNALWIRE_PROJECT_ID'),
+      apiToken: envPresent('SIGNALWIRE_API_TOKEN'),
+      fromNumber: envPresent('SIGNALWIRE_FROM_NUMBER'),
+    },
+    twilio: {
+      accountSid: envPresent('TWILIO_ACCOUNT_SID'),
+      authToken: envPresent('TWILIO_AUTH_TOKEN'),
+      fromNumber: envPresent('TWILIO_FROM_NUMBER') || envPresent('TWILIO_PHONE_NUMBER'),
+    },
+  };
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +40,14 @@ export async function GET(request: NextRequest) {
       db.from('customer_call_events').select('*').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(100),
     ]);
     for (const result of [campaigns, targets, events]) if (result.error) throw result.error;
-    return NextResponse.json({ configured: voiceConfigured(), provider: voiceProvider(), campaigns: campaigns.data || [], targets: targets.data || [], events: events.data || [] }, { headers: NO_STORE });
+    return NextResponse.json({
+      configured: voiceConfigured(),
+      provider: voiceProvider(),
+      connection: voiceConnectionStatus(),
+      campaigns: campaigns.data || [],
+      targets: targets.data || [],
+      events: events.data || [],
+    }, { headers: NO_STORE });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to load Call Command.' }, { status: 500, headers: NO_STORE });
   }
@@ -106,7 +129,7 @@ export async function POST(request: NextRequest) {
       if (target.error) throw target.error;
       const allowed = target.data.compliance_status === 'allowed_human_b2b' || target.data.compliance_status === 'allowed_ai_opt_in';
       if (!allowed || target.data.do_not_call) return NextResponse.json({ error: 'Ethos compliance gate has not approved this target.' }, { status: 409, headers: NO_STORE });
-      if (!voiceConfigured()) return NextResponse.json({ ready: false, blockedBy: 'provider_credentials', message: 'Voice credentials are not configured yet. SignalWire is preferred for Eva because it can use a verified external caller ID.' }, { status: 200, headers: NO_STORE });
+      if (!voiceConfigured()) return NextResponse.json({ ready: false, blockedBy: 'provider_credentials', connection: voiceConnectionStatus(), message: 'Voice credentials are not configured yet. SignalWire is preferred for Eva because it can use a verified external caller ID.' }, { status: 200, headers: NO_STORE });
       return NextResponse.json({ ready: true, provider: voiceProvider(), target: target.data, next: 'Provider is configured. Create the outbound call only after a human starts the call or the target has allowed_ai_opt_in status.' }, { headers: NO_STORE });
     }
 
