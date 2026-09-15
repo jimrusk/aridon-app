@@ -12,6 +12,10 @@ import {
   connectedExecutiveActor,
   externalActionsEnabled,
 } from '../../../../lib/executiveOps';
+import {
+  deliverabilityInputFromPayload,
+  scoreDeliverability,
+} from '../../../../lib/deliverability';
 
 export const runtime = 'nodejs';
 
@@ -19,6 +23,10 @@ const NO_STORE_HEADERS = { 'Cache-Control': 'no-store' };
 
 function text(value: unknown, maxLength: number) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
 export async function POST(request: NextRequest) {
@@ -66,8 +74,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const accessToken = await refreshGmailAccessToken(decryptToken(encryptedRefreshToken));
     const connectedEmail = request.cookies.get(GMAIL_EMAIL_COOKIE)?.value || '';
+    const preflight = scoreDeliverability(deliverabilityInputFromPayload({
+      payload: objectValue(body),
+      sender: connectedEmail || actor.email,
+      recipient: to,
+      subject,
+      body: messageBody,
+    }));
+
+    if (preflight.action === 'stop') {
+      await auditExecutiveAction({
+        actorEmail: connectedEmail || actor.email,
+        executive: text(body?.executive, 120),
+        action: 'email_send_blocked_deliverability',
+        channel: 'gmail',
+        target: to,
+        approved: true,
+        metadata: { subject, deliverabilityScore: preflight.score, deliverabilityStatus: preflight.status, deliverabilityIssues: preflight.issues.map((issue) => issue.code) },
+      });
+      return NextResponse.json(
+        { error: 'Deliverability Sentinel blocked this send until the hard-stop condition is corrected.', deliverability: preflight },
+        { status: 422, headers: NO_STORE_HEADERS },
+      );
+    }
+
+    const accessToken = await refreshGmailAccessToken(decryptToken(encryptedRefreshToken));
     const encodedSubject = `=?UTF-8?B?${Buffer.from(subject, 'utf8').toString('base64')}?=`;
     const headers = [
       `To: ${to}`,
@@ -109,7 +141,14 @@ export async function POST(request: NextRequest) {
       channel: 'gmail',
       target: to,
       approved: true,
-      metadata: { subject, messageId: data.id, threadId: data.threadId || '' },
+      metadata: {
+        subject,
+        messageId: data.id,
+        threadId: data.threadId || '',
+        deliverabilityScore: preflight.score,
+        deliverabilityStatus: preflight.status,
+        deliverabilityIssues: preflight.issues.map((issue) => issue.code),
+      },
     });
 
     return NextResponse.json(
@@ -118,6 +157,7 @@ export async function POST(request: NextRequest) {
         messageId: data.id,
         threadId: data.threadId || '',
         sentAt,
+        deliverability: preflight,
       },
       { headers: NO_STORE_HEADERS },
     );
