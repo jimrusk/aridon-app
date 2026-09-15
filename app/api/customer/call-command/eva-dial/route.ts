@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authenticatedCustomer, customerTenantForUser, subscriptionAllowsAccess } from '../../../../../lib/customerAuth';
 import { publicOrigin, signPhoneToken } from '../../../../../lib/executivePhone';
 import { voiceProvider } from '../../../../../lib/outboundCalling';
+import { loadSignalWireCredentials, markSignalWireVerified } from '../../../../../lib/signalwireCredentials';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -52,9 +53,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Record the consent or relationship basis before Eva calls.' }, { status: 409, headers: NO_STORE });
     }
 
-    const provider = voiceProvider();
+    const signalWireCredentials = await loadSignalWireCredentials(membership.tenant.id);
+    const provider = signalWireCredentials ? 'signalwire' : voiceProvider();
     if (!provider) {
-      return NextResponse.json({ error: 'Eva voice calling is not connected yet. SignalWire is the preferred provider. Verify Eva’s 602 number there and add the SignalWire credentials.' }, { status: 503, headers: NO_STORE });
+      return NextResponse.json({ error: 'Eva voice calling is not connected yet. Enter the SignalWire Space, Project ID, API token, and From number on Eva’s Call Console.' }, { status: 503, headers: NO_STORE });
     }
 
     const token = signPhoneToken({
@@ -86,10 +88,8 @@ export async function POST(request: NextRequest) {
     let providerLabel: 'signalwire' | 'twilio';
 
     if (provider === 'signalwire') {
-      const space = process.env.SIGNALWIRE_SPACE!.trim().replace(/^https?:\/\//, '').replace(/\.signalwire\.com\/?$/, '');
-      const projectId = process.env.SIGNALWIRE_PROJECT_ID!.trim();
-      const apiToken = process.env.SIGNALWIRE_API_TOKEN!.trim();
-      const fromNumber = process.env.SIGNALWIRE_FROM_NUMBER!.trim();
+      if (!signalWireCredentials) throw new Error('SignalWire credentials are incomplete. Save them again on Eva’s Call Console.');
+      const { space, projectId, apiToken, fromNumber } = signalWireCredentials;
       const params = new URLSearchParams({ ...common, From: fromNumber });
       response = await fetch(`https://${space}.signalwire.com/api/laml/2010-04-01/Accounts/${encodeURIComponent(projectId)}/Calls.json`, {
         method: 'POST',
@@ -120,6 +120,7 @@ export async function POST(request: NextRequest) {
 
     const call = await response.json().catch(() => ({})) as { sid?: string; status?: string; message?: string };
     if (!response.ok || !call.sid) throw new Error(call.message || `${providerLabel} returned ${response.status}.`);
+    if (providerLabel === 'signalwire') await markSignalWireVerified(membership.tenant.id);
 
     const now = new Date().toISOString();
     await db.from('customer_call_targets').update({ call_status: 'dialing', last_call_at: now }).eq('tenant_id', membership.tenant.id).eq('id', targetId);
