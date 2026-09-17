@@ -1,0 +1,20 @@
+name: Fetch Eva Social Audio
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/fetch-eva-social-audio.yml'
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Eva narration
+        run: curl -fL 'https://aridon-v02.vercel.app/api/eva-social-narration?raw=1' -o eva_aridon_os_social.ogg
+      - name: Upload Eva narration artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: eva-aridon-os-social
+          path: eva_aridon_os_social.ogg
+          retention-days: 1
