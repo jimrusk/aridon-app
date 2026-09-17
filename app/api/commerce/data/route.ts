@@ -9,7 +9,7 @@ type Entity = 'supplier' | 'product' | 'lead' | 'order' | 'showroom' | 'profile'
 
 const CONFIG: Record<Exclude<Entity, 'profile'>, { table: string; fields: string[] }> = {
   supplier: { table: 'commerce_suppliers', fields: ['name','website','contact','status','score','why_fit','source_url','evidence','discovered_by_ai','category','dealer_program_url','approval_notes','margin_notes'] },
-  product: { table: 'commerce_products', fields: ['supplier_id','sku','title','product_url','supplier_cost','selling_price','freight_cost','map_price','availability','warranty','status','source','slug','category','description','image_urls','specs','quote_only','shipping_note','stripe_product_id','stripe_price_id','published_at'] },
+  product: { table: 'commerce_products', fields: ['supplier_id','sku','title','product_url','supplier_cost','selling_price','freight_cost','map_price','availability','warranty','status','source','slug','category','description','image_urls','specs','quote_only','shipping_note','stripe_product_id','stripe_price_id','stripe_payment_link_url','published_at'] },
   lead: { table: 'commerce_leads', fields: ['name','company','email','phone','product_interest','estimated_value','stage','next_step','notes','source','source_url','session_id'] },
   order: { table: 'commerce_orders', fields: ['lead_id','product_id','customer_name','customer_email','sale_price','supplier_cost','ad_cost','freight_cost','other_cost','status','ordered_at','currency','stripe_checkout_session_id','stripe_payment_intent_id','payment_status'] },
   showroom: { table: 'commerce_showrooms', fields: ['name','niche','headline','subheadline','sections','featured_product_ids','status'] },
