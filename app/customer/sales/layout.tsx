@@ -13,8 +13,11 @@ export default function SalesLayout({ children }: { children: ReactNode }) {
           bottom: 14,
           zIndex: 70,
           display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'flex-end',
           gap: 7,
           padding: 7,
+          maxWidth: 'min(620px, calc(100vw - 28px))',
           borderRadius: 14,
           background: 'rgba(6, 11, 20, .94)',
           border: '1px solid #33465F',
@@ -23,7 +26,8 @@ export default function SalesLayout({ children }: { children: ReactNode }) {
         }}
       >
         <Link href="/customer/sales" style={linkStyle}>Scout</Link>
-        <Link href="/customer/sales/security-radar" style={{ ...linkStyle, background: '#8DE7D2', color: '#06110E', borderColor: '#8DE7D2' }}>🛡 Security Radar</Link>
+        <Link href="/customer/sales/opportunity-radar" style={{ ...linkStyle, background: '#A9F1C8', color: '#07110B', borderColor: '#A9F1C8' }}>📈 Growth + Ag</Link>
+        <Link href="/customer/sales/security-radar" style={{ ...linkStyle, background: '#8DE7D2', color: '#06110E', borderColor: '#8DE7D2' }}>🛡 Security</Link>
       </nav>
     </>
   );
