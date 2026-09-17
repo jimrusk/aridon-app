@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticatedCustomer, customerTenantForUser, subscriptionAllowsAccess } from '../../../../../lib/customerAuth';
 import { publicOrigin, signPhoneToken } from '../../../../../lib/executivePhone';
-import { voiceProvider } from '../../../../../lib/outboundCalling';
-import { loadSignalWireCredentials, markSignalWireVerified } from '../../../../../lib/signalwireCredentials';
+import { placeAridonVoiceCall } from '../../../../../lib/aridonVoiceGateway';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -53,12 +52,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Record the consent or relationship basis before Eva calls.' }, { status: 409, headers: NO_STORE });
     }
 
-    const signalWireCredentials = await loadSignalWireCredentials(membership.tenant.id, db);
-    const provider = signalWireCredentials ? 'signalwire' : voiceProvider();
-    if (!provider) {
-      return NextResponse.json({ error: 'Eva voice calling is not connected yet. Enter the SignalWire Space, Project ID, API token, and From number on Eva’s Call Console.' }, { status: 503, headers: NO_STORE });
-    }
-
     const token = signPhoneToken({
       tenantId: membership.tenant.id,
       userId: auth.user.id,
@@ -75,52 +68,14 @@ export async function POST(request: NextRequest) {
     const origin = publicOrigin(request.nextUrl.origin);
     const voiceUrl = `${origin}/api/executive-call/voice?token=${encodeURIComponent(token)}`;
     const statusUrl = `${origin}/api/customer/call-command/twilio-status?tenant=${encodeURIComponent(membership.tenant.id)}&target=${encodeURIComponent(targetId)}`;
-    const common = {
-      To: String(target.data.phone),
-      Url: voiceUrl,
-      Method: 'POST',
-      StatusCallback: statusUrl,
-      StatusCallbackEvent: 'initiated ringing answered completed',
-      StatusCallbackMethod: 'POST',
-    };
 
-    let response: Response;
-    let providerLabel: 'signalwire' | 'twilio';
-
-    if (provider === 'signalwire') {
-      if (!signalWireCredentials) throw new Error('SignalWire credentials are incomplete. Save them again on Eva’s Call Console.');
-      const { space, projectId, apiToken, fromNumber } = signalWireCredentials;
-      const params = new URLSearchParams({ ...common, From: fromNumber });
-      response = await fetch(`https://${space}.signalwire.com/api/laml/2010-04-01/Accounts/${encodeURIComponent(projectId)}/Calls.json`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Basic ${Buffer.from(`${projectId}:${apiToken}`).toString('base64')}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: params.toString(),
-        cache: 'no-store',
-      });
-      providerLabel = 'signalwire';
-    } else {
-      const accountSid = process.env.TWILIO_ACCOUNT_SID!.trim();
-      const authToken = process.env.TWILIO_AUTH_TOKEN!.trim();
-      const fromNumber = process.env.TWILIO_FROM_NUMBER!.trim() || process.env.TWILIO_PHONE_NUMBER!.trim();
-      const params = new URLSearchParams({ ...common, From: fromNumber });
-      response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(accountSid)}/Calls.json`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: params.toString(),
-        cache: 'no-store',
-      });
-      providerLabel = 'twilio';
-    }
-
-    const call = await response.json().catch(() => ({})) as { sid?: string; status?: string; message?: string };
-    if (!response.ok || !call.sid) throw new Error(call.message || `${providerLabel} returned ${response.status}.`);
-    if (providerLabel === 'signalwire') await markSignalWireVerified(membership.tenant.id, db);
+    const call = await placeAridonVoiceCall({
+      tenantId: membership.tenant.id,
+      db,
+      to: String(target.data.phone),
+      voiceUrl,
+      statusUrl,
+    });
 
     const now = new Date().toISOString();
     await db.from('customer_call_targets').update({ call_status: 'dialing', last_call_at: now }).eq('tenant_id', membership.tenant.id).eq('id', targetId);
@@ -128,10 +83,10 @@ export async function POST(request: NextRequest) {
       tenant_id: membership.tenant.id,
       campaign_id: target.data.campaign_id,
       target_id: targetId,
-      provider: providerLabel,
-      provider_call_sid: call.sid,
+      provider: call.transport,
+      provider_call_sid: call.callSid,
       mode: 'ai_opt_in',
-      status: call.status || 'initiated',
+      status: call.status,
       summary: objective,
       started_at: now,
     }).select().single();
@@ -139,10 +94,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      callSid: call.sid,
-      status: call.status || 'initiated',
-      provider: providerLabel,
-      message: `Eva is calling ${target.data.contact_name || target.data.company_name} through ${providerLabel === 'signalwire' ? 'SignalWire' : 'Twilio'}.`,
+      callSid: call.callSid,
+      status: call.status,
+      provider: 'aridon',
+      carrier: call.transport,
+      fromNumber: call.fromNumber,
+      message: `Eva is calling ${target.data.contact_name || target.data.company_name} through Aridon Voice Gateway.`,
     }, { headers: NO_STORE });
   } catch (error) {
     console.error('Eva outbound dial error', error);
