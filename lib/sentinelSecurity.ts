@@ -13,74 +13,43 @@ export type SentinelSignals = {
   commandAndControl?: boolean;
   impossibleTravel?: boolean;
   newDevice?: boolean;
+  promptInjection?: boolean;
+  unauthorizedToolUse?: boolean;
+  agentEscape?: boolean;
+  credentialExposure?: boolean;
+  monitoringEvasion?: boolean;
+  covertChannel?: boolean;
+  multiAgentCollusion?: boolean;
 };
 
 export type SentinelActorProfile = {
-  ip?: string;
-  userId?: string;
-  accountEmail?: string;
-  deviceId?: string;
-  userAgent?: string;
-  country?: string;
-  region?: string;
-  provider?: string;
-  observedIdentity?: string;
+  ip?: string; userId?: string; accountEmail?: string; deviceId?: string; userAgent?: string;
+  country?: string; region?: string; provider?: string; observedIdentity?: string;
 };
 
 export type SentinelIncidentDraft = {
-  tenantId: string;
-  title: string;
-  summary: string;
-  incidentType?: string;
-  confidence?: number;
-  occurredAt?: string;
-  actor?: SentinelActorProfile;
-  indicators?: unknown[];
-  affectedAssets?: unknown[];
-  evidence?: Record<string, unknown>;
-  signals?: SentinelSignals;
-  simulation?: boolean;
+  tenantId: string; title: string; summary: string; incidentType?: string; confidence?: number;
+  occurredAt?: string; actor?: SentinelActorProfile; indicators?: unknown[]; affectedAssets?: unknown[];
+  evidence?: Record<string, unknown>; signals?: SentinelSignals; simulation?: boolean;
 };
 
 export type SentinelPolicy = {
-  escalationMode: SentinelEscalationMode;
-  automaticScoreThreshold: number;
-  automaticConfidenceThreshold: number;
-  notifyCisa: boolean;
-  notifyFbi: boolean;
-  localAuthorityName?: string;
-  localAuthorityEmail?: string;
-  legalContactEmail?: string;
-  securityContactEmail?: string;
-  preserveEvidence: boolean;
+  escalationMode: SentinelEscalationMode; automaticScoreThreshold: number; automaticConfidenceThreshold: number;
+  notifyCisa: boolean; notifyFbi: boolean; localAuthorityName?: string; localAuthorityEmail?: string;
+  legalContactEmail?: string; securityContactEmail?: string; preserveEvidence: boolean;
 };
 
 export const SENTINEL_AUTHORITIES = {
-  cisa: {
-    name: 'CISA',
-    email: 'report@cisa.gov',
-    phone: '(888) 282-0870',
-    url: 'https://www.cisa.gov/report',
-  },
-  fbi: {
-    name: 'FBI Internet Crime Complaint Center (IC3)',
-    url: 'https://www.ic3.gov/',
-    fieldOfficesUrl: 'https://www.fbi.gov/contact-us/field-offices',
-  },
+  cisa: { name: 'CISA', email: 'report@cisa.gov', phone: '(888) 282-0870', url: 'https://www.cisa.gov/report' },
+  fbi: { name: 'FBI Internet Crime Complaint Center (IC3)', url: 'https://www.ic3.gov/', fieldOfficesUrl: 'https://www.fbi.gov/contact-us/field-offices' },
 } as const;
 
 export const DEFAULT_SENTINEL_POLICY: SentinelPolicy = {
-  escalationMode: 'approval_required',
-  automaticScoreThreshold: 95,
-  automaticConfidenceThreshold: 90,
-  notifyCisa: true,
-  notifyFbi: true,
-  preserveEvidence: true,
+  escalationMode: 'approval_required', automaticScoreThreshold: 95, automaticConfidenceThreshold: 90,
+  notifyCisa: true, notifyFbi: true, preserveEvidence: true,
 };
 
-function clamp(value: number, min = 0, max = 100) {
-  return Math.max(min, Math.min(max, Math.round(value)));
-}
+function clamp(value: number, min = 0, max = 100) { return Math.max(min, Math.min(max, Math.round(value))); }
 
 export function scoreSentinelIncident(signals: SentinelSignals = {}) {
   let score = 15;
@@ -95,11 +64,15 @@ export function scoreSentinelIncident(signals: SentinelSignals = {}) {
   if (signals.commandAndControl) score += 16;
   if (signals.impossibleTravel) score += 6;
   if (signals.newDevice) score += 4;
-
+  if (signals.promptInjection) score += 16;
+  if (signals.unauthorizedToolUse) score += 18;
+  if (signals.agentEscape) score += 26;
+  if (signals.credentialExposure) score += 22;
+  if (signals.monitoringEvasion) score += 18;
+  if (signals.covertChannel) score += 20;
+  if (signals.multiAgentCollusion) score += 22;
   const riskScore = clamp(score);
-  const severity: SentinelSeverity =
-    riskScore >= 85 ? 'critical' : riskScore >= 65 ? 'high' : riskScore >= 40 ? 'medium' : 'low';
-
+  const severity: SentinelSeverity = riskScore >= 85 ? 'critical' : riskScore >= 65 ? 'high' : riskScore >= 40 ? 'medium' : 'low';
   return { riskScore, severity };
 }
 
@@ -109,91 +82,26 @@ export function containmentPlan(signals: SentinelSignals = {}) {
     'Revoke the suspicious session and require strong reauthentication.',
     'Block the observed source indicators at the appropriate control points.',
   ];
-
   if (signals.privilegeEscalation) actions.push('Remove newly granted privileges and rotate privileged credentials.');
   if (signals.dataExfiltration || signals.massRecordAccess) actions.push('Freeze bulk exports and high-volume data access while scope is verified.');
   if (signals.commandAndControl) actions.push('Isolate the affected endpoint or workload from external command-and-control traffic.');
   if (signals.ransomware || signals.destructiveAction) actions.push('Isolate affected systems, protect backups and suspend destructive automation paths.');
   if (signals.criticalInfrastructure) actions.push('Activate the organization critical-infrastructure incident response plan.');
-
+  if (signals.promptInjection) actions.push('Quarantine untrusted retrieved content and strip embedded instructions before it reaches the agent.');
+  if (signals.unauthorizedToolUse) actions.push('Deny the tool call and reduce the agent to a least-privilege tool allowlist.');
+  if (signals.agentEscape || signals.monitoringEvasion) actions.push('Suspend the agent workload, isolate its sandbox and require human approval before restart.');
+  if (signals.credentialExposure) actions.push('Revoke exposed credentials and replace them with short-lived brokered credentials.');
+  if (signals.covertChannel) actions.push('Disable unapproved outbound network paths and preserve network telemetry for review.');
+  if (signals.multiAgentCollusion) actions.push('Separate agent identities, terminate cross-agent channels and require independently authorized communication.');
   return actions;
 }
 
-export function isAutomaticEscalationEligible(
-  policy: SentinelPolicy,
-  severity: SentinelSeverity,
-  riskScore: number,
-  confidence: number,
-  simulation = false,
-) {
+export function isAutomaticEscalationEligible(policy: SentinelPolicy, severity: SentinelSeverity, riskScore: number, confidence: number, simulation = false) {
   if (simulation) return false;
-  return (
-    policy.escalationMode === 'automatic_critical' &&
-    severity === 'critical' &&
-    riskScore >= policy.automaticScoreThreshold &&
-    confidence >= policy.automaticConfidenceThreshold
-  );
+  return policy.escalationMode === 'automatic_critical' && severity === 'critical' && riskScore >= policy.automaticScoreThreshold && confidence >= policy.automaticConfidenceThreshold;
 }
 
-export function buildAuthorityReport(args: {
-  organizationName: string;
-  incidentId: string;
-  title: string;
-  summary: string;
-  incidentType: string;
-  severity: SentinelSeverity;
-  riskScore: number;
-  confidence: number;
-  actor: SentinelActorProfile;
-  indicators: unknown[];
-  affectedAssets: unknown[];
-  containmentActions: string[];
-  evidenceSha256: string;
-  occurredAt?: string;
-  detectedAt: string;
-}) {
-  const actorLines = [
-    args.actor.ip ? `Source IP: ${args.actor.ip}` : '',
-    args.actor.observedIdentity ? `Observed identity: ${args.actor.observedIdentity}` : '',
-    args.actor.accountEmail ? `Account involved: ${args.actor.accountEmail}` : '',
-    args.actor.deviceId ? `Device ID: ${args.actor.deviceId}` : '',
-    args.actor.userAgent ? `User agent: ${args.actor.userAgent}` : '',
-    args.actor.country ? `Observed country: ${args.actor.country}` : '',
-    args.actor.region ? `Observed region: ${args.actor.region}` : '',
-    args.actor.provider ? `Network/provider: ${args.actor.provider}` : '',
-  ].filter(Boolean);
-
-  return [
-    'ARIDON SENTINEL ENTERPRISE - CYBER INCIDENT REPORT',
-    '',
-    `Organization: ${args.organizationName}`,
-    `Aridon incident ID: ${args.incidentId}`,
-    `Severity: ${args.severity.toUpperCase()} (${args.riskScore}/100 risk score)`,
-    `Evidence confidence: ${args.confidence}%`,
-    `Incident type: ${args.incidentType}`,
-    `Occurred: ${args.occurredAt || 'Unknown / under investigation'}`,
-    `Detected: ${args.detectedAt}`,
-    '',
-    `Title: ${args.title}`,
-    '',
-    'Incident summary:',
-    args.summary,
-    '',
-    'Suspected actor / source indicators:',
-    ...(actorLines.length ? actorLines : ['No actor identity has been verified.']),
-    '',
-    'Technical indicators:',
-    JSON.stringify(args.indicators, null, 2),
-    '',
-    'Affected assets:',
-    JSON.stringify(args.affectedAssets, null, 2),
-    '',
-    'Containment actions:',
-    ...args.containmentActions.map((action) => `- ${action}`),
-    '',
-    `Evidence package SHA-256: ${args.evidenceSha256}`,
-    '',
-    'IMPORTANT ATTRIBUTION NOTICE:',
-    'This report concerns suspected cyber activity. IP addresses, account names, devices and other indicators identify observed technical activity only and do not by themselves establish the legal identity or guilt of any person. Attribution remains preliminary unless independently verified.',
-  ].join('\n');
+export function buildAuthorityReport(args: { organizationName: string; incidentId: string; title: string; summary: string; incidentType: string; severity: SentinelSeverity; riskScore: number; confidence: number; actor: SentinelActorProfile; indicators: unknown[]; affectedAssets: unknown[]; containmentActions: string[]; evidenceSha256: string; occurredAt?: string; detectedAt: string; }) {
+  const actorLines = [args.actor.ip ? `Source IP: ${args.actor.ip}` : '', args.actor.observedIdentity ? `Observed identity: ${args.actor.observedIdentity}` : '', args.actor.accountEmail ? `Account involved: ${args.actor.accountEmail}` : '', args.actor.deviceId ? `Device ID: ${args.actor.deviceId}` : '', args.actor.userAgent ? `User agent: ${args.actor.userAgent}` : '', args.actor.country ? `Observed country: ${args.actor.country}` : '', args.actor.region ? `Observed region: ${args.actor.region}` : '', args.actor.provider ? `Network/provider: ${args.actor.provider}` : ''].filter(Boolean);
+  return ['ARIDON SENTINEL ENTERPRISE - CYBER INCIDENT REPORT','',`Organization: ${args.organizationName}`,`Aridon incident ID: ${args.incidentId}`,`Severity: ${args.severity.toUpperCase()} (${args.riskScore}/100 risk score)`,`Evidence confidence: ${args.confidence}%`,`Incident type: ${args.incidentType}`,`Occurred: ${args.occurredAt || 'Unknown / under investigation'}`,`Detected: ${args.detectedAt}`,'',`Title: ${args.title}`,'','Incident summary:',args.summary,'','Suspected actor / source indicators:',...(actorLines.length ? actorLines : ['No actor identity has been verified.']),'','Technical indicators:',JSON.stringify(args.indicators, null, 2),'','Affected assets:',JSON.stringify(args.affectedAssets, null, 2),'','Containment actions:',...args.containmentActions.map((action) => `- ${action}`),'',`Evidence package SHA-256: ${args.evidenceSha256}`,'','IMPORTANT ATTRIBUTION NOTICE:','This report concerns suspected cyber activity. IP addresses, account names, devices and other indicators identify observed technical activity only and do not by themselves establish the legal identity or guilt of any person. Attribution remains preliminary unless independently verified.'].join('\n');
 }
