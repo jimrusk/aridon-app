@@ -20,6 +20,7 @@ export type StoreProduct = {
   imageUrls: string[];
   specs: Record<string, unknown>;
   supplierName: string;
+  stripePaymentLinkUrl: string;
 };
 
 export type StoreCategory = {
@@ -57,13 +58,26 @@ function mapProduct(row: any): StoreProduct {
     imageUrls: asStringArray(row?.image_urls),
     specs: asRecord(row?.specs),
     supplierName: String(row?.supplier_name || ''),
+    stripePaymentLinkUrl: String(row?.stripe_payment_link_url || ''),
   };
 }
 
+function bridgeSecret() {
+  const candidates = [
+    process.env.ARIDON_STORE_BRIDGE_SECRET,
+    process.env.CRON_SECRET,
+    process.env.OPENAI_API_KEY,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+  ];
+  for (const value of candidates) {
+    const secret = value?.trim();
+    if (secret) return secret;
+  }
+  throw new Error('Aridon storefront bridge secret is not configured.');
+}
+
 export function storeBridgeToken() {
-  const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim();
-  if (!stripeSecret) throw new Error('STRIPE_SECRET_KEY is not configured.');
-  return createHash('sha256').update(`aridon-store-bridge-v1:${stripeSecret}`).digest('hex');
+  return createHash('sha256').update(`aridon-store-bridge-v1:${bridgeSecret()}`).digest('hex');
 }
 
 export async function storeWrite(operation: 'event' | 'lead' | 'create_order' | 'attach_checkout' | 'checkout_error' | 'mark_paid', payload: Record<string, unknown>) {
@@ -72,6 +86,16 @@ export async function storeWrite(operation: 'event' | 'lead' | 'create_order' | 
     p_bridge_token: storeBridgeToken(),
     p_operation: operation,
     p_payload: payload,
+  });
+  if (error) throw new Error(error.message);
+  return (data && typeof data === 'object' ? data : {}) as Record<string, any>;
+}
+
+export async function getCheckoutTarget(productId: string) {
+  const db = getPublicServerClient();
+  const { data, error } = await db.rpc('aridon_store_checkout_target', {
+    p_bridge_token: storeBridgeToken(),
+    p_product_id: productId,
   });
   if (error) throw new Error(error.message);
   return (data && typeof data === 'object' ? data : {}) as Record<string, any>;
