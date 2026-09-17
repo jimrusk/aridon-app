@@ -16,15 +16,29 @@ function safeEqualHex(a: string, b: string) {
   }
 }
 
+function bridgeSource() {
+  const candidates: Array<[string, string | undefined]> = [
+    ['ARIDON_STORE_BRIDGE_SECRET', process.env.ARIDON_STORE_BRIDGE_SECRET],
+    ['CRON_SECRET', process.env.CRON_SECRET],
+    ['OPENAI_API_KEY', process.env.OPENAI_API_KEY],
+    ['SUPABASE_SERVICE_ROLE_KEY', process.env.SUPABASE_SERVICE_ROLE_KEY],
+  ];
+  for (const [name, value] of candidates) {
+    const secret = value?.trim();
+    if (secret) return { name, secret };
+  }
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   const supplied = request.nextUrl.searchParams.get('key') || '';
   const suppliedHash = createHash('sha256').update(supplied).digest('hex');
   if (!supplied || !safeEqualHex(suppliedHash, BOOTSTRAP_KEY_HASH)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim() || '';
-  if (!stripeSecret) return NextResponse.json({ configured: false });
-  const bridgeToken = createHash('sha256').update(`aridon-store-bridge-v1:${stripeSecret}`).digest('hex');
+  const source = bridgeSource();
+  if (!source) return NextResponse.json({ configured: false });
+  const bridgeToken = createHash('sha256').update(`aridon-store-bridge-v1:${source.secret}`).digest('hex');
   const verifier = createHash('sha256').update(bridgeToken).digest('hex');
-  return NextResponse.json({ configured: true, verifier });
+  return NextResponse.json({ configured: true, source: source.name, verifier });
 }
