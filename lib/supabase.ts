@@ -24,6 +24,16 @@ export function getBrowserClient(): SupabaseClient {
   return browserClient;
 }
 
+export function getPublicServerClient(): SupabaseClient {
+  return createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
+
 export function getUserScopedClient(accessToken: string): SupabaseClient {
   const token = accessToken.trim();
   if (!token) throw new Error('A user access token is required.');
