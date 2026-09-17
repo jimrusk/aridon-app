@@ -110,7 +110,7 @@
   window.RTCPeerConnection = WrappedRTCPeerConnection;
   if (window.webkitRTCPeerConnection) window.webkitRTCPeerConnection = WrappedRTCPeerConnection;
 
-  async function waitForRemoteCallerTrack(timeoutMs = 30000) {
+  async function waitForRemoteCallerTrack(timeoutMs = 60000) {
     if (remoteCallerTrack?.readyState === 'live') return remoteCallerTrack;
     const started = Date.now();
     while (Date.now() - started < timeoutMs) {
@@ -158,13 +158,10 @@
       realtimeData = pc.createDataChannel('oai-events');
       realtimeData.addEventListener('message', handleRealtimeEvent);
       realtimeData.addEventListener('open', () => {
+        // Do not force an opening response here. On outbound calls, the remote
+        // track can carry ringback before a person answers. Server VAD will let
+        // Eva speak only after it hears the person, preventing her greeting the tone.
         post('REALTIME_CONNECTED', { jobId: activeJobId });
-        try {
-          realtimeData.send(JSON.stringify({
-            type: 'response.create',
-            response: { instructions: 'Begin the phone conversation now with the required brief AI disclosure and a concise greeting.' },
-          }));
-        } catch {}
       });
 
       pc.addEventListener('track', (event) => {
