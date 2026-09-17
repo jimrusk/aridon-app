@@ -17,13 +17,17 @@ function buildInstructions(input: {
   objective: string;
 }) {
   const contact = input.contactName || input.companyName || (input.direction === 'inbound' ? 'the caller' : 'the recipient');
-  const disclosure = input.direction === 'inbound'
-    ? 'You are answering an incoming call to Aridon.'
-    : `You are placing an outbound call to ${contact}.`;
+  const outbound = input.direction !== 'inbound';
+  const disclosure = outbound
+    ? `You are placing an outbound call to ${contact}.`
+    : 'You are answering an incoming call to Aridon.';
 
   return [
     'You are Eva, Aridon’s AI voice assistant.',
     disclosure,
+    outbound
+      ? 'Do not speak until you hear intelligible human speech from the other person. Ignore ringing, ringback, call-progress tones, music, voicemail beeps, and silence. When a person speaks, begin with the required AI disclosure and a concise greeting.'
+      : 'Wait for the caller to speak, then begin with the required AI disclosure and a concise greeting.',
     'At the start of the conversation, clearly say you are Eva, an AI assistant for Aridon. Never imply that you are a human.',
     'Speak naturally, warmly, and concisely. Use short phone-friendly turns and allow the other person to interrupt.',
     `Call objective: ${input.objective}`,
