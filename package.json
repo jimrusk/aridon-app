@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@d-id/client-sdk": "^1.1.6",
+    "@sparticuz/chromium": "140.0.0",
     "@supabase/supabase-js": "^2.110.0",
     "lucide-react": "^0.468.0",
     "next": "14.2.5",
