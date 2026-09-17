@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     if (owner.error || !owner.data?.user_id) throw owner.error || new Error('Store owner not found.');
 
     const productResult = await db.from('commerce_products')
-      .select('id,slug,title,description,selling_price,supplier_cost,freight_cost,quote_only,status,currency:tenant_id,commerce_suppliers!inner(id,name,status)')
+      .select('id,slug,title,description,selling_price,supplier_cost,freight_cost,quote_only,status,commerce_suppliers!inner(id,name,status)')
       .eq('tenant_id', tenantId)
       .eq('id', productId)
       .eq('status', 'Live')
