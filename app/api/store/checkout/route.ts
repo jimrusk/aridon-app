@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { storeWrite } from '../../../../lib/storefront';
+import { getCheckoutTarget, recordStoreEvent, storeWrite } from '../../../../lib/storefront';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 const NO_STORE = { 'Cache-Control': 'no-store' };
 
 function clean(value: unknown, max: number) { return typeof value === 'string' ? value.trim().slice(0, max) : ''; }
-function requiredEnv(name: string) {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`${name} is not configured.`);
-  return value;
+function isTrustedStripeLink(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && ['buy.stripe.com','checkout.stripe.com'].includes(url.hostname.toLowerCase());
+  } catch { return false; }
 }
 
 export async function POST(request: NextRequest) {
@@ -20,6 +21,27 @@ export async function POST(request: NextRequest) {
     const productId = clean(body?.productId, 80);
     if (!productId) return NextResponse.json({ error: 'A product is required.' }, { status: 400, headers: NO_STORE });
 
+    const target = await getCheckoutTarget(productId);
+    const paymentLinkUrl = String(target.paymentLinkUrl || '');
+    const salePrice = Number(target.salePrice || 0);
+    const freightCost = Math.max(0, Number(target.freightCost || 0));
+    if (paymentLinkUrl && isTrustedStripeLink(paymentLinkUrl)) {
+      await recordStoreEvent({
+        eventName: 'checkout_started',
+        productId: String(target.productId || productId),
+        visitorId: clean(body?.visitorId, 120),
+        sessionId: clean(body?.sessionId, 120),
+        url: clean(body?.sourceUrl, 1200),
+        data: { salePrice, freightCost, mode: 'stripe_payment_link' },
+      });
+      return NextResponse.json({ ok: true, url: paymentLinkUrl, mode: 'payment_link' }, { headers: NO_STORE });
+    }
+
+    const secret = process.env.STRIPE_SECRET_KEY?.trim();
+    if (!secret) {
+      return NextResponse.json({ error: 'Secure checkout has not been activated for this product yet. Please request a verified quote.' }, { status: 409, headers: NO_STORE });
+    }
+
     const order = await storeWrite('create_order', { productId });
     orderId = String(order.orderId || '');
     const tenantId = String(order.tenantId || '');
@@ -27,11 +49,10 @@ export async function POST(request: NextRequest) {
     const slug = String(order.slug || '');
     const title = String(order.title || 'Aridon Market product').slice(0, 250);
     const description = String(order.description || '').slice(0, 450);
-    const salePrice = Number(order.salePrice || 0);
-    const freightCost = Math.max(0, Number(order.freightCost || 0));
-    if (!orderId || !tenantId || !verifiedProductId || !Number.isFinite(salePrice) || salePrice <= 0) throw new Error('Verified checkout details are incomplete.');
+    const verifiedSalePrice = Number(order.salePrice || 0);
+    const verifiedFreightCost = Math.max(0, Number(order.freightCost || 0));
+    if (!orderId || !tenantId || !verifiedProductId || !Number.isFinite(verifiedSalePrice) || verifiedSalePrice <= 0) throw new Error('Verified checkout details are incomplete.');
 
-    const secret = requiredEnv('STRIPE_SECRET_KEY');
     const baseUrl = (process.env.NEXT_PUBLIC_APP_URL?.trim() || request.nextUrl.origin).replace(/\/$/, '');
     const form = new URLSearchParams();
     form.set('mode', 'payment');
@@ -41,13 +62,13 @@ export async function POST(request: NextRequest) {
     form.set('phone_number_collection[enabled]', 'true');
     form.set('line_items[0][quantity]', '1');
     form.set('line_items[0][price_data][currency]', 'usd');
-    form.set('line_items[0][price_data][unit_amount]', String(Math.round(salePrice * 100)));
+    form.set('line_items[0][price_data][unit_amount]', String(Math.round(verifiedSalePrice * 100)));
     form.set('line_items[0][price_data][product_data][name]', title);
     if (description) form.set('line_items[0][price_data][product_data][description]', description);
-    if (freightCost > 0) {
+    if (verifiedFreightCost > 0) {
       form.set('line_items[1][quantity]', '1');
       form.set('line_items[1][price_data][currency]', 'usd');
-      form.set('line_items[1][price_data][unit_amount]', String(Math.round(freightCost * 100)));
+      form.set('line_items[1][price_data][unit_amount]', String(Math.round(verifiedFreightCost * 100)));
       form.set('line_items[1][price_data][product_data][name]', 'Freight / delivery reserve');
       form.set('line_items[1][price_data][product_data][description]', 'Freight reserve shown by Aridon Market for this product.');
     }
@@ -78,7 +99,7 @@ export async function POST(request: NextRequest) {
       url: clean(body?.sourceUrl, 1200),
     });
 
-    return NextResponse.json({ ok: true, url: session.url }, { headers: NO_STORE });
+    return NextResponse.json({ ok: true, url: session.url, mode: 'checkout_session' }, { headers: NO_STORE });
   } catch (error) {
     console.error('store checkout failed', error);
     if (orderId) {
@@ -88,6 +109,6 @@ export async function POST(request: NextRequest) {
     if (/Product unavailable for checkout|Verified checkout details/.test(message)) {
       return NextResponse.json({ error: 'This product is not available for direct checkout. Please request a verified quote.' }, { status: 409, headers: NO_STORE });
     }
-    return NextResponse.json({ error: /STRIPE_SECRET_KEY/.test(message) ? 'Secure checkout is being connected. Please request a quote for now.' : 'Checkout could not be opened. Please request a quote and we will help you.' }, { status: 503, headers: NO_STORE });
+    return NextResponse.json({ error: 'Checkout could not be opened. Please request a quote and we will help you.' }, { status: 503, headers: NO_STORE });
   }
 }
