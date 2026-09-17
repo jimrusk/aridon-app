@@ -105,7 +105,7 @@ async function poll() {
       const payload = await api('/api/phone-bridge/next');
       if (payload.job?.id) await startOutbound(payload.job);
     } else {
-      await api('/api/phone-bridge/next').catch(() => null);
+      await api('/api/phone-bridge/next?heartbeat=1').catch(() => null);
     }
   } catch (error) {
     console.warn('Eva Phone Bridge poll error', error);
@@ -177,6 +177,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       return { paired: Boolean(cfg.bridgeToken), ...cfg, activeJob, googleVoiceOpen: Boolean(tab) };
     })().then((state) => sendResponse({ ok: true, state })).catch((error) => sendResponse({ ok: false, error: String(error) }));
     return true;
+  }
+
+  if (message?.type === 'POLL' || (message?.source === 'aridon-eva-ui' && message?.type === 'POLL')) {
+    void poll();
+    sendResponse({ ok: true });
+    return false;
   }
 
   if (message?.source === 'aridon-eva-ui') {
