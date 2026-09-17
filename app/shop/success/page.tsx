@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import { getServerClient } from '../../../lib/supabase';
-import { recordStoreEvent } from '../../../lib/storefront';
+import { storeWrite } from '../../../lib/storefront';
 import styles from '../shop.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -32,26 +31,17 @@ export default async function SuccessPage({ searchParams }: Props) {
       const session = await response.json() as StripeSession;
       if (!response.ok) throw new Error(session.error?.message || `Stripe returned ${response.status}.`);
       orderId = session.metadata?.commerce_order_id || '';
-      const tenantId = session.metadata?.tenant_id || '';
-      const productId = session.metadata?.commerce_product_id || '';
       paid = session.payment_status === 'paid';
-      if (paid && orderId && tenantId) {
-        const db = getServerClient();
-        const existing = await db.from('commerce_orders').select('status,payment_status').eq('id', orderId).eq('tenant_id', tenantId).maybeSingle();
-        if (existing.data) {
-          const firstConfirmation = existing.data.payment_status !== 'paid';
-          const update = await db.from('commerce_orders').update({
-            status: 'Paid',
-            payment_status: 'paid',
-            stripe_payment_intent_id: typeof session.payment_intent === 'string' ? session.payment_intent : null,
-            customer_email: session.customer_details?.email || null,
-            customer_name: session.customer_details?.name || null,
-            ordered_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }).eq('id', orderId).eq('tenant_id', tenantId);
-          if (update.error) throw update.error;
-          if (firstConfirmation) await recordStoreEvent({ tenantId, eventName: 'purchase', productId: productId || null, sessionId, data: { orderId, amountTotal: Number(session.amount_total || 0) / 100 } });
-        }
+      if (paid && orderId && session.id) {
+        await storeWrite('mark_paid', {
+          orderId,
+          checkoutSessionId: session.id,
+          paymentIntentId: typeof session.payment_intent === 'string' ? session.payment_intent : '',
+          customerEmail: session.customer_details?.email || '',
+          customerName: session.customer_details?.name || '',
+          amountTotal: Number(session.amount_total || 0) / 100,
+          source: 'success_page',
+        });
         message = 'Payment confirmed. Your order is now in the Aridon fulfillment queue.';
       } else {
         message = 'Checkout returned successfully, but payment is not marked paid yet. We will not release an order to a supplier until payment is confirmed.';
