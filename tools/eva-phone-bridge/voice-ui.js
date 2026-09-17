@@ -115,6 +115,12 @@ function startObserver() {
 }
 startObserver();
 
+// Manifest V3 background workers may sleep. A live Google Voice tab wakes the
+// bridge every few seconds so queued calls are picked up promptly and the
+// online heartbeat stays current.
+setInterval(() => send('POLL'), 3000);
+send('POLL');
+
 window.addEventListener('message', (event) => {
   if (event.source !== window || event.data?.source !== 'aridon-eva-main') return;
   send(event.data.type, event.data);
