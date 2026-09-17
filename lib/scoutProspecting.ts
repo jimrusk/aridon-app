@@ -37,6 +37,17 @@ export type ScoutResearchInput = {
   exclusions?: string[];
 };
 
+const DEFAULT_BUYING_SIGNALS = [
+  'recent funding, financing, grant award, budget approval, or capital raise',
+  'new facility, expansion, construction, infrastructure project, or site selection',
+  'new executive, decision-maker change, promotion, or leadership transition',
+  'active hiring that reveals a strategic initiative or operational need',
+  'public procurement, RFP, RFI, RFQ, bid, pilot, demonstration, or vendor search',
+  'regulatory, drought, resilience, energy, water, security, compliance, or capacity pressure',
+  'new product, partnership, acquisition, data-center, manufacturing, utility, agriculture, or technology initiative',
+  'credible public post, interview, conference appearance, announcement, or trade-news statement showing current intent',
+];
+
 function text(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
@@ -111,35 +122,53 @@ export async function researchScoutProspects(input: ScoutResearchInput) {
   const threshold = Math.max(50, Math.min(95, Number(input.qualificationThreshold) || 75));
   const intent = text(input.intent, 40) || 'customer';
   const focus = text(input.focus, 3000);
-  const requiredSignals = (input.requiredSignals || []).map((item) => text(item, 240)).filter(Boolean).slice(0, 12);
+  const requestedSignals = (input.requiredSignals || []).map((item) => text(item, 240)).filter(Boolean).slice(0, 12);
+  const requiredSignals = requestedSignals.length ? requestedSignals : DEFAULT_BUYING_SIGNALS;
   const exclusions = (input.exclusions || []).map((item) => text(item, 300)).filter(Boolean).slice(0, 16);
 
-  const prompt = `You are Scout, Aridon's evidence-first B2B prospecting agent.
+  const prompt = `You are Scout, Aridon's signal-first B2B Prospect Radar.
 
-Find real organizations using current public web research. Do not invent organizations, people, email addresses, funding events, acquisition history, revenue, or business facts. Prefer official company sources, investor relations pages, regulatory filings, credible trade publications, and recent reputable news. Reject weak matches rather than filling the quota.
+Your job is not to build a giant contact list. Find real organizations that fit the seller AND have credible evidence that now may be a good time to approach them.
+
+Use current public web research. Do not invent organizations, people, email addresses, phone numbers, funding events, acquisition history, revenue, or business facts. Prefer first-party and high-quality sources. Reject weak matches rather than filling the quota.
+
+SOURCE PRIORITY:
+1. Official company, government, utility, university, investor-relations, procurement, regulatory, grant, or project pages.
+2. SEC/regulatory filings and official public records.
+3. Reputable recent news and trade publications.
+4. Publicly accessible professional-network posts, conference pages, interviews, podcasts, and announcements when they provide a concrete timing signal.
+5. Aggregators only as discovery aids; verify important facts with stronger sources whenever possible.
+
+SIGNAL RULES:
+- Favor evidence from the last 180 days when possible.
+- A signal must indicate a real change, need, initiative, budget, project, pressure, or decision window.
+- Do not count generic evergreen marketing copy as a timing signal.
+- If a public professional-network post or engagement is visible in web results, you may use it as supporting evidence, but never claim access to private LinkedIn data, private profiles, DMs, or non-public engagement.
+- For each prospect, identify the strongest single \"why now\" trigger and 1-5 supporting signals.
+- If no credible timing signal exists, heavily reduce timing_signal and do not return the company unless the total still clears the threshold on strong evidence.
 
 SELLER: ${input.sellerName}
 SELLER INDUSTRY: ${input.industry || 'not specified'}
 SELLER PROFILE: ${JSON.stringify(input.sellerProfile).slice(0, 18000)}
 PROSPECTING INTENT: ${intent}
 ADDITIONAL FOCUS: ${focus || 'Use the saved ideal-customer profile and buying triggers.'}
-REQUIRED SIGNALS: ${requiredSignals.length ? requiredSignals.join(' | ') : 'No extra required signals.'}
+SIGNALS TO HUNT: ${requiredSignals.join(' | ')}
 EXCLUSIONS: ${exclusions.length ? exclusions.join(' | ') : 'No extra exclusions.'}
 MINIMUM QUALIFICATION SCORE: ${threshold}/100
 TARGET RESULT COUNT: up to ${count}
 
 For every company, score four dimensions from 0 to 25:
 1. icp_fit: how closely the organization matches the target profile.
-2. timing_signal: evidence that now is a sensible time to approach.
+2. timing_signal: strength, specificity, and recency of evidence that now is a sensible time to approach.
 3. strategic_value: likely value of a relationship for the stated intent.
-4. evidence_quality: strength and recency of public evidence.
+4. evidence_quality: strength, recency, and source quality of the public evidence.
 
 fit_score must equal the four dimensions added together.
 Priority tier A = 85-100, B = 70-84, C = below 70.
 Only return organizations with fit_score >= ${threshold}.
-The trigger_event must explain "why now" using a concrete current signal when one exists.
-buying_signals should list 1-5 concise evidence-backed signals.
-recommended_buyer_role should identify a role, not an invented person.
+The trigger_event must explain \"why now\" using a concrete current signal when one exists.
+buying_signals should list 1-5 concise evidence-backed signals, with dates or time references when known.
+recommended_buyer_role should identify a decision-making role, not an invented person.
 personalization should be a truthful one-sentence opening angle that references public evidence without pretending there is an existing relationship.
 source_urls must contain URLs that directly support the company fit or timing signal.
 
