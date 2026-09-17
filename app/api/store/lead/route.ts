@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerClient } from '../../../../lib/supabase';
-import { recordStoreEvent, STORE_TENANT_SLUG } from '../../../../lib/storefront';
+import { storeWrite } from '../../../../lib/storefront';
 
 export const runtime = 'nodejs';
 const NO_STORE = { 'Cache-Control': 'no-store' };
@@ -21,58 +20,23 @@ export async function POST(request: NextRequest) {
 
     const name = text(body?.name, 120);
     const email = text(body?.email, 180).toLowerCase();
-    const phone = text(body?.phone, 60);
-    const company = text(body?.company, 160);
-    const notes = text(body?.notes, 1800);
-    const category = text(body?.category, 80);
-    const productId = text(body?.productId, 80);
-    const requestedInterest = text(body?.productInterest, 250);
-    const source = text(body?.source, 200) || 'aridon-market';
-    const sourceUrl = text(body?.sourceUrl, 1200);
-    const visitorId = text(body?.visitorId, 120);
-    const sessionId = text(body?.sessionId, 120);
     if (!name || !validEmail(email)) return NextResponse.json({ error: 'Name and a valid email are required.' }, { status: 400, headers: NO_STORE });
 
-    const db = getServerClient();
-    const tenantResult = await db.from('customer_tenants').select('id').eq('slug', STORE_TENANT_SLUG).maybeSingle();
-    if (tenantResult.error || !tenantResult.data) throw tenantResult.error || new Error('Store tenant not found.');
-    const tenantId = tenantResult.data.id;
-    const ownerResult = await db.from('customer_memberships').select('user_id').eq('tenant_id', tenantId).eq('role', 'owner').limit(1).maybeSingle();
-    if (ownerResult.error || !ownerResult.data?.user_id) throw ownerResult.error || new Error('Store owner was not found.');
-
-    let productInterest = requestedInterest || category || 'Aridon Market';
-    let estimatedValue: number | null = null;
-    let verifiedProductId: string | null = null;
-    if (productId) {
-      const productResult = await db.from('commerce_products').select('id,title,selling_price').eq('tenant_id', tenantId).eq('id', productId).maybeSingle();
-      if (productResult.data) {
-        verifiedProductId = productResult.data.id;
-        productInterest = String(productResult.data.title || productInterest);
-        const price = Number(productResult.data.selling_price || 0);
-        estimatedValue = Number.isFinite(price) && price > 0 ? price : null;
-      }
-    }
-
-    const insert = await db.from('commerce_leads').insert({
-      tenant_id: tenantId,
-      created_by: ownerResult.data.user_id,
+    const result = await storeWrite('lead', {
       name,
       email,
-      phone: phone || null,
-      company: company || null,
-      product_interest: productInterest,
-      estimated_value: estimatedValue,
-      stage: 'New',
-      next_step: 'Confirm supplier authorization, availability, freight and pricing; then reply to the customer.',
-      notes: [notes, category ? `Category: ${category}` : '', verifiedProductId ? `Product ID: ${verifiedProductId}` : ''].filter(Boolean).join('\n'),
-      source,
-      source_url: sourceUrl || null,
-      session_id: sessionId || null,
-    }).select('id').single();
-    if (insert.error) throw insert.error;
-
-    await recordStoreEvent({ tenantId, eventName: 'lead_submitted', productId: verifiedProductId, visitorId, sessionId, url: sourceUrl, data: { category, leadId: insert.data.id } });
-    return NextResponse.json({ ok: true, leadId: insert.data.id }, { headers: NO_STORE });
+      phone: text(body?.phone, 60),
+      company: text(body?.company, 160),
+      notes: text(body?.notes, 1800),
+      category: text(body?.category, 80),
+      productId: text(body?.productId, 80),
+      productInterest: text(body?.productInterest, 250),
+      source: text(body?.source, 200) || 'aridon-market',
+      sourceUrl: text(body?.sourceUrl, 1200),
+      visitorId: text(body?.visitorId, 120),
+      sessionId: text(body?.sessionId, 120),
+    });
+    return NextResponse.json({ ok: true, leadId: result.leadId || null }, { headers: NO_STORE });
   } catch (error) {
     console.error('store lead failed', error);
     return NextResponse.json({ error: 'We could not save that request. Please try again.' }, { status: 500, headers: NO_STORE });
