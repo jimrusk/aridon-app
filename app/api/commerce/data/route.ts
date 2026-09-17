@@ -115,7 +115,7 @@ export async function PATCH(request: NextRequest) {
     const id = String(body?.id || '');
     const cfg = CONFIG[entity];
     if (!cfg || !id) return NextResponse.json({ error: 'Entity and id are required.' }, { status: 400, headers: NO_STORE });
-    const changes = { ...cleanObject(body?.changes || {}, cfg.fields), updated_at: new Date().toISOString() };
+    const changes: Record<string, unknown> = { ...cleanObject(body?.changes || {}, cfg.fields), updated_at: new Date().toISOString() };
     if (entity === 'product' && changes.status === 'Live' && !changes.published_at) changes.published_at = new Date().toISOString();
     const result = await ctx.db.from(cfg.table).update(changes).eq('tenant_id', ctx.tenant.id).eq('id', id).select('*').single();
     if (result.error) throw result.error;
