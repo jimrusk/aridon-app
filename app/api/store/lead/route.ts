@@ -37,6 +37,8 @@ export async function POST(request: NextRequest) {
     const tenantResult = await db.from('customer_tenants').select('id').eq('slug', STORE_TENANT_SLUG).maybeSingle();
     if (tenantResult.error || !tenantResult.data) throw tenantResult.error || new Error('Store tenant not found.');
     const tenantId = tenantResult.data.id;
+    const ownerResult = await db.from('customer_memberships').select('user_id').eq('tenant_id', tenantId).eq('role', 'owner').limit(1).maybeSingle();
+    if (ownerResult.error || !ownerResult.data?.user_id) throw ownerResult.error || new Error('Store owner was not found.');
 
     let productInterest = requestedInterest || category || 'Aridon Market';
     let estimatedValue: number | null = null;
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     const insert = await db.from('commerce_leads').insert({
       tenant_id: tenantId,
-      created_by: null,
+      created_by: ownerResult.data.user_id,
       name,
       email,
       phone: phone || null,
