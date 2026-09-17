@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Eva Phone Bridge</title>
+  <style>
+    body{font:14px system-ui,sans-serif;background:#071019;color:#eef5f7;width:340px;margin:0;padding:16px}h1{font-size:20px;margin:0 0 4px}.muted{color:#9fb1b8;font-size:12px;line-height:1.45}.card{background:#0d1821;border:1px solid #1f3540;border-radius:14px;padding:13px;margin-top:12px}label{display:block;font-size:12px;font-weight:700;color:#bfd0d6;margin:9px 0 4px}input{width:100%;box-sizing:border-box;background:#071019;color:#fff;border:1px solid #29424c;border-radius:9px;padding:9px}button{width:100%;border:0;border-radius:10px;background:#7ce2cd;color:#062019;font-weight:800;padding:10px;margin-top:12px;cursor:pointer}.row{display:flex;align-items:center;gap:8px}.row input{width:auto}.ok{color:#82efce}.bad{color:#ffb1aa}code{font-size:11px;word-break:break-all}
+  </style>
+</head>
+<body>
+  <h1>Eva Phone Bridge</h1>
+  <div class="muted">Google Voice is the phone line. Aridon is the brain.</div>
+  <div id="state" class="card">Checking…</div>
+  <div class="card">
+    <label>Aridon URL</label><input id="baseUrl" value="https://aridon-v02.vercel.app" />
+    <label>Bridge ID</label><input id="bridgeId" placeholder="Paste from Aridon" />
+    <label>6-digit pairing code</label><input id="pairingCode" inputmode="numeric" maxlength="6" />
+    <label>Eva Google Voice number</label><input id="voiceNumber" placeholder="Optional, for display" />
+    <button id="pair">Pair this browser</button>
+  </div>
+  <div class="card row"><input id="autoAnswer" type="checkbox" checked><label for="autoAnswer" style="margin:0">Let Eva answer incoming calls automatically</label></div>
+  <script src="popup.js"></script>
+</body>
+</html>
