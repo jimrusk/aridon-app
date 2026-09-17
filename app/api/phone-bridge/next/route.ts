@@ -16,6 +16,10 @@ export async function GET(request: NextRequest) {
     const now = new Date().toISOString();
     await db.from('customer_phone_bridges').update({ status: 'online', last_seen_at: now, updated_at: now }).eq('id', bridge.id);
 
+    if (request.nextUrl.searchParams.get('heartbeat') === '1') {
+      return NextResponse.json({ ok: true, job: null, heartbeatAt: now }, { headers: NO_STORE });
+    }
+
     const queued = await db
       .from('customer_phone_jobs')
       .select('*')
