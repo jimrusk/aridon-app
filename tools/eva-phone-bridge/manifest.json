@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Aridon Eva Phone Bridge",
+  "version": "0.1.0",
+  "description": "Connects Eva to your own Google Voice web line without a paid AI receptionist platform.",
+  "permissions": ["storage", "tabs", "scripting"],
+  "host_permissions": [
+    "https://voice.google.com/*",
+    "https://api.openai.com/*",
+    "https://*.vercel.app/*"
+  ],
+  "optional_host_permissions": ["https://*/*", "http://localhost/*"],
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Eva Phone Bridge",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://voice.google.com/*"],
+      "js": ["main-world.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://voice.google.com/*"],
+      "js": ["voice-ui.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
