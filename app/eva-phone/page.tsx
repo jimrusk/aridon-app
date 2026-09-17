@@ -13,7 +13,8 @@ type CallPayload = {
   connection?: {
     signalwire?: {
       configured?: boolean;
-      values?: { fromNumber?: string };
+      apiTokenSaved?: boolean;
+      values?: { space?: string; projectId?: string; fromNumber?: string };
     };
   };
 };
@@ -34,6 +35,12 @@ export default function EvaPhonePage() {
   const [objective, setObjective] = useState(DEFAULT_OBJECTIVE);
   const [status, setStatus] = useState('Connecting to Aridon…');
   const [busy, setBusy] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [carrierBusy, setCarrierBusy] = useState(false);
+  const [swSpace, setSwSpace] = useState('');
+  const [swProjectId, setSwProjectId] = useState('');
+  const [swApiToken, setSwApiToken] = useState('');
+  const [swFromNumber, setSwFromNumber] = useState('');
 
   async function loadCallData(access: string, slug: string) {
     const response = await fetch(`/api/customer/call-command?slug=${encodeURIComponent(slug)}&t=${Date.now()}`, {
@@ -42,8 +49,15 @@ export default function EvaPhonePage() {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || 'Could not load Aridon Voice Gateway.');
-    setCallData(payload as CallPayload);
-    return payload as CallPayload;
+    const next = payload as CallPayload;
+    setCallData(next);
+    const saved = next.connection?.signalwire?.values;
+    if (saved) {
+      setSwSpace(saved.space || '');
+      setSwProjectId(saved.projectId || '');
+      setSwFromNumber(saved.fromNumber || '');
+    }
+    return next;
   }
 
   useEffect(() => {
@@ -66,7 +80,8 @@ export default function EvaPhonePage() {
         setToken(access);
         setAccount(nextAccount);
         const voice = await loadCallData(access, nextAccount.tenant.slug);
-        setStatus(voice.configured ? 'Aridon Voice Gateway is ready.' : 'Aridon Voice Gateway needs one carrier connection before it can reach normal phone numbers.');
+        setStatus(voice.configured ? 'Aridon Voice Gateway is ready.' : 'One carrier hookup is still needed. You can do it right here without leaving Eva Phone.');
+        if (!voice.configured) setSetupOpen(true);
       } catch (error) {
         setStatus(error instanceof Error ? error.message : 'Eva Phone could not connect.');
       }
@@ -85,6 +100,41 @@ export default function EvaPhonePage() {
     return payload;
   }
 
+  async function saveCarrier() {
+    if (!token || !account) {
+      setStatus('Sign in to Aridon first.');
+      return;
+    }
+    if (!swSpace.trim() || !swProjectId.trim() || !swFromNumber.trim()) {
+      setStatus('Enter the carrier Space, Project ID, and Aridon phone number.');
+      return;
+    }
+    if (!swApiToken.trim() && !callData.connection?.signalwire?.apiTokenSaved) {
+      setStatus('Paste the API token once. Aridon encrypts it and never displays it again.');
+      return;
+    }
+    setCarrierBusy(true);
+    setStatus('Connecting the carrier underneath Aridon Voice Gateway…');
+    try {
+      const payload = await postCallCommand({
+        action: 'save_signalwire',
+        space: swSpace.trim(),
+        projectId: swProjectId.trim(),
+        apiToken: swApiToken.trim(),
+        fromNumber: swFromNumber.trim(),
+      });
+      setSwApiToken('');
+      const voice = await loadCallData(token, account.tenant.slug);
+      if (!voice.configured) throw new Error('The carrier settings were saved, but the gateway is still incomplete.');
+      setSetupOpen(false);
+      setStatus(payload.message || 'Carrier connected. Aridon Voice Gateway is ready.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'The carrier could not be connected.');
+    } finally {
+      setCarrierBusy(false);
+    }
+  }
+
   async function ensureCampaign() {
     const existing = (callData.campaigns || []).find((item) => item.mode === 'ai_opt_in');
     if (existing) return existing.id;
@@ -98,7 +148,8 @@ export default function EvaPhonePage() {
       return;
     }
     if (!callData.configured) {
-      setStatus('The Aridon phone interface is ready, but the PSTN carrier underneath it is not connected yet. Open Advanced carrier connection once, then you will not need the carrier website for normal calls.');
+      setSetupOpen(true);
+      setStatus('Connect the one-time carrier plumbing below, then Eva can dial from this page.');
       return;
     }
     if (!phone.trim()) {
@@ -153,7 +204,7 @@ export default function EvaPhonePage() {
     }
   }
 
-  const fromNumber = callData.connection?.signalwire?.values?.fromNumber || '';
+  const fromNumber = callData.connection?.signalwire?.values?.fromNumber || swFromNumber;
 
   return (
     <main style={page}>
@@ -162,7 +213,7 @@ export default function EvaPhonePage() {
           <div>
             <div style={eyebrow}>EVA PHONE · ARIDON VOICE GATEWAY</div>
             <h1 style={h1}>Type a number. Eva calls.</h1>
-            <p style={lead}>Aridon owns the call workflow, AI, permissions, call logic, and interface. The carrier underneath is treated as plumbing.</p>
+            <p style={lead}>Aridon owns the call workflow, AI, permissions, call logic, and interface. The carrier underneath is just telecom plumbing.</p>
           </div>
           <div style={nav}>
             <Link href="/aridon-browser" style={ghost}>Aridon Browser</Link>
@@ -171,10 +222,33 @@ export default function EvaPhonePage() {
         </header>
 
         <div style={statusBar}>
-          <strong>{callData.configured ? '● READY' : '○ SETUP NEEDED'}</strong>
+          <strong>{callData.configured ? '● READY' : '○ ONE-TIME SETUP'}</strong>
           <span>{status}</span>
           {fromNumber ? <span style={small}>Aridon line: {fromNumber}</span> : null}
         </div>
+
+        {!callData.configured || setupOpen ? (
+          <section style={setupCard}>
+            <div style={setupHeader}>
+              <div>
+                <div style={eyebrow}>ONE-TIME CARRIER PLUMBING</div>
+                <h2 style={setupTitle}>Connect it here. Never live in the carrier dashboard again.</h2>
+              </div>
+              {callData.configured ? <button type="button" style={tinyButton} onClick={() => setSetupOpen(false)}>Close</button> : null}
+            </div>
+            <p style={small}>A public U.S. phone number still has to be issued or routed by a licensed carrier. Aridon keeps the carrier underneath the product so Eva’s normal calling stays here.</p>
+            <div style={grid2}>
+              <div><label style={label}>Space / account name</label><input style={input} value={swSpace} onChange={(e) => setSwSpace(e.target.value)} placeholder="yourspace or full SignalWire URL" autoComplete="off" /></div>
+              <div><label style={label}>Project ID</label><input style={input} value={swProjectId} onChange={(e) => setSwProjectId(e.target.value)} placeholder="Project ID" autoComplete="off" /></div>
+              <div><label style={label}>API token</label><input style={input} type="password" value={swApiToken} onChange={(e) => setSwApiToken(e.target.value)} placeholder={callData.connection?.signalwire?.apiTokenSaved ? 'Saved securely · leave blank to keep it' : 'Paste once'} autoComplete="new-password" /></div>
+              <div><label style={label}>Aridon phone number</label><input style={input} value={swFromNumber} onChange={(e) => setSwFromNumber(e.target.value)} inputMode="tel" placeholder="+1 555 555 5555" /></div>
+            </div>
+            <button type="button" style={{ ...connectButton, opacity: carrierBusy ? 0.6 : 1 }} disabled={carrierBusy} onClick={() => void saveCarrier()}>{carrierBusy ? 'Connecting…' : 'Connect Aridon Voice Gateway'}</button>
+            <p style={small}>The API token is encrypted server-side and is not returned to this screen after saving.</p>
+          </section>
+        ) : (
+          <button type="button" style={tinyButton} onClick={() => setSetupOpen(true)}>Carrier settings</button>
+        )}
 
         <section style={card}>
           <label style={label}>Number to call</label>
@@ -204,14 +278,6 @@ export default function EvaPhonePage() {
           <button style={{ ...callButton, opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={() => void callEva()}>
             {busy ? 'Connecting Eva…' : 'Call with Eva'}
           </button>
-
-          {!callData.configured && (
-            <div style={advancedBox}>
-              <strong>One-time carrier hookup</strong>
-              <p style={small}>A normal U.S. phone number cannot be self-issued by software. The PSTN requires a licensed carrier to own or route the number. Aridon can hide that carrier after setup and use its API/SIP connection directly.</p>
-              <Link href="/eva-calls" style={advancedLink}>Advanced carrier connection</Link>
-            </div>
-          )}
         </section>
       </section>
     </main>
@@ -228,12 +294,15 @@ const nav: React.CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap' };
 const ghost: React.CSSProperties = { color: '#e9eeff', border: '1px solid #33405f', borderRadius: 12, padding: '10px 14px', textDecoration: 'none' };
 const statusBar: React.CSSProperties = { display: 'grid', gap: 4, border: '1px solid #33405f', borderRadius: 16, padding: 14, background: '#11182a', color: '#dbe4ff' };
 const card: React.CSSProperties = { border: '1px solid #33405f', background: '#0e1525', borderRadius: 22, padding: 'clamp(16px, 4vw, 30px)', display: 'grid', gap: 13, boxShadow: '0 20px 70px rgba(0,0,0,.28)' };
+const setupCard: React.CSSProperties = { ...card, borderColor: '#465b91', background: '#101a31' };
+const setupHeader: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' };
+const setupTitle: React.CSSProperties = { margin: '6px 0 0', fontSize: 23, lineHeight: 1.15 };
 const label: React.CSSProperties = { fontSize: 13, color: '#dce5ff', fontWeight: 900, display: 'block', marginBottom: 6 };
 const input: React.CSSProperties = { width: '100%', boxSizing: 'border-box', background: '#080c16', color: '#f5f7ff', border: '1px solid #3a496d', borderRadius: 13, padding: '14px 15px', fontSize: 16, outline: 'none' };
 const textarea: React.CSSProperties = { ...input, resize: 'vertical', minHeight: 120, fontFamily: 'inherit' };
 const grid2: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 };
 const checkRow: React.CSSProperties = { display: 'flex', alignItems: 'flex-start', gap: 10, color: '#c4cee9', lineHeight: 1.45, fontSize: 14 };
 const callButton: React.CSSProperties = { border: 0, borderRadius: 15, padding: '16px 20px', background: '#8aa8ff', color: '#06102b', fontWeight: 950, fontSize: 18, cursor: 'pointer', marginTop: 5 };
-const advancedBox: React.CSSProperties = { border: '1px solid #39496c', background: '#0a1020', borderRadius: 14, padding: 14, marginTop: 4 };
-const advancedLink: React.CSSProperties = { color: '#b7c8ff', fontWeight: 800, textDecoration: 'underline' };
+const connectButton: React.CSSProperties = { ...callButton, background: '#a6ffd7', color: '#061b13' };
+const tinyButton: React.CSSProperties = { justifySelf: 'start', border: '1px solid #40527d', borderRadius: 12, background: '#10192c', color: '#dce5ff', padding: '9px 12px', fontWeight: 850, cursor: 'pointer' };
 const small: React.CSSProperties = { color: '#93a1c6', fontSize: 12, lineHeight: 1.55 };
