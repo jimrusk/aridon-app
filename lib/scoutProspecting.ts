@@ -48,6 +48,33 @@ const DEFAULT_BUYING_SIGNALS = [
   'credible public post, interview, conference appearance, announcement, or trade-news statement showing current intent',
 ];
 
+export const SECURITY_AI_OS_SIGNALS = [
+  'cybersecurity incident, security incident, disclosed cyberattack, or attempted intrusion',
+  'data breach, privacy breach, breach notification, unauthorized access, or exposed records',
+  'ransomware, cyber extortion, malware, phishing, credential compromise, or account takeover',
+  'system intrusion, network compromise, leaked credentials, or suspicious access investigation',
+  'security-related outage, disrupted operations, recovery effort, forensic investigation, or incident response',
+  'new CISO, CIO, CTO, SOC leader, security engineer, incident-response team, or cyber hiring push',
+  'SOC modernization, SIEM, XDR, SOAR, zero-trust, identity, endpoint, or cloud-security modernization',
+  'NIST, CMMC, SOC 2, HIPAA, PCI DSS, SEC cyber disclosure, cyber-insurance, audit, or compliance pressure',
+  'AI operations, enterprise AI transformation, agentic automation, AI governance, or AI platform initiative',
+  'security-operations automation, autonomous monitoring, decision support, orchestration, or response automation',
+  'business operating system, digital command center, workflow consolidation, operational intelligence, or platform replacement',
+  'security vendor review, managed-security search, technology consolidation, replacement project, procurement, RFP, or pilot',
+];
+
+const SECURITY_AI_OS_KEYWORDS = [
+  'cybersecurity', 'cyber security', 'security incident', 'security breach', 'data breach', 'breach notification',
+  'hacked', 'hacking incident', 'cyberattack', 'cyber attack', 'ransomware', 'malware', 'phishing', 'credential compromise',
+  'unauthorized access', 'account takeover', 'network intrusion', 'incident response', 'digital forensics', 'SOC', 'security operations center',
+  'SIEM', 'XDR', 'SOAR', 'zero trust', 'identity security', 'CISO', 'CIO', 'CTO', 'security engineer',
+  'NIST', 'CMMC', 'SOC 2', 'HIPAA security', 'PCI DSS', 'SEC cyber disclosure', 'cyber insurance',
+  'AI operations', 'AIOps', 'AI transformation', 'agentic AI', 'agentic automation', 'AI governance', 'enterprise AI platform',
+  'AI operating system', 'AI OS', 'business operating system', 'digital command center', 'workflow automation', 'operations orchestration',
+];
+
+const SECURITY_SIGNAL_PATTERN = /cyber|security|hack|breach|ransom|malware|phish|credential|unauthorized access|account takeover|intrusion|incident response|ciso|\bsoc\b|siem|xdr|soar|zero[\s-]?trust|cmmc|nist|ai[\s-]?(os|operating system)|agentic|aiops|security operations|automation/i;
+
 function text(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
@@ -123,8 +150,10 @@ export async function researchScoutProspects(input: ScoutResearchInput) {
   const intent = text(input.intent, 40) || 'customer';
   const focus = text(input.focus, 3000);
   const requestedSignals = (input.requiredSignals || []).map((item) => text(item, 240)).filter(Boolean).slice(0, 12);
-  const requiredSignals = requestedSignals.length ? requestedSignals : DEFAULT_BUYING_SIGNALS;
+  const securityMode = SECURITY_SIGNAL_PATTERN.test([focus, ...requestedSignals].join(' '));
+  const requiredSignals = requestedSignals.length ? requestedSignals : securityMode ? SECURITY_AI_OS_SIGNALS : DEFAULT_BUYING_SIGNALS;
   const exclusions = (input.exclusions || []).map((item) => text(item, 300)).filter(Boolean).slice(0, 16);
+  const searchVocabulary = securityMode ? SECURITY_AI_OS_KEYWORDS : [];
 
   const prompt = `You are Scout, Aridon's signal-first B2B Prospect Radar.
 
@@ -144,8 +173,11 @@ SIGNAL RULES:
 - A signal must indicate a real change, need, initiative, budget, project, pressure, or decision window.
 - Do not count generic evergreen marketing copy as a timing signal.
 - If a public professional-network post or engagement is visible in web results, you may use it as supporting evidence, but never claim access to private LinkedIn data, private profiles, DMs, or non-public engagement.
-- For each prospect, identify the strongest single \"why now\" trigger and 1-5 supporting signals.
+- For each prospect, identify the strongest single "why now" trigger and 1-5 supporting signals.
 - If no credible timing signal exists, heavily reduce timing_signal and do not return the company unless the total still clears the threshold on strong evidence.
+${securityMode ? `- SECURITY / AI-OS MODE: Look specifically for public defensive cybersecurity need signals and enterprise AI/operations modernization signals. Search broadly across vocabulary such as: ${searchVocabulary.join(', ')}.
+- Treat breach, ransomware, hacking, intrusion, phishing, malware, and compromise reports only as public commercial/defensive need signals. Do not seek credentials, private-system details, exploit instructions, vulnerability weaponization, or anything that could facilitate intrusion.
+- Never frame an organization as a target because it was breached. Frame it as an organization with a documented defensive, recovery, compliance, automation, or modernization need.` : ''}
 
 SELLER: ${input.sellerName}
 SELLER INDUSTRY: ${input.industry || 'not specified'}
@@ -166,7 +198,7 @@ For every company, score four dimensions from 0 to 25:
 fit_score must equal the four dimensions added together.
 Priority tier A = 85-100, B = 70-84, C = below 70.
 Only return organizations with fit_score >= ${threshold}.
-The trigger_event must explain \"why now\" using a concrete current signal when one exists.
+The trigger_event must explain "why now" using a concrete current signal when one exists.
 buying_signals should list 1-5 concise evidence-backed signals, with dates or time references when known.
 recommended_buyer_role should identify a decision-making role, not an invented person.
 personalization should be a truthful one-sentence opening angle that references public evidence without pretending there is an existing relationship.
@@ -257,5 +289,5 @@ Return JSON only:
     });
   }
 
-  return { prospects, source_urls: extractSources(data), threshold, intent };
+  return { prospects, source_urls: extractSources(data), threshold, intent, security_mode: securityMode };
 }
