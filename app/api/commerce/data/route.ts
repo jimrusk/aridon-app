@@ -8,10 +8,10 @@ const NO_STORE = { 'Cache-Control': 'no-store, max-age=0' };
 type Entity = 'supplier' | 'product' | 'lead' | 'order' | 'showroom' | 'profile';
 
 const CONFIG: Record<Exclude<Entity, 'profile'>, { table: string; fields: string[] }> = {
-  supplier: { table: 'commerce_suppliers', fields: ['name','website','contact','status','score','why_fit','source_url','evidence','discovered_by_ai'] },
-  product: { table: 'commerce_products', fields: ['supplier_id','sku','title','product_url','supplier_cost','selling_price','freight_cost','map_price','availability','warranty','status','source'] },
-  lead: { table: 'commerce_leads', fields: ['name','company','email','phone','product_interest','estimated_value','stage','next_step','notes'] },
-  order: { table: 'commerce_orders', fields: ['lead_id','product_id','customer_name','sale_price','supplier_cost','ad_cost','freight_cost','other_cost','status','ordered_at'] },
+  supplier: { table: 'commerce_suppliers', fields: ['name','website','contact','status','score','why_fit','source_url','evidence','discovered_by_ai','category','dealer_program_url','approval_notes','margin_notes'] },
+  product: { table: 'commerce_products', fields: ['supplier_id','sku','title','product_url','supplier_cost','selling_price','freight_cost','map_price','availability','warranty','status','source','slug','category','description','image_urls','specs','quote_only','shipping_note','stripe_product_id','stripe_price_id','published_at'] },
+  lead: { table: 'commerce_leads', fields: ['name','company','email','phone','product_interest','estimated_value','stage','next_step','notes','source','source_url','session_id'] },
+  order: { table: 'commerce_orders', fields: ['lead_id','product_id','customer_name','customer_email','sale_price','supplier_cost','ad_cost','freight_cost','other_cost','status','ordered_at','currency','stripe_checkout_session_id','stripe_payment_intent_id','payment_status'] },
   showroom: { table: 'commerce_showrooms', fields: ['name','niche','headline','subheadline','sections','featured_product_ids','status'] },
 };
 
@@ -19,6 +19,11 @@ function cleanObject(source: any, allowed: string[]) {
   const out: Record<string, unknown> = {};
   for (const key of allowed) if (Object.prototype.hasOwnProperty.call(source || {}, key)) out[key] = source[key];
   return out;
+}
+
+function optionalText(value: unknown, max: number) {
+  if (typeof value !== 'string') return undefined;
+  return value.trim().slice(0, max);
 }
 
 async function context(request: NextRequest, slug?: string) {
@@ -65,13 +70,24 @@ export async function POST(request: NextRequest) {
     if ('error' in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status, headers: NO_STORE });
     const entity = body?.entity as Entity;
     if (entity === 'profile') {
-      const record = {
+      const source = body?.record || {};
+      const record: Record<string, unknown> = {
         tenant_id: ctx.tenant.id,
         created_by: ctx.user.id,
-        niche: String(body?.record?.niche || 'Commercial greenhouses').slice(0, 250),
-        economics: body?.record?.economics && typeof body.record.economics === 'object' ? body.record.economics : {},
+        niche: String(source.niche || 'High-ticket ecommerce').slice(0, 250),
+        economics: source.economics && typeof source.economics === 'object' ? source.economics : {},
         updated_at: new Date().toISOString(),
       };
+      const fields: Array<[string, unknown, number?]> = [
+        ['store_name', source.store_name, 180], ['public_slug', source.public_slug, 120], ['tagline', source.tagline, 500],
+        ['support_email', source.support_email, 180], ['support_phone', source.support_phone, 80], ['currency', source.currency, 10],
+      ];
+      for (const [key, value, max = 500] of fields) {
+        const cleaned = optionalText(value, max);
+        if (cleaned !== undefined) record[key] = cleaned;
+      }
+      if (typeof source.public_store_enabled === 'boolean') record.public_store_enabled = source.public_store_enabled;
+      if (Array.isArray(source.categories)) record.categories = source.categories.slice(0, 20);
       const result = await ctx.db.from('commerce_profiles').upsert(record, { onConflict: 'tenant_id' }).select('*').single();
       if (result.error) throw result.error;
       return NextResponse.json({ item: result.data }, { headers: NO_STORE });
@@ -100,6 +116,7 @@ export async function PATCH(request: NextRequest) {
     const cfg = CONFIG[entity];
     if (!cfg || !id) return NextResponse.json({ error: 'Entity and id are required.' }, { status: 400, headers: NO_STORE });
     const changes = { ...cleanObject(body?.changes || {}, cfg.fields), updated_at: new Date().toISOString() };
+    if (entity === 'product' && changes.status === 'Live' && !changes.published_at) changes.published_at = new Date().toISOString();
     const result = await ctx.db.from(cfg.table).update(changes).eq('tenant_id', ctx.tenant.id).eq('id', id).select('*').single();
     if (result.error) throw result.error;
     return NextResponse.json({ item: result.data }, { headers: NO_STORE });
