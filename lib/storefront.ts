@@ -29,6 +29,14 @@ export type StoreCategory = {
   description: string;
 };
 
+type StoreContext = {
+  tenant: Record<string, unknown>;
+  profile: Record<string, any>;
+  categories: StoreCategory[];
+  showrooms: any[];
+  products: StoreProduct[];
+};
+
 function asNumber(value: unknown) {
   const parsed = Number(value || 0);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -101,27 +109,23 @@ export async function getCheckoutTarget(productId: string) {
   return (data && typeof data === 'object' ? data : {}) as Record<string, any>;
 }
 
-export async function getStoreContext() {
+export async function getStoreContext(): Promise<StoreContext> {
   const db = getPublicServerClient();
   const { data, error } = await db.rpc('aridon_storefront_context');
   if (error) throw new Error(error.message);
   if (!data || typeof data !== 'object') throw new Error('Storefront is not enabled.');
   const raw = data as any;
-  const tenant = raw.tenant || {};
-  const profile = raw.profile || {};
+  const tenant = (raw.tenant && typeof raw.tenant === 'object' ? raw.tenant : {}) as Record<string, unknown>;
+  const profile = (raw.profile && typeof raw.profile === 'object' ? raw.profile : {}) as Record<string, any>;
   if (!profile.public_store_enabled) throw new Error('Storefront is not enabled.');
   const categories: StoreCategory[] = Array.isArray(profile.categories)
     ? profile.categories
       .filter((item: any) => item && typeof item.slug === 'string' && typeof item.name === 'string')
       .map((item: any) => ({ slug: item.slug, name: item.name, description: String(item.description || '') }))
     : [];
-  return {
-    tenant,
-    profile,
-    categories,
-    showrooms: Array.isArray(raw.showrooms) ? raw.showrooms : [],
-    products: Array.isArray(raw.products) ? raw.products.map(mapProduct) : [],
-  };
+  const showrooms: any[] = Array.isArray(raw.showrooms) ? raw.showrooms : [];
+  const products: StoreProduct[] = Array.isArray(raw.products) ? raw.products.map((row: any) => mapProduct(row)) : [];
+  return { tenant, profile, categories, showrooms, products };
 }
 
 export async function getCategoryContext(categorySlug: string) {
@@ -129,7 +133,7 @@ export async function getCategoryContext(categorySlug: string) {
   const category = context.categories.find((item) => item.slug === categorySlug);
   if (!category) return null;
   const showroom = context.showrooms.find((item: any) => item.niche === categorySlug) || null;
-  return { ...context, category, showroom, products: context.products.filter((item) => item.category === categorySlug) };
+  return { ...context, category, showroom, products: context.products.filter((item: StoreProduct) => item.category === categorySlug) };
 }
 
 export async function getPublicProduct(productSlug: string) {
