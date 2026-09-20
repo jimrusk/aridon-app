@@ -30,7 +30,7 @@ export default function GrowthCommandPage() {
         <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <Link href="/business-os" style={{ color: '#F7FAFC', textDecoration: 'none', fontWeight: 950 }}>ARIDON · EXECUTIVE OS</Link>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Link href="/business-os/revenue" style={outlineButton}>Revenue</Link>
+            <Link href="/business-os/revenue" style={outlineButton}>Revenue</Link>\n            <Link href="/business-os/intent-engine" style={outlineButton}>Intent Engine</Link>
             <Link href="/business-os/beta" style={mintButton}>Open Workspace</Link>
           </div>
         </nav>
