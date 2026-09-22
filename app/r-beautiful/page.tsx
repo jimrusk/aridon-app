@@ -180,7 +180,6 @@ Details: ${details || "Not provided"}`
           <div className="text-right text-sm">
             <p><a href={`tel:${PHONE}`}>{PHONE_DISPLAY}</a></p>
             <p><a href={`mailto:${EMAIL}`}>{EMAIL}</a></p>
-            <p className="mt-2 text-white/45">Hosted by Aridon</p>
           </div>
         </div>
       </footer>
