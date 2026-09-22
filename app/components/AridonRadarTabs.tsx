@@ -108,7 +108,9 @@ export default function AridonRadarTabs() {
           box-shadow: inset 0 0 0 1px rgba(132,244,209,.08);
         }
         .aridon-global-radar-tabs a.active span { color: #b9f8e5; }
+        body { padding-bottom: 112px; }
         @media (max-width: 700px) {
+          body { padding-bottom: 96px; }
           .aridon-global-radar-tabs {
             bottom: 7px;
             width: calc(100vw - 10px);
