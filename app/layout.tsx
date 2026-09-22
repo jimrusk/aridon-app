@@ -1,12 +1,7 @@
 import './globals.css';
 import './avatars/avatar-room.css';
 import type { Metadata } from 'next';
-import InternalLaunchers from './InternalLaunchers';
-import AridonRadarTabs from './components/AridonRadarTabs';
-import CustomerSessionControls from './components/CustomerSessionControls';
-import SalesTeamIntentRedirect from './components/SalesTeamIntentRedirect';
-import PublicInstallPromo from './components/PublicInstallPromo';
-import ConditionalGlobalLanguageLayer from './components/ConditionalGlobalLanguageLayer';
+import SiteChrome from './components/SiteChrome';
 
 export const metadata: Metadata = {
   title: 'Aridon Executive Operating System',
@@ -29,13 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <PublicInstallPromo />
-        <CustomerSessionControls />
-        <SalesTeamIntentRedirect />
-        {children}
-        <AridonRadarTabs />
-        <InternalLaunchers />
-        <ConditionalGlobalLanguageLayer />
+        <SiteChrome>{children}</SiteChrome>
       </body>
     </html>
   );
