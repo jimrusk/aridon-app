@@ -13,6 +13,32 @@ type ScenarioMeta = {
   history: string[];
 };
 
+type ScanScenarioResult = {
+  id: string;
+  title: string;
+  category: string;
+  hostile: boolean;
+  passed: boolean;
+  failures: string[];
+  score: number;
+  disposition: 'allow' | 'restricted' | 'review' | 'block';
+  actionGate: 'pass' | 'human_approval' | 'deny';
+  escalationDetected: boolean;
+  rationale: string;
+};
+
+type ScanReport = {
+  version: string;
+  ranAt: string;
+  verdict: 'PASS' | 'FAIL';
+  totals: { scenarios: number; passed: number; failed: number };
+  hostile: { total: number; caught: number; missed: number; detectionRate: number };
+  benign: { total: number; blocked: number; falsePositiveRate: number };
+  auditSeq: number;
+  auditHash: string;
+  results: ScanScenarioResult[];
+};
+
 type Assessment = {
   score: number;
   disposition: 'allow' | 'restricted' | 'review' | 'block';
@@ -20,14 +46,6 @@ type Assessment = {
   signals: { category: string; weight: number; reason: string; source: string }[];
   actionGate: { mode: 'pass' | 'human_approval' | 'deny'; reasons: string[] };
   trajectory: { turnsAnalyzed: number; escalationDetected: boolean; categoryCount: number };
-};
-
-type RunResult = {
-  scenario?: { id: string; title: string; category: string; hostile: boolean; rationale: string };
-  custom?: boolean;
-  assessment: Assessment;
-  auditSeq: number;
-  auditHash: string;
 };
 
 type AuditEntry = {
@@ -46,10 +64,10 @@ const DISPOSITION_STYLE: Record<string, { label: string; color: string }> = {
   block: { label: 'BLOCK', color: '#ff5d5d' },
 };
 
-const GATE_STYLE: Record<string, { label: string; color: string }> = {
-  pass: { label: 'Gate: pass', color: '#42d392' },
-  human_approval: { label: 'Gate: human approval required', color: '#ffb45e' },
-  deny: { label: 'Gate: deny', color: '#ff5d5d' },
+const GATE_LABEL: Record<string, string> = {
+  pass: 'pass',
+  human_approval: 'human approval',
+  deny: 'deny',
 };
 
 async function post(action: string, payload: Record<string, unknown> = {}) {
@@ -65,15 +83,21 @@ async function post(action: string, payload: Record<string, unknown> = {}) {
 
 export default function SentinelDemoClient() {
   const [scenarios, setScenarios] = useState<ScenarioMeta[]>([]);
-  const [selectedId, setSelectedId] = useState('');
-  const [running, setRunning] = useState(false);
-  const [result, setResult] = useState<RunResult | null>(null);
-  const [approval, setApproval] = useState<'approved' | 'denied' | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [report, setReport] = useState<ScanReport | null>(null);
   const [error, setError] = useState('');
+
+  const [gateDecision, setGateDecision] = useState<'approved' | 'denied' | null>(null);
 
   const [customPrompt, setCustomPrompt] = useState('');
   const [customActions, setCustomActions] = useState('');
   const [customContext, setCustomContext] = useState('');
+  const [customRunning, setCustomRunning] = useState(false);
+  const [customResult, setCustomResult] = useState<{
+    assessment: Assessment;
+    auditSeq: number;
+    auditHash: string;
+  } | null>(null);
 
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [verifyMsg, setVerifyMsg] = useState('');
@@ -82,10 +106,7 @@ export default function SentinelDemoClient() {
 
   useEffect(() => {
     post('manifest')
-      .then((d) => {
-        setScenarios(d.scenarios);
-        if (d.scenarios?.length) setSelectedId(d.scenarios[0].id);
-      })
+      .then((d) => setScenarios(d.scenarios ?? []))
       .catch(() => setError('Could not load scenarios.'));
     refreshAudit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,28 +122,41 @@ export default function SentinelDemoClient() {
     }
   }
 
-  async function runScenario() {
-    if (!selectedId) return;
-    setRunning(true);
+  async function runScan() {
+    setScanning(true);
     setError('');
-    setResult(null);
-    setApproval(null);
+    setReport(null);
     try {
-      const data = await post('run', { scenarioId: selectedId });
-      setResult(data);
+      const data = await post('scan');
+      setReport(data);
       refreshAudit();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Run failed.');
+      setError(e instanceof Error ? e.message : 'Scan failed.');
     } finally {
-      setRunning(false);
+      setScanning(false);
+    }
+  }
+
+  async function decideGate(approved: boolean) {
+    setBusy(true);
+    try {
+      await post('approve', {
+        approved,
+        label: 'payment + external email from the scan (consequential actions)',
+      });
+      setGateDecision(approved ? 'approved' : 'denied');
+      refreshAudit();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Approval failed.');
+    } finally {
+      setBusy(false);
     }
   }
 
   async function runCustom() {
-    setRunning(true);
+    setCustomRunning(true);
     setError('');
-    setResult(null);
-    setApproval(null);
+    setCustomResult(null);
     try {
       const data = await post('custom', {
         prompt: customPrompt,
@@ -132,26 +166,12 @@ export default function SentinelDemoClient() {
           .filter(Boolean),
         authorizationContext: customContext,
       });
-      setResult(data);
+      setCustomResult(data);
       refreshAudit();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Run failed.');
     } finally {
-      setRunning(false);
-    }
-  }
-
-  async function decide(approved: boolean) {
-    setBusy(true);
-    try {
-      const label = result?.scenario?.title ?? 'custom input';
-      await post('approve', { approved, label });
-      setApproval(approved ? 'approved' : 'denied');
-      refreshAudit();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Approval failed.');
-    } finally {
-      setBusy(false);
+      setCustomRunning(false);
     }
   }
 
@@ -201,8 +221,9 @@ export default function SentinelDemoClient() {
         product: 'Aridon Sentinel — demo evidence bundle',
         scope:
           'Technical preview. Synthetic scenarios against Sentinel decision logic. Internal self-testing only; not an independent penetration test or certification.',
-        lastRun: result,
-        approval,
+        fullScan: report,
+        humanGateDecision: gateDecision,
+        customRun: customResult,
         auditExport: data.export ? JSON.parse(data.export) : null,
       };
       const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
@@ -217,12 +238,8 @@ export default function SentinelDemoClient() {
     }
   }
 
-  const hostile = scenarios.filter((s) => s.hostile);
-  const benign = scenarios.filter((s) => !s.hostile);
-  const selected = scenarios.find((s) => s.id === selectedId);
-  const disp = result ? DISPOSITION_STYLE[result.assessment.disposition] : null;
-  const gate = result ? GATE_STYLE[result.assessment.actionGate.mode] : null;
-  const needsApproval = result?.assessment.actionGate.mode === 'human_approval' && !approval;
+  const gateScenario = scenarios.find((s) => s.id === 'pt-approval-bypass');
+  const customDisp = customResult ? DISPOSITION_STYLE[customResult.assessment.disposition] : null;
 
   return (
     <div className="main" style={{ maxWidth: 1080, margin: '0 auto' }}>
@@ -230,8 +247,9 @@ export default function SentinelDemoClient() {
         <div>
           <h1 className="h1">Sentinel — live demo</h1>
           <p className="sub">
-            Attack it. Every run below goes through Sentinel&apos;s real pre-execution decision
-            engine, and every decision is written to a tamper-evident audit log you can inspect.
+            Attack it. One click runs all twelve scenarios through Sentinel&apos;s real
+            pre-execution decision engine, and every decision is written to a tamper-evident
+            audit log you can inspect.
           </p>
         </div>
       </div>
@@ -249,12 +267,12 @@ export default function SentinelDemoClient() {
 
       <div className="grid">
         <div className="card span4">
-          <div className="title">1. Pick an attack</div>
-          <p className="muted">Twelve scenarios: nine hostile techniques, three benign controls.</p>
+          <div className="title">1. Run the full scan</div>
+          <p className="muted">All 12 scenarios: nine hostile techniques, three benign controls.</p>
         </div>
         <div className="card span4">
-          <div className="title">2. Watch the gate</div>
-          <p className="muted">Sentinel scores the action before execution: allow, restrict, review, or block.</p>
+          <div className="title">2. You be the human gate</div>
+          <p className="muted">One scenario needs a person, not a policy. That person is you.</p>
         </div>
         <div className="card span4">
           <div className="title">3. Check the record</div>
@@ -263,36 +281,19 @@ export default function SentinelDemoClient() {
       </div>
 
       <div className="card span12" style={{ marginTop: 16 }}>
-        <div className="title" style={{ fontSize: 20 }}>Try an attack scenario</div>
-        <div className="row" style={{ marginTop: 12, alignItems: 'flex-end' }}>
-          <div style={{ flex: 1 }}>
-            <label className="muted">Scenario</label>
-            <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
-              <optgroup label="Hostile">
-                {hostile.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.title}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Benign controls">
-                {benign.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.title}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <div>
+            <div className="title" style={{ fontSize: 20 }}>Full adversarial scan</div>
+            <p className="muted" style={{ marginBottom: 0 }}>
+              Prompt injection, credential theft, privilege escalation, exfiltration, ransomware,
+              phishing, evasion, multi-turn escalation, action gating — plus three benign controls
+              that must not be blocked.
+            </p>
           </div>
-          <button className="btn" onClick={runScenario} disabled={running || !selectedId}>
-            {running ? 'Running…' : 'Run against Sentinel'}
+          <button className="btn" onClick={runScan} disabled={scanning}>
+            {scanning ? 'Scanning…' : 'Scan all 12 scenarios'}
           </button>
         </div>
-        {selected && (
-          <p className="muted" style={{ marginTop: 10 }}>
-            {selected.hostile ? 'Hostile' : 'Benign control'} · {selected.category} — {selected.rationale}
-          </p>
-        )}
 
         {error && (
           <div className="item" style={{ marginTop: 12, borderColor: '#ff5d5d' }}>
@@ -300,86 +301,93 @@ export default function SentinelDemoClient() {
           </div>
         )}
 
-        {result && disp && gate && (
-          <div className="item" style={{ marginTop: 12 }}>
-            <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-              <span className="pill" style={{ borderColor: disp.color, color: disp.color, fontWeight: 800 }}>
-                {disp.label}
-              </span>
-              <span className="pill" style={{ borderColor: gate.color, color: gate.color }}>
-                {gate.label}
-              </span>
-              <span className="muted">Risk score: {result.assessment.score}/100</span>
-            </div>
-            <div
-              style={{
-                height: 10,
-                borderRadius: 999,
-                background: '#0b1020',
-                marginTop: 12,
-                overflow: 'hidden',
-              }}
-            >
-              <div
+        {report && (
+          <div style={{ marginTop: 12 }}>
+            <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+              <span
+                className="pill"
                 style={{
-                  width: `${Math.min(100, result.assessment.score)}%`,
-                  height: '100%',
-                  background: disp.color,
-                  transition: 'width .4s',
+                  borderColor: report.verdict === 'PASS' ? '#42d392' : '#ff5d5d',
+                  color: report.verdict === 'PASS' ? '#42d392' : '#ff5d5d',
+                  fontWeight: 800,
                 }}
-              />
+              >
+                {report.verdict}
+              </span>
+              <span className="pill">
+                {report.hostile.caught}/{report.hostile.total} hostile caught
+              </span>
+              <span className="pill">
+                {report.benign.blocked}/{report.benign.total} benign blocked
+              </span>
+              <span className="muted">
+                Logged as audit entry #{report.auditSeq} · {report.auditHash.slice(0, 12)}…
+              </span>
             </div>
-            {result.assessment.signals.length > 0 && (
-              <div style={{ marginTop: 12 }}>
-                <div className="muted" style={{ marginBottom: 6 }}>Signals that fired:</div>
-                <div className="list">
-                  {result.assessment.signals.map((s, i) => (
-                    <div className="item" key={i} style={{ padding: '10px 13px' }}>
-                      <span className="title" style={{ fontSize: 14 }}>{s.category}</span>
-                      <span className="muted"> · weight {s.weight} · </span>
-                      <span className="muted">{s.reason}</span>
+            <div className="list" style={{ marginTop: 12 }}>
+              {report.results.map((r) => {
+                const disp = DISPOSITION_STYLE[r.disposition];
+                const outcome = r.hostile
+                  ? r.passed
+                    ? { label: 'Caught', color: '#42d392' }
+                    : { label: 'Missed', color: '#ff5d5d' }
+                  : r.passed
+                    ? { label: 'Clean', color: '#42d392' }
+                    : { label: 'False positive', color: '#ff5d5d' };
+                return (
+                  <div className="item" key={r.id} style={{ padding: '10px 13px' }}>
+                    <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                      <span className="title" style={{ fontSize: 14 }}>{r.title}</span>
+                      <span className="muted" style={{ fontSize: 12 }}>{r.category}</span>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {result.assessment.trajectory.escalationDetected && (
-              <p style={{ color: '#ffb45e', marginTop: 10 }}>
-                Trajectory escalation detected across {result.assessment.trajectory.turnsAnalyzed} turns.
-              </p>
-            )}
-            {result.assessment.actionGate.reasons.length > 0 && (
-              <p className="muted" style={{ marginTop: 8 }}>
-                Gate reasoning: {result.assessment.actionGate.reasons.join(' ')}
-              </p>
-            )}
-            <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
-              Recorded as audit entry #{result.auditSeq} · hash {result.auditHash.slice(0, 16)}…
-            </p>
-
-            {needsApproval && (
-              <div className="item" style={{ marginTop: 12, borderColor: '#ffb45e' }}>
-                <div className="title">Human approval required</div>
-                <p className="muted">
-                  This action is consequential enough that Sentinel will not let it run without a
-                  human decision. You are the approver.
-                </p>
-                <div className="row">
-                  <button className="btn" onClick={() => decide(true)} disabled={busy}>
-                    Approve action
-                  </button>
-                  <button className="btn secondary" onClick={() => decide(false)} disabled={busy}>
-                    Deny action
-                  </button>
-                </div>
-              </div>
-            )}
-            {approval && (
-              <p style={{ marginTop: 10, color: approval === 'approved' ? '#42d392' : '#ff5d5d' }}>
-                You {approval} the action. The decision is now part of the audit record.
-              </p>
-            )}
+                    <div className="row" style={{ flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                      <span className="pill" style={{ borderColor: disp.color, color: disp.color }}>
+                        {disp.label}
+                      </span>
+                      <span className="pill">gate: {GATE_LABEL[r.actionGate]}</span>
+                      <span className="pill">score {r.score}</span>
+                      <span className="pill" style={{ borderColor: outcome.color, color: outcome.color, fontWeight: 700 }}>
+                        {outcome.label}
+                      </span>
+                      {r.escalationDetected && (
+                        <span className="pill" style={{ borderColor: '#ffb45e', color: '#ffb45e' }}>
+                          trajectory escalation
+                        </span>
+                      )}
+                    </div>
+                    {!r.passed && r.failures.length > 0 && (
+                      <p className="muted" style={{ margin: '6px 0 0', fontSize: 13 }}>
+                        {r.failures.join('; ')}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
+        )}
+      </div>
+
+      <div className="card span12" style={{ marginTop: 16, borderColor: '#ffb45e' }}>
+        <div className="title" style={{ fontSize: 20 }}>Human approval gate — your turn</div>
+        <p className="muted">
+          {gateScenario
+            ? `From the scan: "${gateScenario.prompt}" The text looks routine, but the requested actions include a $50,000 payment and an external email. Policy alone can't clear this — Sentinel escalates to a human.`
+            : 'One consequential action needs a human decision, not a policy match.'}
+        </p>
+        {!gateDecision ? (
+          <div className="row">
+            <button className="btn" onClick={() => decideGate(true)} disabled={busy}>
+              Approve action
+            </button>
+            <button className="btn secondary" onClick={() => decideGate(false)} disabled={busy}>
+              Deny action
+            </button>
+          </div>
+        ) : (
+          <p style={{ color: gateDecision === 'approved' ? '#42d392' : '#ff5d5d', marginBottom: 0 }}>
+            You {gateDecision} the action. The decision is now part of the audit record.
+          </p>
         )}
       </div>
 
@@ -406,10 +414,34 @@ export default function SentinelDemoClient() {
           placeholder="e.g. Authorized penetration test on our lab systems."
         />
         <div style={{ marginTop: 12 }}>
-          <button className="btn" onClick={runCustom} disabled={running || !customPrompt.trim()}>
-            {running ? 'Running…' : 'Test this input'}
+          <button className="btn" onClick={runCustom} disabled={customRunning || !customPrompt.trim()}>
+            {customRunning ? 'Running…' : 'Test this input'}
           </button>
         </div>
+        {customResult && customDisp && (
+          <div className="item" style={{ marginTop: 12 }}>
+            <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+              <span className="pill" style={{ borderColor: customDisp.color, color: customDisp.color, fontWeight: 800 }}>
+                {customDisp.label}
+              </span>
+              <span className="muted">Risk score: {customResult.assessment.score}/100</span>
+            </div>
+            {customResult.assessment.signals.length > 0 && (
+              <div className="list" style={{ marginTop: 10 }}>
+                {customResult.assessment.signals.map((s, i) => (
+                  <div className="item" key={i} style={{ padding: '10px 13px' }}>
+                    <span className="title" style={{ fontSize: 14 }}>{s.category}</span>
+                    <span className="muted"> · weight {s.weight} · </span>
+                    <span className="muted">{s.reason}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
+              Recorded as audit entry #{customResult.auditSeq} · hash {customResult.auditHash.slice(0, 16)}…
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="card span12" style={{ marginTop: 16 }}>
@@ -435,7 +467,7 @@ export default function SentinelDemoClient() {
         {verifyMsg && <p style={{ color: verifyMsg.startsWith('Chain verified') ? '#42d392' : '#ff5d5d' }}>{verifyMsg}</p>}
         {tamperMsg && <p style={{ color: '#ffb45e' }}>{tamperMsg}</p>}
         <div className="list" style={{ marginTop: 12 }}>
-          {entries.length === 0 && <p className="muted">No entries yet — run a scenario above.</p>}
+          {entries.length === 0 && <p className="muted">No entries yet — run the scan above.</p>}
           {[...entries].reverse().map((e) => (
             <div className="item" key={e.seq} style={{ padding: '10px 13px' }}>
               <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>

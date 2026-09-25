@@ -8,6 +8,7 @@ import {
 import {
   SENTINEL_PENTEST_SCENARIOS,
   SENTINEL_PENTEST_VERSION,
+  runSentinelPentest,
 } from '@/lib/sentinelPentest';
 
 export const dynamic = 'force-dynamic';
@@ -71,6 +72,12 @@ export async function POST(request: Request) {
         history: s.input.history ?? [],
       })),
     });
+  }
+
+  if (action === 'scan') {
+    // Full 12-scenario sweep through the real engine. The harness writes one
+    // pentest_run entry to the audit log summarizing the whole sweep.
+    return json(runSentinelPentest());
   }
 
   if (action === 'run') {
