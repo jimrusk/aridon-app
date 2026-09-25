@@ -498,13 +498,13 @@ export default function SentinelDemoClient() {
           title="Click to copy"
           onClick={() => {
             navigator.clipboard?.writeText(
-              'npm install https://aridon-v02.vercel.app/sentinel/aridon-sentinel-0.2.0.tgz',
+              'npm install https://aridon-v02.vercel.app/sentinel/aridon-sentinel-0.2.1.tgz',
             );
             setCopyMsg('Install command copied.');
             setTimeout(() => setCopyMsg(''), 2500);
           }}
         >
-          npm install https://aridon-v02.vercel.app/sentinel/aridon-sentinel-0.2.0.tgz
+          npm install https://aridon-v02.vercel.app/sentinel/aridon-sentinel-0.2.1.tgz
         </pre>
         {copyMsg && <p style={{ color: '#42d392' }}>{copyMsg}</p>}
         <p className="muted" style={{ marginBottom: 0 }}>
