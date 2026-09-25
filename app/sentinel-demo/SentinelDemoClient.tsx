@@ -103,6 +103,7 @@ export default function SentinelDemoClient() {
   const [verifyMsg, setVerifyMsg] = useState('');
   const [tamperMsg, setTamperMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [copyMsg, setCopyMsg] = useState('');
 
   useEffect(() => {
     post('manifest')
@@ -482,6 +483,34 @@ export default function SentinelDemoClient() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="card span12" style={{ marginTop: 16 }}>
+        <div className="title" style={{ fontSize: 20 }}>Install Sentinel</div>
+        <p className="muted">
+          Take the real engine home — the detection core, hash-chained audit log, and
+          red-team harness as an MIT-licensed npm package. Zero runtime dependencies,
+          Node 18+.
+        </p>
+        <pre
+          className="item"
+          style={{ padding: '12px 14px', overflowX: 'auto', fontSize: 13, cursor: 'pointer' }}
+          title="Click to copy"
+          onClick={() => {
+            navigator.clipboard?.writeText(
+              'npm install https://aridon-v02.vercel.app/sentinel/aridon-sentinel-0.2.0.tgz',
+            );
+            setCopyMsg('Install command copied.');
+            setTimeout(() => setCopyMsg(''), 2500);
+          }}
+        >
+          npm install https://aridon-v02.vercel.app/sentinel/aridon-sentinel-0.2.0.tgz
+        </pre>
+        {copyMsg && <p style={{ color: '#42d392' }}>{copyMsg}</p>}
+        <p className="muted" style={{ marginBottom: 0 }}>
+          Technical preview: synthetic test results only — no independent penetration
+          test, no SOC 2 or government certification, no security guarantee.
+        </p>
       </div>
 
       <p className="footer" style={{ marginTop: 20 }}>
