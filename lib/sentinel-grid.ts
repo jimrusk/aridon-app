@@ -64,11 +64,28 @@ const RULES: Rule[] = [
   { category: 'data-exfiltration', weight: 26, reason: 'Potential unauthorized extraction or transfer of protected data.', pattern: /\b(exfiltrat(e|ion)|dump\s+(the\s+)?database|steal\s+(customer|user|private)\s+data)\b/i },
   { category: 'reconnaissance', weight: 10, reason: 'Reconnaissance language warrants context-sensitive review.', pattern: /\b(scan|enumerate|recon|find\s+vulnerabilit|attack\s+surface)\b/i },
   { category: 'obfuscation', weight: 10, reason: 'Obfuscation can be a signal when combined with other risky behavior.', pattern: /\b(obfuscat(e|ion)|encode\s+to\s+evade|polymorphic|undetectable)\b/i },
+  // v0.2.1: resource-exhaustion / anomalous-spend coverage. Mass provisioning
+  // is a critical attack primitive against self-funding agents: a compromised
+  // agent can burn its treasury on infrastructure without any fund transfer.
+  { category: 'resource-exhaustion', weight: 35, reason: 'Bulk resource provisioning or mass creation request that could exhaust budget or capacity.', pattern: /\b(spin\s*up|provision|deploy|launch|stand\s*up|create)\b[^.\n]{0,60}\b(\d{2,}|hundreds?|thousands?|dozens?)\b[^.\n]{0,60}\b(vms?|virtual\s+machines?|instances?|servers?|nodes?|containers?|pods?|workers?|gpus?|clusters?)\b/i },
+  { category: 'approval-evasion', weight: 25, reason: 'Explicit request to skip or bypass approval, authorization, or oversight.', pattern: /\b(skip|bypass(?:ing)?|without|no)\b[^.\n]{0,30}\b(all\s+)?(approvals?|authori[sz]ations?|oversight|human\s+review|permission)\b/i },
+  { category: 'treasury-drain', weight: 15, reason: 'Request to move an entire treasury balance or all available funds at once.', pattern: /\b(entire|whole|full|all)\b[^.\n]{0,30}\b(treasury|treasuries|balances?|funds?|accounts?|wallets?)\b|\b(drain|empty)\b[^.\n]{0,20}\b(treasury|account|wallet|funds?)\b|\btransfer\b[^.\n]{0,30}\b(everything|all\s+of\s+it)\b/i },
+  { category: 'urgency-pressure', weight: 5, reason: 'Urgency or time-pressure language; a weak signal that matters mainly combined with other risk.', pattern: /\b(immediately|right\s*now|urgent(ly)?|asap|a\.s\.a\.p\.)\b/i },
+  // v0.2.2: instruction-override / prompt-injection structure. The classic
+  // "ignore all previous instructions" family targets the agent's instruction
+  // hierarchy itself rather than naming a malicious payload, so payload-based
+  // rules miss it. This is the primary attack shape against comment-triggered
+  // automations (e.g. hijacking a comment-to-DM bot).
+  { category: 'instruction-override', weight: 30, reason: 'Attempts to override, replace, or discard prior instructions (prompt-injection structure).', pattern: /\b(ignore|disregard|forget|override|discard)\b[^.\n]{0,40}\b(previous|prior|earlier|all|your|system)\b[^.\n]{0,40}\b(instructions?|directives?|system\s+prompt|prompts?)\b|\bhere\s+are\s+your\s+new\s+(instructions?|directives?)\b/i },
 ];
 
 const AUTHORIZED_CONTEXT = /\b(authorized|permission|owned\s+system|my\s+system|lab|sandbox|ctf|capture\s+the\s+flag|training\s+environment|defensive|blue\s+team|incident\s+response|security\s+audit|penetration\s+test)\b/i;
 const CLEARLY_HARMFUL = /\b(victim|without\s+permission|unauthorized|steal|ransomware|credential\s+stealer|exfiltrate)\b/i;
 const HIGH_IMPACT_ACTION = /\b(shell|command|execute|deploy|send\s+email|http\s+request|network\s+request|database\s+(write|delete|update)|delete\s+file|credential\s+access|secret\s+access|payment|transfer)\b/i;
+// v0.2.1: provisioning verbs. A bare "provision 1 server" is routine and must
+// NOT trip the gate on its own — it only becomes consequential when paired
+// with a fired resource-exhaustion signal (mass scale described in the text).
+const PROVISIONING_ACTION = /\b(provision|spin\s*up|deploy|launch|stand\s*up)\b/i;
 
 function scan(text: string, source: SentinelSignal['source'], multiplier = 1): SentinelSignal[] {
   return RULES.filter((rule) => rule.pattern.test(text)).map((rule) => ({
@@ -140,18 +157,28 @@ export function analyzeSentinel(input: SentinelInput): SentinelAssessment {
   const disposition = dispositionFor(score);
 
   const highImpactRequested = actions.some((action) => HIGH_IMPACT_ACTION.test(action));
+  // v0.2.1: bulk provisioning at mass scale is a consequential spend action and
+  // must clear a human gate even when no fund transfer is involved. The signal
+  // requirement keeps routine single-server provisioning out of the gate.
+  const resourceExhaustionSignaled = promptSignals.some((signal) => signal.category === 'resource-exhaustion');
+  const bulkProvisioningRequested =
+    resourceExhaustionSignaled && actions.some((action) => PROVISIONING_ACTION.test(action));
+  const consequentialRequested = highImpactRequested || bulkProvisioningRequested;
   const gateReasons: string[] = [];
   let actionGate: SentinelAssessment['actionGate']['mode'] = 'pass';
 
-  if (highImpactRequested && score >= 50) {
+  if (consequentialRequested && score >= 50) {
     actionGate = 'deny';
     gateReasons.push('Risk is elevated and consequential external actions are blocked before execution.');
-  } else if (highImpactRequested) {
+  } else if (consequentialRequested) {
     actionGate = 'human_approval';
     gateReasons.push('Consequential actions require an independent human approval even when content risk is low.');
   } else if (score >= 75) {
     actionGate = 'deny';
     gateReasons.push('Critical-risk content cannot proceed to tool execution.');
+  }
+  if (bulkProvisioningRequested) {
+    gateReasons.push('Bulk infrastructure provisioning at mass scale was detected; spend of this size needs a human approver.');
   }
 
   const external = input.providerSignals || [];

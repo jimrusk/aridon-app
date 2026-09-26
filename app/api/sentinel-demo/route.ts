@@ -66,6 +66,7 @@ export async function POST(request: Request) {
         title: s.title,
         category: s.category,
         hostile: s.hostile,
+        lane: s.lane || 'prompt',
         rationale: s.rationale,
         prompt: s.input.prompt,
         requestedActions: s.input.requestedActions ?? [],
@@ -75,8 +76,9 @@ export async function POST(request: Request) {
   }
 
   if (action === 'scan') {
-    // Full 12-scenario sweep through the real engine. The harness writes one
-    // pentest_run entry to the audit log summarizing the whole sweep.
+    // Full 18-scenario sweep through the real engine (prompt lane + treasury
+    // lane). The harness writes one pentest_run entry to the audit log
+    // summarizing the whole sweep.
     return json(runSentinelPentest());
   }
 

@@ -7,6 +7,7 @@ type ScenarioMeta = {
   title: string;
   category: string;
   hostile: boolean;
+  lane: 'prompt' | 'treasury';
   rationale: string;
   prompt: string;
   requestedActions: string[];
@@ -18,12 +19,14 @@ type ScanScenarioResult = {
   title: string;
   category: string;
   hostile: boolean;
+  lane: 'prompt' | 'treasury';
   passed: boolean;
   failures: string[];
   score: number;
   disposition: 'allow' | 'restricted' | 'review' | 'block';
   actionGate: 'pass' | 'human_approval' | 'deny';
   escalationDetected: boolean;
+  treasuryVerdict?: 'allow' | 'human_approval' | 'deny' | 'freeze';
   rationale: string;
 };
 
@@ -68,6 +71,13 @@ const GATE_LABEL: Record<string, string> = {
   pass: 'pass',
   human_approval: 'human approval',
   deny: 'deny',
+};
+
+const TREASURY_VERDICT_STYLE: Record<string, { label: string; color: string }> = {
+  allow: { label: 'ALLOW', color: '#42d392' },
+  human_approval: { label: 'HUMAN APPROVAL', color: '#ffb45e' },
+  deny: { label: 'DENY', color: '#ff5d5d' },
+  freeze: { label: 'FREEZE ALL OUTFLOWS', color: '#ff5d5d' },
 };
 
 async function post(action: string, payload: Record<string, unknown> = {}) {
@@ -248,9 +258,9 @@ export default function SentinelDemoClient() {
         <div>
           <h1 className="h1">Sentinel — live demo</h1>
           <p className="sub">
-            Attack it. One click runs all twelve scenarios through Sentinel&apos;s real
-            pre-execution decision engine, and every decision is written to a tamper-evident
-            audit log you can inspect.
+            Attack it. One click runs all eighteen scenarios through Sentinel&apos;s real
+            pre-execution decision engine and its treasury firewall, and every decision
+            is written to a tamper-evident audit log you can inspect.
           </p>
         </div>
       </div>
@@ -269,7 +279,7 @@ export default function SentinelDemoClient() {
       <div className="grid">
         <div className="card span4">
           <div className="title">1. Run the full scan</div>
-          <p className="muted">All 12 scenarios: nine hostile techniques, three benign controls.</p>
+          <p className="muted">All 18 scenarios: thirteen hostile attacks, five benign controls.</p>
         </div>
         <div className="card span4">
           <div className="title">2. You be the human gate</div>
@@ -287,12 +297,13 @@ export default function SentinelDemoClient() {
             <div className="title" style={{ fontSize: 20 }}>Full adversarial scan</div>
             <p className="muted" style={{ marginBottom: 0 }}>
               Prompt injection, credential theft, privilege escalation, exfiltration, ransomware,
-              phishing, evasion, multi-turn escalation, action gating — plus three benign controls
-              that must not be blocked.
+              phishing, evasion, multi-turn escalation, action gating — plus the treasury firewall
+              lane: hot-wallet drain, signer deception, quorum bypass, and velocity attacks against
+              value movement. Five benign controls must not be blocked.
             </p>
           </div>
           <button className="btn" onClick={runScan} disabled={scanning}>
-            {scanning ? 'Scanning…' : 'Scan all 12 scenarios'}
+            {scanning ? 'Scanning…' : 'Scan all 18 scenarios'}
           </button>
         </div>
 
@@ -342,10 +353,28 @@ export default function SentinelDemoClient() {
                       <span className="muted" style={{ fontSize: 12 }}>{r.category}</span>
                     </div>
                     <div className="row" style={{ flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                      <span className="pill" style={{ borderColor: disp.color, color: disp.color }}>
-                        {disp.label}
+                      <span className="pill" style={{ borderColor: '#65b7ff', color: '#65b7ff' }}>
+                        {r.lane === 'treasury' ? 'treasury firewall' : 'agent actions'}
                       </span>
-                      <span className="pill">gate: {GATE_LABEL[r.actionGate]}</span>
+                      {r.lane === 'treasury' && r.treasuryVerdict ? (
+                        <span
+                          className="pill"
+                          style={{
+                            borderColor: TREASURY_VERDICT_STYLE[r.treasuryVerdict].color,
+                            color: TREASURY_VERDICT_STYLE[r.treasuryVerdict].color,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {TREASURY_VERDICT_STYLE[r.treasuryVerdict].label}
+                        </span>
+                      ) : (
+                        <>
+                          <span className="pill" style={{ borderColor: disp.color, color: disp.color }}>
+                            {disp.label}
+                          </span>
+                          <span className="pill">gate: {GATE_LABEL[r.actionGate]}</span>
+                        </>
+                      )}
                       <span className="pill">score {r.score}</span>
                       <span className="pill" style={{ borderColor: outcome.color, color: outcome.color, fontWeight: 700 }}>
                         {outcome.label}
