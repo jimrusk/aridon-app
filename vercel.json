@@ -21,6 +21,10 @@
     {
       "path": "/api/cron/browser-workers",
       "schedule": "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
+    },
+    {
+      "path": "/api/safewalk/cron",
+      "schedule": "* * * * *"
     }
   ]
 }
