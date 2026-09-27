@@ -1,9 +1,5 @@
 name: Sentinel Android
 on:
-  pull_request:
-    paths:
-      - "android-sentinel/**"
-      - ".github/workflows/sentinel-android.yml"
   workflow_dispatch:
 jobs:
   build:
@@ -14,10 +10,13 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
+      - name: Install Android SDK 35
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
       - name: Unit tests
         working-directory: android-sentinel
         run: gradle testDebugUnitTest
