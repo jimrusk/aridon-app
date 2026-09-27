@@ -2,7 +2,8 @@ plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
 android {
  namespace="com.aridon.sentinel"; compileSdk=35
  defaultConfig { applicationId="com.aridon.sentinel"; minSdk=26; targetSdk=35; versionCode=1; versionName="0.1.0" }
- buildFeatures { compose=true }
+ buildFeatures { compose=true; buildConfig=true }
+ buildTypes { getByName("release") { isMinifyEnabled=true; isShrinkResources=true; proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro") } }
  composeOptions { kotlinCompilerExtensionVersion="1.5.15" }
 }
 dependencies {
