@@ -253,7 +253,15 @@ Keep actions to 10 or fewer. Do not put an action in the list unless it is genui
       tenant_id: membership.tenant.id,
       user_id: auth.user.id,
       objective,
-      status: result.status || 'completed',
+      status: result.status === 'needs_owner_approval'
+        ? 'ready_for_approval'
+        : result.status === 'partially_completed'
+          ? 'complete'
+          : result.status === 'completed'
+            ? 'complete'
+            : ['planning', 'running', 'quality_review', 'ready_for_approval', 'complete', 'failed'].includes(result.status || '')
+              ? result.status
+              : 'complete',
       plan: result,
       final_output: text(result.answer, 12000) || text(result.workSummary, 12000) || outputText.slice(0, 12000),
       routing: { source: 'eva-work', model: process.env.CUSTOMER_ASSISTANT_MODEL?.trim() || 'gpt-5.6', webResearch: true },
