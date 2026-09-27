@@ -7,7 +7,7 @@ Date: {{date}}
 To: {{financial_institution_name}}
 Fraud Prevention / Digital Banking / Information Security
 
-I am a customer of {{financial_institution_name}} and am requesting that your institution evaluate support for **Sentinel Personal Defense**, a customer-authorized mobile, computer, identity and financial-security service.
+I am a customer of {{financial_institution_name}} and am requesting that your institution evaluate support for **Sentinel Personal Defense**, a customer-authorized mobile, computer, identity and financial-security service.\n\n**Sentinel / Aridon Financial Institution Business OS:** https://aridon-v02.vercel.app/business-os/banking\n\nThis link is provided so your fraud, cybersecurity, digital-banking, API/open-banking, innovation or partnership team can review the Aridon financial-institution platform and Sentinel integration concept.
 
 My goal is to add another layer of protection against account takeover and unauthorized transactions. Where your systems and applicable rules permit, I would like Sentinel to be able to receive approved security and transaction signals, identify high-risk activity, and support a customer verification or hold workflow before a suspicious transaction is completed.
 
