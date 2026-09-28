@@ -92,7 +92,7 @@ export default function MarketingAutopilotPage() {
             <p style={lead}>Aridon now runs the Helena-style loop inside the existing Growth Command system: scan, diagnose, prioritize, draft, queue, measure, repeat. Research and draft creation can happen automatically. Publishing, outbound messages, paid-media changes and consequential production edits stay behind approval gates.</p>
           </div>
           <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
-            <Link href="/business-os/growth-command" style={ghostButton}>Growth Command</Link>
+            <Link href="/marketing-autopilot/proof-engine" style={ghostButton}>Proof Engine</Link>\n            <Link href="/business-os/growth-command" style={ghostButton}>Growth Command</Link>
             <Link href="/growth-desk" style={ghostButton}>Growth Desk</Link>
           </div>
         </header>
