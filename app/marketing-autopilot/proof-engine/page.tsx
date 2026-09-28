@@ -20,6 +20,14 @@ type Output = {
 };
 
 const PRESETS: Record<string, ProofInput> = {
+  aridon: {
+    project: 'Aridon AI Operating Layer',
+    problem: 'Most businesses are adding disconnected AI tools without a common operating layer to coordinate objectives, business context, agents, approvals, security, and real-world execution.',
+    built: 'Aridon combines Eva orchestration, Sentinel security and governance, Business OS, Farm OS, growth and revenue systems, phone and voice workflows, infrastructure intelligence, project memory, action tools, and approval gates in one operating environment.',
+    result: 'A business can move from a stated objective to coordinated AI-assisted execution while preserving context, permissions, human control, and measurable operating outcomes.',
+    audience: 'Owner-led businesses, enterprises, farms, infrastructure operators, financial institutions, strategic partners, investors, and organizations deploying AI agents into real operations.',
+    cta: 'Give Aridon one expensive operating problem and let us show you the working system we would build around it.',
+  },
   sentinel: {
     project: 'Sentinel Agent Defense Layer',
     problem: 'AI agents can chain together individually harmless actions into a dangerous attack path faster than human defenders can react.',
@@ -197,8 +205,8 @@ PROOF > PROMISES`;
 }
 
 export default function ProofEnginePage() {
-  const [input, setInput] = useState<ProofInput>(PRESETS.sentinel);
-  const [selected, setSelected] = useState('sentinel');
+  const [input, setInput] = useState<ProofInput>(PRESETS.aridon);
+  const [selected, setSelected] = useState('aridon');
   const [copied, setCopied] = useState('');
   const [savedAt, setSavedAt] = useState('');
   const outputs = useMemo(() => buildOutputs(input), [input]);
@@ -259,6 +267,7 @@ export default function ProofEnginePage() {
           </div>
           <div style={chipWrap}>
             {[
+              ['aridon','Aridon Company'],
               ['sentinel','Sentinel'],
               ['eva','Eva Phone'],
               ['farm','Farm OS'],
