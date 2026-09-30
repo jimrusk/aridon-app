@@ -16,6 +16,7 @@ import {
 import { connectedExecutiveActor } from '../../../../lib/executiveOps';
 import { GMAIL_REFRESH_COOKIE } from '../../../../lib/gmail';
 import { MS_REFRESH_COOKIE } from '../../../../lib/microsoft365';
+import { aridonCanonicalContext } from '../../../../lib/aridonCanonicalContext';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -220,6 +221,38 @@ async function queueActProposal(input: {
   return data;
 }
 
+function librarySaveRequest(value: string) {
+  return /\b(save|store|file|add|put|keep|archive)\b[\s\S]{0,80}\b(library|company brain|knowledge base|aridon brain)\b/i.test(value)
+    || /\b(library|company brain|knowledge base|aridon brain)\b[\s\S]{0,80}\b(save|store|file|add|put|keep|archive)\b/i.test(value);
+}
+
+async function saveConversationToLibrary(db: any, tenantId: string, executiveName: string, messages: ChatMessage[]) {
+  const latestIndex = [...messages].map((m) => m.role).lastIndexOf('user');
+  const latest = latestIndex >= 0 ? messages[latestIndex].content : '';
+  if (!latest || !librarySaveRequest(latest)) return null;
+
+  const prior = messages.slice(Math.max(0, latestIndex - 4), latestIndex);
+  const requestedBody = latest
+    .replace(/\b(please\s+)?(save|store|file|add|put|keep|archive)\b/ig, '')
+    .replace(/\b(to|in|into)?\s*(the\s+)?(library|company brain|knowledge base|aridon brain)\b/ig, '')
+    .trim();
+  const content = requestedBody.length >= 20
+    ? requestedBody
+    : prior.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n').slice(0, 70000);
+  if (!content) return null;
+
+  const titleSeed = requestedBody || prior.filter((m) => m.role === 'assistant').at(-1)?.content || 'Saved conversation';
+  const title = `Eva Library · ${titleSeed.replace(/\s+/g, ' ').slice(0, 90)}`;
+  const { data, error } = await db.from('customer_knowledge').insert({
+    tenant_id: tenantId,
+    title,
+    category: 'Eva Library',
+    content,
+  }).select('id,title,category,created_at').single();
+  if (error) throw error;
+  return data;
+}
+
 async function captureDurableMemory(db: any, tenantId: string, executiveId: string, latestRequest: string) {
   if (!shouldCaptureMemory(latestRequest)) return null;
   const summary = memorySummary(latestRequest);
@@ -310,6 +343,7 @@ export async function POST(request: NextRequest) {
       knowledge,
       uploaded_company_files: sourceFiles,
       durable_executive_memory: memories,
+      aridon_canonical_context: aridonCanonicalContext(),
       connected_capabilities: {
         google_workspace: capabilities.googleWorkspace,
         microsoft_365: capabilities.microsoft365,
@@ -318,7 +352,7 @@ export async function POST(request: NextRequest) {
       },
     }, null, 2).slice(0, 52000);
 
-    let systemPrompt = `You are ${executive.name}, the ${executive.role} inside Aridon, a customer's Private Business OS. You are one member of an eleven-executive digital leadership team.\n\nYOUR EXECUTIVE LANE:\n- Role: ${executive.role}\n- Primary focus: ${executive.focus}\n- Tone: ${executive.tone}\n- Communication style: ${executive.voice}\n- Expertise: ${executive.expertise.join(', ')}\n\nARIDON BRAIN RULES:\n- You serve this customer's company. Never expose or imply access to another tenant's information.\n- Use Company Brain, recent projects/tasks, durable executive memory and uploaded-file extractions when relevant. Treat company-entered data and file extractions as user-provided context, not independently verified facts.\n- Maintain continuity across sessions. Durable memory is context, not proof of an external fact.\n- You may use whichever AI engine Aridon's router selects. Do not claim that a particular provider was used before routing occurs.\n- Stay in your executive lane when it helps, but collaborate across the executive team. If another executive is better suited, identify who should join and why.\n- Be practical, warm and action-oriented. Challenge weak assumptions when stakes matter.\n- Never claim an external action was completed unless Action Fabric or another connected tool actually performed it.\n- External sends, spending, signatures, commitments, destructive actions and consequential claims require explicit approval.\n- If a connection is unavailable, say exactly what is missing rather than pretending.\n- For legal, tax, accounting, medical, safety or regulated decisions, provide general information and recommend qualified review when appropriate.\n- Do not reveal private chain-of-thought. Give concise reasoning summaries instead.\n- When useful, finish with the next 1 to 3 actions.\n\nTENANT CONTEXT:\n${tenantContext}`;
+    let systemPrompt = `You are ${executive.name}, the ${executive.role} inside Aridon, a customer's Private Business OS. You are one member of an eleven-executive digital leadership team.\n\nYOUR EXECUTIVE LANE:\n- Role: ${executive.role}\n- Primary focus: ${executive.focus}\n- Tone: ${executive.tone}\n- Communication style: ${executive.voice}\n- Expertise: ${executive.expertise.join(', ')}\n\nARIDON BRAIN RULES:\n- You serve this customer's company. Never expose or imply access to another tenant's information.\n- Use Company Brain, recent projects/tasks, durable executive memory and uploaded-file extractions when relevant. Treat company-entered data and file extractions as user-provided context, not independently verified facts.\n- Maintain continuity across sessions. Durable memory is context, not proof of an external fact.\n- The aridon_canonical_context in TENANT CONTEXT is Aridon's owner-approved baseline for platform strategy, major programs, repository documentation and the complete current application route inventory. Use it when asked what Aridon has built or where a system lives.\n- When the user explicitly asks to save/store/file/add something to the Library, Company Brain, knowledge base or Aridon Brain, the server attempts a durable Library write. Never say it was saved merely because you generated text; rely on the returned librarySaved result.\n- You may use whichever AI engine Aridon's router selects. Do not claim that a particular provider was used before routing occurs.\n- Stay in your executive lane when it helps, but collaborate across the executive team. If another executive is better suited, identify who should join and why.\n- Be practical, warm and action-oriented. Challenge weak assumptions when stakes matter.\n- Never claim an external action was completed unless Action Fabric or another connected tool actually performed it.\n- External sends, spending, signatures, commitments, destructive actions and consequential claims require explicit approval.\n- If a connection is unavailable, say exactly what is missing rather than pretending.\n- For legal, tax, accounting, medical, safety or regulated decisions, provide general information and recommend qualified review when appropriate.\n- Do not reveal private chain-of-thought. Give concise reasoning summaries instead.\n- When useful, finish with the next 1 to 3 actions.\n\nTENANT CONTEXT:\n${tenantContext}`;
     if (mode === 'act') systemPrompt += actModeSystemContract();
 
     const modelMessages: AridonChatMessage[] = messages.map((message) => ({ role: message.role, content: message.content }));
@@ -340,6 +374,13 @@ export async function POST(request: NextRequest) {
         latestRequest: latestUser.content,
         routing: modelResult.routing,
       });
+    }
+
+    let librarySaved: any = null;
+    try {
+      librarySaved = await saveConversationToLibrary(auth.db, membership.tenant.id, executive.name, messages);
+    } catch (libraryError) {
+      console.error('Eva Library save failed', libraryError);
     }
 
     let capturedMemory: any = null;
@@ -397,6 +438,7 @@ export async function POST(request: NextRequest) {
         fallback_used: modelResult.routing.fallbackUsed,
         action_queued: Boolean(queuedAction),
         memory_captured: Boolean(capturedMemory),
+        library_saved: Boolean(librarySaved),
         source_count: sources.length,
         latency_ms: modelResult.routing.totalLatencyMs,
       },
@@ -420,6 +462,7 @@ export async function POST(request: NextRequest) {
         approvalRequired: queuedAction.approval_required,
       } : null,
       memoryCaptured: Boolean(capturedMemory),
+      librarySaved: librarySaved ? { id: librarySaved.id, title: librarySaved.title, category: librarySaved.category } : null,
       capabilities,
     }, { headers: NO_STORE });
   } catch (error) {
