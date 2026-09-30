@@ -76,6 +76,7 @@ export default function TalkingAvatarsPage() {
   const busyRef = useRef(false);
   const speakingRef = useRef(false);
   const restartTimerRef = useRef<number | null>(null);
+  const bargeInRef = useRef<BrowserSpeechRecognition | null>(null);
 
   const selected = useMemo(
     () => executives.find((executive) => executive.name === selectedName) ?? executives[0],
@@ -94,6 +95,8 @@ export default function TalkingAvatarsPage() {
       try { recognitionRef.current?.abort?.(); } catch {}
       try { recognitionRef.current?.stop(); } catch {}
       if (restartTimerRef.current) window.clearTimeout(restartTimerRef.current);
+      try { bargeInRef.current?.abort?.(); } catch {}
+      try { bargeInRef.current?.stop(); } catch {}
     };
   }, []);
 
@@ -107,6 +110,9 @@ export default function TalkingAvatarsPage() {
   function stopSpeaking() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     speakingRef.current = false;
+    try { bargeInRef.current?.abort?.(); } catch {}
+    try { bargeInRef.current?.stop(); } catch {}
+    bargeInRef.current = null;
     setSpeakingName('');
   }
 
@@ -117,6 +123,35 @@ export default function TalkingAvatarsPage() {
       restartTimerRef.current = null;
       if (handsFreeRef.current && !busyRef.current && !speakingRef.current && !recognitionRef.current) startListening(true);
     }, delay);
+  }
+
+  function listenForStopWhileSpeaking() {
+    if (!handsFreeRef.current) return;
+    const SpeechRecognitionConstructor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionConstructor) return;
+    try { bargeInRef.current?.abort?.(); } catch {}
+    const recognition = new SpeechRecognitionConstructor() as BrowserSpeechRecognition;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    recognition.onresult = (event: any) => {
+      let heard = '';
+      for (let i = event.resultIndex || 0; i < (event.results?.length || 0); i += 1) {
+        heard += ' ' + (event.results?.[i]?.[0]?.transcript || '');
+      }
+      if (/\b(stop|stop talking|quiet|be quiet|pause|hold on|wait)\b/i.test(heard)) {
+        stopSpeaking();
+        setReply('Stopped. I’m listening.');
+        window.setTimeout(() => startListening(true), 120);
+      }
+    };
+    recognition.onerror = () => {};
+    recognition.onend = () => {
+      if (bargeInRef.current === recognition) bargeInRef.current = null;
+      if (handsFreeRef.current && speakingRef.current) window.setTimeout(listenForStopWhileSpeaking, 120);
+    };
+    bargeInRef.current = recognition;
+    try { recognition.start(); } catch { bargeInRef.current = null; }
   }
 
   function speak(executive: Executive, text: string) {
@@ -139,15 +174,20 @@ export default function TalkingAvatarsPage() {
     utterance.onstart = () => {
       speakingRef.current = true;
       setSpeakingName(executive.name);
+      listenForStopWhileSpeaking();
     };
     utterance.onboundary = () => setSpeechBeat((beat) => beat + 1);
     utterance.onend = () => {
       speakingRef.current = false;
+      try { bargeInRef.current?.abort?.(); } catch {}
+      bargeInRef.current = null;
       setSpeakingName('');
       resumeHandsFree(350);
     };
     utterance.onerror = () => {
       speakingRef.current = false;
+      try { bargeInRef.current?.abort?.(); } catch {}
+      bargeInRef.current = null;
       setSpeakingName('');
       resumeHandsFree(500);
     };
