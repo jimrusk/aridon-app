@@ -308,14 +308,15 @@ export async function POST(request: NextRequest) {
     const latestUser = [...messages].reverse().find((message) => message.role === 'user');
     if (!latestUser) return NextResponse.json({ error: 'A user request is required.' }, { status: 400, headers: NO_STORE });
 
-    const [projectsResult, tasksResult, knowledgeResult, filesResult, memoriesResult] = await Promise.all([
+    const [projectsResult, tasksResult, knowledgeResult, filesResult, memoriesResult, conversationResult] = await Promise.all([
       auth.db.from('customer_projects').select('name,description,status').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(12),
       auth.db.from('customer_tasks').select('title,owner,priority,status').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(20),
       auth.db.from('customer_knowledge').select('title,category,content').eq('tenant_id', membership.tenant.id).order('created_at', { ascending: false }).limit(14),
       auth.db.from('customer_files').select('filename,extracted_text,extraction_status,notes').eq('tenant_id', membership.tenant.id).eq('status', 'ready').order('created_at', { ascending: false }).limit(10),
       auth.db.from('customer_executive_memories').select('executive_id,memory_type,summary,confidence,last_reinforced_at').eq('tenant_id', membership.tenant.id).order('last_reinforced_at', { ascending: false }).limit(20),
+      auth.db.from('customer_assistant_messages').select('role,content,executive_name,created_at').eq('tenant_id', membership.tenant.id).eq('user_id', auth.user.id).order('created_at', { ascending: false }).limit(60),
     ]);
-    const contextErrors = [projectsResult.error, tasksResult.error, knowledgeResult.error, filesResult.error, memoriesResult.error].filter(Boolean);
+    const contextErrors = [projectsResult.error, tasksResult.error, knowledgeResult.error, filesResult.error, memoriesResult.error, conversationResult.error].filter(Boolean);
     if (contextErrors.length) throw contextErrors[0];
 
     const knowledge = (knowledgeResult.data || []).map((item) => ({ title: item.title, category: item.category, content: text(item.content, 2800) }));
@@ -333,6 +334,15 @@ export async function POST(request: NextRequest) {
       last_reinforced_at: item.last_reinforced_at,
     }));
     const capabilities = capabilitySnapshot(request, sourceFiles.length, memories.length);
+    const recentConversation = [...(conversationResult.data || [])]
+      .reverse()
+      .map((item) => ({
+        role: item.role,
+        executive: item.executive_name || 'Aridon',
+        content: text(item.content, 1800),
+        created_at: item.created_at,
+      }))
+      .filter((item) => item.content);
 
     const tenantContext = JSON.stringify({
       business: membership.tenant.business_name,
@@ -343,6 +353,7 @@ export async function POST(request: NextRequest) {
       knowledge,
       uploaded_company_files: sourceFiles,
       durable_executive_memory: memories,
+      recent_saved_conversation: recentConversation,
       aridon_canonical_context: aridonCanonicalContext(),
       connected_capabilities: {
         google_workspace: capabilities.googleWorkspace,
@@ -352,7 +363,7 @@ export async function POST(request: NextRequest) {
       },
     }, null, 2).slice(0, 52000);
 
-    let systemPrompt = `You are ${executive.name}, the ${executive.role} inside Aridon, a customer's Private Business OS. You are one member of an eleven-executive digital leadership team.\n\nYOUR EXECUTIVE LANE:\n- Role: ${executive.role}\n- Primary focus: ${executive.focus}\n- Tone: ${executive.tone}\n- Communication style: ${executive.voice}\n- Expertise: ${executive.expertise.join(', ')}\n\nARIDON BRAIN RULES:\n- You serve this customer's company. Never expose or imply access to another tenant's information.\n- Use Company Brain, recent projects/tasks, durable executive memory and uploaded-file extractions when relevant. Treat company-entered data and file extractions as user-provided context, not independently verified facts.\n- Maintain continuity across sessions. Durable memory is context, not proof of an external fact.\n- The aridon_canonical_context in TENANT CONTEXT is Aridon's owner-approved baseline for platform strategy, major programs, repository documentation and the complete current application route inventory. Use it when asked what Aridon has built or where a system lives.\n- When the user explicitly asks to save/store/file/add something to the Library, Company Brain, knowledge base or Aridon Brain, the server attempts a durable Library write. Never say it was saved merely because you generated text; rely on the returned librarySaved result.\n- You may use whichever AI engine Aridon's router selects. Do not claim that a particular provider was used before routing occurs.\n- Stay in your executive lane when it helps, but collaborate across the executive team. If another executive is better suited, identify who should join and why.\n- Be practical, warm and action-oriented. Challenge weak assumptions when stakes matter.\n- Never claim an external action was completed unless Action Fabric or another connected tool actually performed it.\n- External sends, spending, signatures, commitments, destructive actions and consequential claims require explicit approval.\n- If a connection is unavailable, say exactly what is missing rather than pretending.\n- For legal, tax, accounting, medical, safety or regulated decisions, provide general information and recommend qualified review when appropriate.\n- Do not reveal private chain-of-thought. Give concise reasoning summaries instead.\n- When useful, finish with the next 1 to 3 actions.\n\nTENANT CONTEXT:\n${tenantContext}`;
+    let systemPrompt = `You are ${executive.name}, the ${executive.role} inside Aridon, a customer's Private Business OS. You are one member of an eleven-executive digital leadership team.\n\nYOUR EXECUTIVE LANE:\n- Role: ${executive.role}\n- Primary focus: ${executive.focus}\n- Tone: ${executive.tone}\n- Communication style: ${executive.voice}\n- Expertise: ${executive.expertise.join(', ')}\n\nARIDON BRAIN RULES:\n- You serve this customer's company. Never expose or imply access to another tenant's information.\n- Use Company Brain, recent projects/tasks, durable executive memory and uploaded-file extractions when relevant. Treat company-entered data and file extractions as user-provided context, not independently verified facts.\n- Maintain continuity across sessions. Durable memory is context, not proof of an external fact.\n- Before answering, silently read recent_saved_conversation and durable_executive_memory. Continue from what the customer already said instead of making them repeat goals, names, decisions, constraints, or prior answers. Do not recite the history unless it is useful to the answer.\n- All executives share this saved conversation context, so switching executives must preserve continuity.\n- The aridon_canonical_context in TENANT CONTEXT is Aridon's owner-approved baseline for platform strategy, major programs, repository documentation and the complete current application route inventory. Use it when asked what Aridon has built or where a system lives.\n- When the user explicitly asks to save/store/file/add something to the Library, Company Brain, knowledge base or Aridon Brain, the server attempts a durable Library write. Never say it was saved merely because you generated text; rely on the returned librarySaved result.\n- You may use whichever AI engine Aridon's router selects. Do not claim that a particular provider was used before routing occurs.\n- Stay in your executive lane when it helps, but collaborate across the executive team. If another executive is better suited, identify who should join and why.\n- Be practical, warm and action-oriented. Challenge weak assumptions when stakes matter.\n- Never claim an external action was completed unless Action Fabric or another connected tool actually performed it.\n- External sends, spending, signatures, commitments, destructive actions and consequential claims require explicit approval.\n- If a connection is unavailable, say exactly what is missing rather than pretending.\n- For legal, tax, accounting, medical, safety or regulated decisions, provide general information and recommend qualified review when appropriate.\n- Do not reveal private chain-of-thought. Give concise reasoning summaries instead.\n- When useful, finish with the next 1 to 3 actions.\n\nTENANT CONTEXT:\n${tenantContext}`;
     if (mode === 'act') systemPrompt += actModeSystemContract();
 
     const modelMessages: AridonChatMessage[] = messages.map((message) => ({ role: message.role, content: message.content }));
