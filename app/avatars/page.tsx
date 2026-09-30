@@ -337,12 +337,21 @@ export default function TalkingAvatarsPage() {
         <section className="avatar-stage">
           <div className={`avatar-feature ${isSelectedSpeaking ? 'is-speaking' : ''}`}>
             <div className="avatar-feature-image-wrap" style={{ '--avatar-color': selected.color } as React.CSSProperties}>
-              <img
-                src={selected.avatar}
-                alt={`${selected.name}, ${selected.role}`}
-                className="avatar-feature-image"
-                style={{ transform: isSelectedSpeaking ? `scale(${1.006 + (speechBeat % 3) * 0.003}) translateY(${speechBeat % 2 ? '-1px' : '1px'})` : 'scale(1)' }}
-              />
+              <div className={`avatar-live-portrait ${isSelectedSpeaking ? 'talking' : ''}`}>
+                <img
+                  src={selected.avatar}
+                  alt={`${selected.name}, ${selected.role}`}
+                  className="avatar-feature-image"
+                />
+                <div className="avatar-head-motion" aria-hidden="true" />
+                {isSelectedSpeaking && (
+                  <div className="avatar-mouth-motion" aria-hidden="true">
+                    <span className="mouth-upper" />
+                    <span className="mouth-opening" />
+                    <span className="mouth-lower" />
+                  </div>
+                )}
+              </div>
               <div className="avatar-speaking-ring" />
               <div className="avatar-wave" aria-hidden="true"><span /><span /><span /><span /><span /></div>
               {isSelectedSpeaking && <div className="avatar-speaking-label">Speaking</div>}
