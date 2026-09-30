@@ -7,7 +7,7 @@ import { executives } from '../../lib/executives';
 type Executive = (typeof executives)[number];
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
-type SpeechRecognitionLike = {
+type BrowserSpeechRecognition = {
   continuous: boolean;
   interimResults: boolean;
   lang: string;
@@ -19,138 +19,195 @@ type SpeechRecognitionLike = {
   onend: (() => void) | null;
 };
 
-export default function VoiceRoom() {
+const voiceHints: Record<string, string[]> = {
+  Heather: ['Samantha', 'Ava', 'Karen', 'female'],
+  Nova: ['Samantha', 'Ava', 'Zira', 'female'],
+  Scout: ['Daniel', 'Alex', 'male'],
+  Atlas: ['Aaron', 'Daniel', 'male'],
+  Oracle: ['Samantha', 'Ava', 'female'],
+  Ethos: ['Daniel', 'Alex', 'male'],
+  Ledger: ['Daniel', 'Alex', 'male'],
+  Eva: ['Moira', 'Fiona', 'Samantha', 'Ava', 'female'],
+};
+
+const voiceSettings: Record<string, { rate: number; pitch: number }> = {
+  Heather: { rate: 1.02, pitch: 1.05 },
+  Nova: { rate: 0.96, pitch: 1.02 },
+  Scout: { rate: 1.02, pitch: 0.96 },
+  Atlas: { rate: 0.96, pitch: 0.92 },
+  Oracle: { rate: 0.98, pitch: 1.02 },
+  Ethos: { rate: 0.9, pitch: 0.9 },
+  Ledger: { rate: 0.94, pitch: 0.9 },
+  Eva: { rate: 0.98, pitch: 1.08 },
+};
+
+function introFor(executive: Executive) {
+  if (executive.name === 'Eva') {
+    return 'Hello Jim. Eva here. The executive voice room is online. You can speak naturally, and in hands-free mode I will keep the conversation moving without making you tap between turns. What shall we tackle first?';
+  }
+  return `Hello Jim. I am ${executive.name}, your ${executive.role}. My focus is ${executive.focus}. I am ready when you are.`;
+}
+
+function findVoice(name: string, voices: SpeechSynthesisVoice[]) {
+  const hints = voiceHints[name] ?? [];
+  for (const hint of hints) {
+    const voice = voices.find((candidate) =>
+      `${candidate.name} ${candidate.lang}`.toLowerCase().includes(hint.toLowerCase()),
+    );
+    if (voice) return voice;
+  }
+  return voices.find((voice) => voice.lang.toLowerCase().startsWith('en')) ?? voices[0];
+}
+
+export default function TalkingAvatarsPage() {
   const [selectedName, setSelectedName] = useState('Eva');
+  const [speakingName, setSpeakingName] = useState('');
+  const [speechBeat, setSpeechBeat] = useState(0);
   const [input, setInput] = useState('');
   const [reply, setReply] = useState('');
-  const [lastHeard, setLastHeard] = useState('');
-  const [listening, setListening] = useState(false);
-  const [transcribing, setTranscribing] = useState(false);
-  const [thinking, setThinking] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [handsFree, setHandsFree] = useState(false);
-  const [micAvailable, setMicAvailable] = useState(true);
-
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const meterRef = useRef<number | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioUrlRef = useRef<string | null>(null);
+  const [listening, setListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(true);
+  const [recognitionSupported, setRecognitionSupported] = useState(true);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const handsFreeRef = useRef(false);
   const busyRef = useRef(false);
 
   const selected = useMemo(
-    () => executives.find((executive) => executive.name === selectedName) ?? executives.find((executive) => executive.id === 'eva') ?? executives[0],
+    () => executives.find((executive) => executive.name === selectedName) ?? executives[0],
     [selectedName],
   );
 
   useEffect(() => {
-    const canRecord = typeof window !== 'undefined' && typeof MediaRecorder !== 'undefined' && Boolean((navigator as any).mediaDevices?.getUserMedia);
-    const canRecognize = typeof window !== 'undefined' && Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
-    setMicAvailable(canRecord || canRecognize);
+    const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+    const canListen = typeof window !== 'undefined' && Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+    setSpeechSupported(canSpeak);
+    setRecognitionSupported(canListen);
+
     return () => {
       handsFreeRef.current = false;
-      stopCapture(true);
-      stopAudio();
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+      try { recognitionRef.current?.abort?.(); } catch {}
+      try { recognitionRef.current?.stop(); } catch {}
     };
   }, []);
 
-  function cleanStream() {
-    if (meterRef.current !== null) {
-      window.clearInterval(meterRef.current);
-      meterRef.current = null;
-    }
-    if (audioContextRef.current) {
-      void audioContextRef.current.close().catch(() => {});
-      audioContextRef.current = null;
-    }
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    recorderRef.current = null;
-  }
-
-  function stopCapture(cancel: boolean) {
+  function stopListening() {
     try { recognitionRef.current?.abort?.(); } catch {}
     try { recognitionRef.current?.stop(); } catch {}
     recognitionRef.current = null;
-
-    const recorder = recorderRef.current;
-    if (recorder && recorder.state !== 'inactive') {
-      if (cancel) recorder.onstop = null;
-      try { recorder.stop(); } catch {}
-    }
-    if (cancel) {
-      cleanStream();
-      chunksRef.current = [];
-      setListening(false);
-      setTranscribing(false);
-    }
+    setListening(false);
   }
 
-  function stopAudio() {
-    if (audioRef.current) {
-      audioRef.current.onended = null;
-      audioRef.current.onerror = null;
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
-    if (audioUrlRef.current) {
-      URL.revokeObjectURL(audioUrlRef.current);
-      audioUrlRef.current = null;
-    }
-    setSpeaking(false);
+  function stopSpeaking() {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    setSpeakingName('');
   }
 
-  function resumeHandsFree(delay = 650) {
+  function resumeHandsFree(delay = 450) {
     if (!handsFreeRef.current || busyRef.current) return;
     window.setTimeout(() => {
-      if (handsFreeRef.current && !busyRef.current && !speaking) void startListening(true);
+      if (handsFreeRef.current && !busyRef.current) startListening(true);
     }, delay);
   }
 
-  async function speakAnswer(text: string) {
-    if (!text.trim()) return;
-    stopCapture(true);
-    stopAudio();
+  function speak(executive: Executive, text: string) {
+    if (!voiceEnabled || !speechSupported || !text.trim()) {
+      resumeHandsFree();
+      return;
+    }
+
+    stopListening();
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voices = window.speechSynthesis.getVoices();
+    const voice = findVoice(executive.name, voices);
+    const settings = voiceSettings[executive.name] ?? { rate: 1, pitch: 1 };
+
+    if (voice) utterance.voice = voice;
+    utterance.rate = settings.rate;
+    utterance.pitch = settings.pitch;
+    utterance.volume = 1;
+    utterance.onstart = () => setSpeakingName(executive.name);
+    utterance.onboundary = () => setSpeechBeat((beat) => beat + 1);
+    utterance.onend = () => {
+      setSpeakingName('');
+      resumeHandsFree(350);
+    };
+    utterance.onerror = () => {
+      setSpeakingName('');
+      resumeHandsFree(500);
+    };
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function selectAndIntroduce(executive: Executive) {
+    stopListening();
+    setSelectedName(executive.name);
+    const intro = introFor(executive);
+    setReply(intro);
+    speak(executive, intro);
+  }
+
+  function startListening(autoSend = false) {
+    if (busyRef.current || speakingName) return;
+    const SpeechRecognitionConstructor =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognitionConstructor) {
+      setRecognitionSupported(false);
+      setReply('Voice input is not available in this browser. You can still type your question below.');
+      return;
+    }
+
+    stopListening();
+    const recognition = new SpeechRecognitionConstructor() as BrowserSpeechRecognition;
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    recognition.onresult = (event: any) => {
+      const transcript = event.results?.[0]?.[0]?.transcript?.trim() ?? '';
+      setListening(false);
+      if (!transcript) {
+        resumeHandsFree();
+        return;
+      }
+      setInput(transcript);
+      if (autoSend || handsFreeRef.current) void askExecutive(transcript);
+    };
+    recognition.onerror = (event: any) => {
+      setListening(false);
+      if (event?.error === 'not-allowed' || event?.error === 'service-not-allowed') {
+        setReply('Microphone permission is blocked. Allow microphone access for this site, then turn Hands-Free back on.');
+        handsFreeRef.current = false;
+        setHandsFree(false);
+        return;
+      }
+      if (handsFreeRef.current && event?.error !== 'aborted') resumeHandsFree(700);
+    };
+    recognition.onend = () => {
+      setListening(false);
+      recognitionRef.current = null;
+    };
+    recognitionRef.current = recognition;
     try {
-      const response = await fetch('/api/voice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ executive: selected.name, text }),
-      });
-      if (!response.ok) throw new Error('Voice playback failed.');
-      const blob = await response.blob();
-      if (!blob.size) throw new Error('Voice playback was empty.');
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audioUrlRef.current = url;
-      audioRef.current = audio;
-      setSpeaking(true);
-      audio.onended = () => {
-        stopAudio();
-        resumeHandsFree(450);
-      };
-      audio.onerror = () => {
-        stopAudio();
-        resumeHandsFree(650);
-      };
-      await audio.play();
+      setListening(true);
+      recognition.start();
     } catch {
-      setSpeaking(false);
-      resumeHandsFree(700);
+      setListening(false);
     }
   }
 
   async function askExecutive(questionOverride?: string) {
     const question = (questionOverride ?? input).trim();
     if (!question || busyRef.current) return;
-    stopCapture(true);
+
+    stopListening();
     busyRef.current = true;
-    setThinking(true);
-    setReply(`${selected.name} is thinking…`);
+    setBusy(true);
+    setReply('');
     try {
       const messages: ChatMessage[] = [{ role: 'user', content: question }];
       const response = await fetch('/api/chat', {
@@ -158,191 +215,22 @@ export default function VoiceRoom() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ executive: selected.name, messages }),
       });
-      const data = await response.json() as { reply?: string; error?: string };
-      if (!response.ok || !data.reply) throw new Error(data.error || `${selected.name} could not answer.`);
+      const data = (await response.json()) as { reply?: string; error?: string };
+      if (!response.ok || !data.reply) throw new Error(data.error || `${selected.name} could not answer right now.`);
       setReply(data.reply);
       setInput('');
       busyRef.current = false;
-      setThinking(false);
-      await speakAnswer(data.reply);
+      setBusy(false);
+      speak(selected, data.reply);
       return;
     } catch (error) {
-      setReply(error instanceof Error ? error.message : 'Eva could not answer that turn.');
+      const message = error instanceof Error ? error.message : 'The executive voice room is temporarily unavailable.';
+      setReply(message);
     } finally {
       busyRef.current = false;
-      setThinking(false);
+      setBusy(false);
     }
-    resumeHandsFree();
-  }
-
-  async function transcribe(blob: Blob, autoSend: boolean) {
-    if (blob.size < 900) {
-      setReply('I did not catch enough audio. Tap Speak and try again.');
-      setTranscribing(false);
-      resumeHandsFree();
-      return;
-    }
-    setListening(false);
-    setTranscribing(true);
-    setReply('Eva is transcribing your voice…');
-    try {
-      const form = new FormData();
-      const ext = blob.type.includes('ogg') ? 'ogg' : blob.type.includes('mp4') ? 'm4a' : 'webm';
-      form.append('audio', blob, `eva-voice.${ext}`);
-      const response = await fetch('/api/transcribe', { method: 'POST', body: form });
-      const data = await response.json() as { text?: string; error?: string };
-      if (!response.ok || !data.text) throw new Error(data.error || 'I could not understand that recording.');
-      const transcript = data.text.trim();
-      setLastHeard(transcript);
-      setInput(transcript);
-      setReply(`I heard: “${transcript}”`);
-      setTranscribing(false);
-      if (autoSend || handsFreeRef.current) await askExecutive(transcript);
-    } catch (error) {
-      setTranscribing(false);
-      setReply(error instanceof Error ? error.message : 'Eva could not transcribe the recording.');
-      resumeHandsFree(900);
-    }
-  }
-
-  async function startRecorder(autoSend: boolean) {
-    stopAudio();
-    stopCapture(true);
-    try {
-      const stream = await (navigator as any).mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      }) as MediaStream;
-      streamRef.current = stream;
-
-      const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
-      const mimeType = types.find((type) => MediaRecorder.isTypeSupported(type));
-      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-      recorderRef.current = recorder;
-      chunksRef.current = [];
-      const startedAt = Date.now();
-      let speechDetected = false;
-      let lastSoundAt = startedAt;
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size) chunksRef.current.push(event.data);
-      };
-      recorder.onstop = () => {
-        const chunks = [...chunksRef.current];
-        const type = recorder.mimeType || chunks[0]?.type || 'audio/webm';
-        cleanStream();
-        chunksRef.current = [];
-        setListening(false);
-        if (!chunks.length) {
-          setReply('No microphone audio arrived. Please try again.');
-          return;
-        }
-        void transcribe(new Blob(chunks, { type }), autoSend);
-      };
-
-      recorder.start(250);
-      setListening(true);
-      setReply('Listening. Speak normally, then pause.');
-
-      try {
-        const AudioContextCtor = (window as any).AudioContext || (window as any).webkitAudioContext;
-        if (AudioContextCtor) {
-          const context = new AudioContextCtor() as AudioContext;
-          audioContextRef.current = context;
-          const analyser = context.createAnalyser();
-          analyser.fftSize = 1024;
-          context.createMediaStreamSource(stream).connect(analyser);
-          const samples = new Uint8Array(analyser.fftSize);
-          meterRef.current = window.setInterval(() => {
-            if (recorder.state !== 'recording') return;
-            analyser.getByteTimeDomainData(samples);
-            let energy = 0;
-            for (let i = 0; i < samples.length; i += 1) {
-              const value = (samples[i] - 128) / 128;
-              energy += value * value;
-            }
-            const rms = Math.sqrt(energy / samples.length);
-            const now = Date.now();
-            if (rms > 0.022) {
-              speechDetected = true;
-              lastSoundAt = now;
-            }
-            if ((speechDetected && now - lastSoundAt > 1500) || now - startedAt > 45000) {
-              try { recorder.stop(); } catch {}
-            }
-          }, 120);
-        } else {
-          window.setTimeout(() => {
-            if (recorder.state === 'recording') try { recorder.stop(); } catch {}
-          }, 20000);
-        }
-      } catch {
-        window.setTimeout(() => {
-          if (recorder.state === 'recording') try { recorder.stop(); } catch {}
-        }, 20000);
-      }
-    } catch (error: any) {
-      cleanStream();
-      setListening(false);
-      if (error?.name === 'NotAllowedError' || error?.name === 'PermissionDeniedError') {
-        handsFreeRef.current = false;
-        setHandsFree(false);
-        setReply('Microphone permission is blocked. Allow microphone access for aridon-v02.vercel.app, then tap Speak again.');
-        return;
-      }
-      startBrowserRecognition(autoSend);
-    }
-  }
-
-  function startBrowserRecognition(autoSend: boolean) {
-    const Constructor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!Constructor) {
-      setMicAvailable(false);
-      setReply('This browser is not exposing a microphone to Aridon. Open the site in Chrome or type your request.');
-      return;
-    }
-    const recognition = new Constructor() as SpeechRecognitionLike;
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-    recognition.onresult = (event: any) => {
-      const transcript = event.results?.[0]?.[0]?.transcript?.trim() || '';
-      setListening(false);
-      recognitionRef.current = null;
-      if (!transcript) {
-        setReply('I did not catch that. Try again.');
-        return;
-      }
-      setLastHeard(transcript);
-      setInput(transcript);
-      setReply(`I heard: “${transcript}”`);
-      if (autoSend || handsFreeRef.current) void askExecutive(transcript);
-    };
-    recognition.onerror = (event: any) => {
-      setListening(false);
-      recognitionRef.current = null;
-      if (event?.error === 'not-allowed' || event?.error === 'service-not-allowed') {
-        handsFreeRef.current = false;
-        setHandsFree(false);
-        setReply('Microphone permission is blocked. Allow it for this site, then try again.');
-      } else {
-        setReply(`Voice recognition stopped${event?.error ? `: ${event.error}` : ''}. Try again.`);
-      }
-    };
-    recognition.onend = () => {
-      setListening(false);
-      recognitionRef.current = null;
-    };
-    recognitionRef.current = recognition;
-    setListening(true);
-    setReply('Listening…');
-    try { recognition.start(); } catch { setListening(false); }
-  }
-
-  async function startListening(autoSend = true) {
-    if (busyRef.current || thinking || transcribing || speaking) return;
-    const canRecord = typeof MediaRecorder !== 'undefined' && Boolean((navigator as any).mediaDevices?.getUserMedia);
-    if (canRecord) await startRecorder(autoSend);
-    else startBrowserRecognition(autoSend);
+    resumeHandsFree(700);
   }
 
   function toggleHandsFree() {
@@ -350,65 +238,135 @@ export default function VoiceRoom() {
     handsFreeRef.current = next;
     setHandsFree(next);
     if (!next) {
-      stopCapture(true);
-      setReply('Hands-Free is off.');
+      stopListening();
+      setReply((current) => current || 'Hands-Free is off.');
       return;
     }
-    setReply(`${selected.name} is opening the microphone.`);
-    void startListening(true);
+    if (!recognitionSupported) {
+      handsFreeRef.current = false;
+      setHandsFree(false);
+      setReply('This browser does not expose speech recognition. Try Chrome on Android or type your question instead.');
+      return;
+    }
+    stopSpeaking();
+    setReply(`Hands-Free is on. I am listening for your question to ${selected.name}.`);
+    startListening(true);
   }
 
-  function stopAll() {
-    handsFreeRef.current = false;
-    setHandsFree(false);
-    stopCapture(true);
-    stopAudio();
-    setReply('Stopped. Tap Speak when you are ready.');
-  }
-
-  const status = listening ? 'LISTENING' : transcribing ? 'TRANSCRIBING' : thinking ? 'THINKING' : speaking ? 'SPEAKING' : handsFree ? 'HANDS-FREE READY' : 'READY';
+  const isSelectedSpeaking = speakingName === selected.name;
 
   return (
-    <main style={{ minHeight: '100vh', background: 'radial-gradient(circle at 70% 0,#153555,#07101D 42%,#040A11)', color: '#F8FAFC', fontFamily: 'Arial,sans-serif', padding: 18 }}>
-      <div style={{ maxWidth: 1180, margin: '0 auto' }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center', flexWrap: 'wrap', marginBottom: 18 }}>
-          <div><div style={{ color: '#9EF0CF', fontSize: 11, fontWeight: 950, letterSpacing: '.14em' }}>ARIDON · VOICE COMMAND</div><h1 style={{ margin: '7px 0 5px', fontSize: 'clamp(30px,5vw,54px)' }}>Talk to Eva. She should hear you now.</h1><p style={{ color: '#AAB9CA', margin: 0, maxWidth: 760, lineHeight: 1.55 }}>Aridon records the microphone turn, transcribes the actual audio, sends the transcript to the selected executive, then speaks the answer back.</p></div>
-          <Link href="/dashboard" style={{ color: '#9EF0CF', textDecoration: 'none', fontWeight: 900 }}>← Command Center</Link>
+    <main className="avatar-room">
+      <div className="avatar-room-shell">
+        <header className="avatar-room-header">
+          <div>
+            <div className="avatar-room-brand">ARIDON</div>
+            <h1>Hands-Free Executive Room</h1>
+            <p>Choose an executive, speak naturally, and hear the answer out loud. Hands-Free automatically listens again after each spoken response.</p>
+          </div>
+          <div className="avatar-room-header-actions">
+            <button className={`handsfree-toggle ${handsFree ? 'on' : ''}`} onClick={toggleHandsFree}>
+              {handsFree ? '🎙 Hands-Free On' : '🎙 Start Hands-Free'}
+            </button>
+            <button
+              className={`voice-toggle ${voiceEnabled ? 'on' : ''}`}
+              onClick={() => {
+                if (voiceEnabled) stopSpeaking();
+                setVoiceEnabled((enabled) => !enabled);
+              }}
+            >
+              {voiceEnabled ? '🔊 Voice On' : '🔇 Voice Off'}
+            </button>
+            <Link href="/" className="avatar-back-link">← Dashboard</Link>
+          </div>
         </header>
 
-        <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(280px,420px)', gap: 14 }}>
-          <div style={panel}>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ width: 140, height: 140, borderRadius: 22, overflow: 'hidden', border: `2px solid ${selected.color}`, background: '#102033' }}><img src={selected.avatar} alt={selected.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
-              <div style={{ flex: 1, minWidth: 220 }}><div style={{ color: '#66D9EF', fontSize: 11, fontWeight: 950 }}>{status}</div><h2 style={{ fontSize: 32, margin: '5px 0' }}>{selected.name}</h2><div style={{ color: '#AAB9CA', fontWeight: 800 }}>{selected.role}</div><p style={{ color: '#AAB9CA', lineHeight: 1.5 }}>{selected.tagline}</p></div>
+        <section className="avatar-stage">
+          <div className={`avatar-feature ${isSelectedSpeaking ? 'is-speaking' : ''}`}>
+            <div className="avatar-feature-image-wrap" style={{ '--avatar-color': selected.color } as React.CSSProperties}>
+              <img
+                src={selected.avatar}
+                alt={`${selected.name}, ${selected.role}`}
+                className="avatar-feature-image"
+                style={{ transform: isSelectedSpeaking ? `scale(${1.006 + (speechBeat % 3) * 0.003}) translateY(${speechBeat % 2 ? '-1px' : '1px'})` : 'scale(1)' }}
+              />
+              <div className="avatar-speaking-ring" />
+              <div className="avatar-wave" aria-hidden="true"><span /><span /><span /><span /><span /></div>
+              {isSelectedSpeaking && <div className="avatar-speaking-label">Speaking</div>}
             </div>
-
-            <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', marginTop: 18 }}>
-              <button onClick={() => void startListening(true)} disabled={listening || transcribing || thinking || speaking} style={{ ...button, background: listening ? '#FFC857' : '#9EF0CF', color: '#07130F' }}>{listening ? '🎙 Listening…' : transcribing ? 'Transcribing…' : '🎙 Speak to Eva'}</button>
-              <button onClick={toggleHandsFree} disabled={thinking || transcribing} style={{ ...button, background: handsFree ? '#66D9EF' : '#14253A', color: handsFree ? '#04202A' : '#F8FAFC' }}>{handsFree ? 'Hands-Free On' : 'Start Hands-Free'}</button>
-              <button onClick={stopAll} style={{ ...button, background: '#14253A', color: '#F8FAFC' }}>Stop</button>
+            <div className="avatar-feature-copy">
+              <div className="avatar-online">● Online</div>
+              <h2>{selected.name}</h2>
+              <div className="avatar-role">{selected.role}</div>
+              <p>{selected.tagline}</p>
+              <div className="avatar-expertise">
+                {selected.expertise.map((item) => <span key={item}>{item}</span>)}
+              </div>
+              <div className="avatar-feature-actions">
+                <button className="avatar-primary" onClick={() => selectAndIntroduce(selected)}>▶ Hear {selected.name}</button>
+                <button className={`avatar-mic ${listening ? 'listening' : ''}`} onClick={() => startListening(false)}>
+                  {listening ? 'Listening…' : '🎙 Dictate'}
+                </button>
+                <button className="avatar-secondary" onClick={() => { stopSpeaking(); stopListening(); }}>■ Stop</button>
+              </div>
             </div>
-
-            {lastHeard && <div style={{ marginTop: 15, padding: 13, borderRadius: 13, background: '#071A26', border: '1px solid #31566D' }}><div style={{ color: '#66D9EF', fontSize: 10, fontWeight: 950 }}>WHAT EVA HEARD</div><div style={{ marginTop: 6, lineHeight: 1.5 }}>{lastHeard}</div></div>}
-
-            <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="You can also type a request here…" style={{ width: '100%', minHeight: 110, marginTop: 15, borderRadius: 13, border: '1px solid #294058', background: '#07111D', color: '#F8FAFC', padding: 13, font: 'inherit', resize: 'vertical' }} />
-            <button onClick={() => void askExecutive()} disabled={!input.trim() || thinking || transcribing} style={{ ...button, marginTop: 9, background: '#66D9EF', color: '#04202A' }}>Send Typed Request</button>
-
-            <div aria-live="polite" style={{ marginTop: 15, minHeight: 90, padding: 15, borderRadius: 14, background: '#0A1624', border: '1px solid #20344A', color: '#DCE6F1', lineHeight: 1.6 }}>{reply || 'Tap Speak to Eva, talk normally, then pause. The “What Eva Heard” box will show the transcript before her answer.'}</div>
-            {!micAvailable && <div style={{ marginTop: 10, color: '#FFC857', fontWeight: 800 }}>The browser is not exposing microphone input. Open Aridon in Chrome on Android or type the request.</div>}
           </div>
 
-          <aside style={panel}>
-            <div style={{ color: '#9EF0CF', fontSize: 10, fontWeight: 950, letterSpacing: '.12em' }}>AI EXECUTIVE TEAM</div>
-            <div style={{ display: 'grid', gap: 7, marginTop: 10 }}>
-              {executives.map((executive) => <button key={executive.id} onClick={() => { stopAll(); setSelectedName(executive.name); setReply(`${executive.name} selected. Tap Speak when you are ready.`); }} style={{ display: 'grid', gridTemplateColumns: '42px 1fr', gap: 10, alignItems: 'center', textAlign: 'left', borderRadius: 12, border: executive.name === selected.name ? `1px solid ${executive.color}` : '1px solid #20344A', background: executive.name === selected.name ? '#10243A' : '#091522', color: '#F8FAFC', padding: 8, cursor: 'pointer' }}><img src={executive.avatar} alt="" style={{ width: 42, height: 42, borderRadius: 10, objectFit: 'cover' }} /><span><strong style={{ display: 'block', fontSize: 13 }}>{executive.name}</strong><span style={{ color: '#8EA2B8', fontSize: 10 }}>{executive.abbr}</span></span></button>)}
+          <div className="avatar-conversation">
+            <div className="avatar-conversation-head">
+              <div>
+                <h3>Talk with {selected.name}</h3>
+                <p>{handsFree ? 'Hands-Free loop active: listen → answer → speak → listen again.' : 'Type, dictate, or turn on Hands-Free.'}</p>
+              </div>
+              <div className={`voice-status ${listening ? 'listening' : isSelectedSpeaking ? 'speaking' : handsFree ? 'ready' : ''}`}>
+                {listening ? '● Listening' : isSelectedSpeaking ? '● Speaking' : handsFree ? '● Ready' : '● Manual'}
+              </div>
             </div>
-          </aside>
+            <textarea
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              placeholder={`Ask ${selected.name} about Aridon, AWG-1000, finance, strategy, engineering, risk, revenue, or outreach…`}
+              onKeyDown={(event) => {
+                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') void askExecutive();
+              }}
+            />
+            <button className="avatar-primary avatar-ask" onClick={() => void askExecutive()} disabled={busy || !input.trim()}>
+              {busy ? `${selected.name} is thinking…` : `Ask ${selected.name} and Speak Answer`}
+            </button>
+            <div className="avatar-reply" aria-live="polite">
+              {reply || `Tap “Hear ${selected.name}” for an introduction, dictate one question, or turn on Hands-Free.`}
+            </div>
+            {!speechSupported && <div className="avatar-browser-note">This browser does not expose speech synthesis. Written answers will still work.</div>}
+            {!recognitionSupported && <div className="avatar-browser-note">This browser does not expose speech recognition. Spoken answers still work, but voice input needs a supported browser.</div>}
+            <div className="avatar-sync-note">Portrait motion is synchronized to browser speech events. The restored code does not claim phoneme-level mouth reshaping from a static photo.</div>
+          </div>
+        </section>
+
+        <section className="avatar-grid" aria-label="Aridon executive avatars">
+          {executives.map((executive) => {
+            const active = executive.name === selected.name;
+            const speaking = executive.name === speakingName;
+            return (
+              <button
+                key={executive.id}
+                className={`avatar-card ${active ? 'active' : ''} ${speaking ? 'is-speaking' : ''}`}
+                style={{ '--avatar-color': executive.color } as React.CSSProperties}
+                onClick={() => selectAndIntroduce(executive)}
+              >
+                <div className="avatar-card-image-wrap">
+                  <img src={executive.avatar} alt="" className="avatar-card-image" />
+                  <div className="avatar-card-wave" aria-hidden="true"><span /><span /><span /></div>
+                </div>
+                <div className="avatar-card-copy">
+                  <strong>{executive.name}</strong>
+                  <span>{executive.abbr} · {executive.role}</span>
+                  <small>{speaking ? 'Speaking now' : active && listening ? 'Listening now' : 'Tap to talk'}</small>
+                </div>
+              </button>
+            );
+          })}
         </section>
       </div>
     </main>
   );
 }
-
-const panel = { background: 'linear-gradient(180deg,#0E1D2E,#081420)', border: '1px solid #20344A', borderRadius: 20, padding: 18, boxShadow: '0 18px 50px rgba(0,0,0,.24)' } as const;
-const button = { border: '1px solid #294058', borderRadius: 11, padding: '11px 15px', fontWeight: 950, cursor: 'pointer' } as const;
