@@ -74,6 +74,8 @@ export default function TalkingAvatarsPage() {
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const handsFreeRef = useRef(false);
   const busyRef = useRef(false);
+  const speakingRef = useRef(false);
+  const restartTimerRef = useRef<number | null>(null);
 
   const selected = useMemo(
     () => executives.find((executive) => executive.name === selectedName) ?? executives[0],
@@ -91,6 +93,7 @@ export default function TalkingAvatarsPage() {
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
       try { recognitionRef.current?.abort?.(); } catch {}
       try { recognitionRef.current?.stop(); } catch {}
+      if (restartTimerRef.current) window.clearTimeout(restartTimerRef.current);
     };
   }, []);
 
@@ -103,13 +106,16 @@ export default function TalkingAvatarsPage() {
 
   function stopSpeaking() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    speakingRef.current = false;
     setSpeakingName('');
   }
 
   function resumeHandsFree(delay = 450) {
-    if (!handsFreeRef.current || busyRef.current) return;
-    window.setTimeout(() => {
-      if (handsFreeRef.current && !busyRef.current) startListening(true);
+    if (!handsFreeRef.current || busyRef.current || speakingRef.current) return;
+    if (restartTimerRef.current) window.clearTimeout(restartTimerRef.current);
+    restartTimerRef.current = window.setTimeout(() => {
+      restartTimerRef.current = null;
+      if (handsFreeRef.current && !busyRef.current && !speakingRef.current && !recognitionRef.current) startListening(true);
     }, delay);
   }
 
@@ -130,13 +136,18 @@ export default function TalkingAvatarsPage() {
     utterance.rate = settings.rate;
     utterance.pitch = settings.pitch;
     utterance.volume = 1;
-    utterance.onstart = () => setSpeakingName(executive.name);
+    utterance.onstart = () => {
+      speakingRef.current = true;
+      setSpeakingName(executive.name);
+    };
     utterance.onboundary = () => setSpeechBeat((beat) => beat + 1);
     utterance.onend = () => {
+      speakingRef.current = false;
       setSpeakingName('');
       resumeHandsFree(350);
     };
     utterance.onerror = () => {
+      speakingRef.current = false;
       setSpeakingName('');
       resumeHandsFree(500);
     };
@@ -152,7 +163,8 @@ export default function TalkingAvatarsPage() {
   }
 
   function startListening(autoSend = false) {
-    if (busyRef.current || speakingName) return;
+    if (!handsFreeRef.current && autoSend) return;
+    if (busyRef.current || speakingRef.current || recognitionRef.current) return;
     const SpeechRecognitionConstructor =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
@@ -189,7 +201,8 @@ export default function TalkingAvatarsPage() {
     };
     recognition.onend = () => {
       setListening(false);
-      recognitionRef.current = null;
+      if (recognitionRef.current === recognition) recognitionRef.current = null;
+      if (handsFreeRef.current && !busyRef.current && !speakingRef.current) resumeHandsFree(500);
     };
     recognitionRef.current = recognition;
     try {
@@ -250,7 +263,7 @@ export default function TalkingAvatarsPage() {
     }
     stopSpeaking();
     setReply(`Hands-Free is on. I am listening for your question to ${selected.name}.`);
-    startListening(true);
+    window.setTimeout(() => startListening(true), 80);
   }
 
   const isSelectedSpeaking = speakingName === selected.name;
