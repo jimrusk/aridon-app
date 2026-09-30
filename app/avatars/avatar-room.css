@@ -16,6 +16,19 @@
 .avatar-feature-image-wrap{position:relative;aspect-ratio:1/1;border-radius:26px;padding:4px;background:linear-gradient(145deg,var(--avatar-color),#243455 55%,#070a10);overflow:hidden;box-shadow:0 0 42px color-mix(in srgb,var(--avatar-color) 38%,transparent)}
 .avatar-feature-image{width:100%;height:100%;object-fit:cover;border-radius:22px;display:block;transition:transform .11s ease-out,filter .25s ease}
 .is-speaking .avatar-feature-image{filter:saturate(1.05) brightness(1.03)}
+
+.avatar-live-portrait{position:relative;width:100%;height:100%;overflow:hidden;border-radius:22px;transform-origin:50% 72%}
+.avatar-live-portrait.talking{animation:avatarHeadTalk .42s ease-in-out infinite alternate}
+.avatar-live-portrait.talking .avatar-feature-image{animation:avatarFaceTalk .28s ease-in-out infinite alternate}
+.avatar-mouth-motion{position:absolute;z-index:4;left:50%;top:65%;width:15%;height:9%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;filter:drop-shadow(0 1px 1px rgba(0,0,0,.55));pointer-events:none}
+.avatar-mouth-motion .mouth-upper,.avatar-mouth-motion .mouth-lower{display:block;width:72%;height:2px;border-radius:999px;background:rgba(70,28,28,.72)}
+.avatar-mouth-motion .mouth-opening{display:block;width:64%;height:4px;margin:1px 0;border-radius:50%;background:rgba(30,8,10,.88);animation:avatarMouthOpen .18s ease-in-out infinite alternate}
+.avatar-mouth-motion .mouth-lower{animation:avatarMouthLower .18s ease-in-out infinite alternate}
+@keyframes avatarHeadTalk{0%{transform:translateY(0) rotate(-.18deg) scale(1.002)}100%{transform:translateY(-2px) rotate(.18deg) scale(1.01)}}
+@keyframes avatarFaceTalk{0%{transform:scale(1.002) translateY(0)}100%{transform:scale(1.012) translateY(-1px)}}
+@keyframes avatarMouthOpen{0%{height:2px;transform:scaleX(.78)}35%{height:7px;transform:scaleX(1.04)}70%{height:4px;transform:scaleX(.9)}100%{height:10px;transform:scaleX(1.1)}}
+@keyframes avatarMouthLower{0%{transform:translateY(0)}100%{transform:translateY(4px)}}
+
 .avatar-speaking-ring{position:absolute;inset:3px;border:2px solid transparent;border-radius:24px;pointer-events:none}
 .is-speaking .avatar-speaking-ring{border-color:var(--avatar-color);animation:avatarPulse 1.2s infinite}
 .avatar-wave,.avatar-card-wave{position:absolute;left:50%;bottom:13px;transform:translateX(-50%);display:flex;align-items:flex-end;gap:4px;height:28px;padding:6px 10px;border-radius:999px;background:rgba(4,7,13,.74);opacity:0}
