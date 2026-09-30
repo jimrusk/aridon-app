@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { executives } from '../../lib/executives';
 
+type DidConfig = { configured: boolean; agentId: string | null; clientKey: string | null };
+
 type Executive = (typeof executives)[number];
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
@@ -77,6 +79,9 @@ export default function TalkingAvatarsPage() {
   const speakingRef = useRef(false);
   const restartTimerRef = useRef<number | null>(null);
   const bargeInRef = useRef<BrowserSpeechRecognition | null>(null);
+  const didManagerRef = useRef<any>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [didReady, setDidReady] = useState(false);
 
   const selected = useMemo(
     () => executives.find((executive) => executive.name === selectedName) ?? executives[0],
@@ -91,12 +96,46 @@ export default function TalkingAvatarsPage() {
 
     return () => {
       handsFreeRef.current = false;
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+      if (didManagerRef.current?.interrupt) void didManagerRef.current.interrupt().catch(() => undefined);
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
       try { recognitionRef.current?.abort?.(); } catch {}
       try { recognitionRef.current?.stop(); } catch {}
       if (restartTimerRef.current) window.clearTimeout(restartTimerRef.current);
       try { bargeInRef.current?.abort?.(); } catch {}
       try { bargeInRef.current?.stop(); } catch {}
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let manager: any = null;
+    async function connectLipSyncAvatar() {
+      try {
+        const response = await fetch('/api/creator-teacher/digital-human', { cache: 'no-store' });
+        const config = (await response.json()) as DidConfig;
+        if (cancelled || !response.ok || !config.configured || !config.agentId || !config.clientKey) return;
+        const sdk: any = await import('@d-id/client-sdk');
+        manager = await sdk.createAgentManager(config.agentId, {
+          auth: { type: 'key', clientKey: config.clientKey },
+          callbacks: {
+            onSrcObjectReady(stream: MediaStream) { if (videoRef.current) videoRef.current.srcObject = stream; },
+            onConnectionStateChange(state: string) {
+              if (!cancelled && String(state || '').toLowerCase().includes('connect')) setDidReady(true);
+            },
+            onError(error: unknown) { console.error('Executive live avatar error', error); },
+          },
+          streamOptions: { compatibilityMode: 'auto', streamWarmup: true },
+        });
+        didManagerRef.current = manager;
+        await manager.connect();
+        if (!cancelled) setDidReady(true);
+      } catch (error) { console.error('Executive lip-sync avatar unavailable', error); }
+    }
+    void connectLipSyncAvatar();
+    return () => {
+      cancelled = true;
+      if (manager?.disconnect) void manager.disconnect().catch(() => undefined);
+      didManagerRef.current = null;
     };
   }, []);
 
@@ -161,6 +200,22 @@ export default function TalkingAvatarsPage() {
     }
 
     stopListening();
+    if (didReady && didManagerRef.current?.speak) {
+      speakingRef.current = true;
+      setSpeakingName(executive.name);
+      listenForStopWhileSpeaking();
+      try {
+        await didManagerRef.current.speak({ type: 'text', input: text.trim().slice(0, 3800), sentiment: 'friendly' });
+      } finally {
+        speakingRef.current = false;
+        try { bargeInRef.current?.abort?.(); } catch {}
+        bargeInRef.current = null;
+        setSpeakingName('');
+        resumeHandsFree(300);
+      }
+      return;
+    }
+    if (!speechSupported) { resumeHandsFree(); return; }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     const voices = window.speechSynthesis.getVoices();
@@ -337,21 +392,13 @@ export default function TalkingAvatarsPage() {
         <section className="avatar-stage">
           <div className={`avatar-feature ${isSelectedSpeaking ? 'is-speaking' : ''}`}>
             <div className="avatar-feature-image-wrap" style={{ '--avatar-color': selected.color } as React.CSSProperties}>
-              <div className={`avatar-live-portrait ${isSelectedSpeaking ? 'talking' : ''}`}>
-                <img
-                  src={selected.avatar}
-                  alt={`${selected.name}, ${selected.role}`}
-                  className="avatar-feature-image"
-                />
-                <div className="avatar-head-motion" aria-hidden="true" />
-                {isSelectedSpeaking && (
-                  <div className="avatar-mouth-motion" aria-hidden="true">
-                    <span className="mouth-upper" />
-                    <span className="mouth-opening" />
-                    <span className="mouth-lower" />
-                  </div>
-                )}
-              </div>
+              {didReady ? (
+                <video ref={videoRef} autoPlay playsInline className="avatar-feature-image avatar-live-video" aria-label={`Live lip-synced ${selected.name} avatar`} />
+              ) : (
+                <div className="avatar-live-portrait">
+                  <img src={selected.avatar} alt={`${selected.name}, ${selected.role}`} className="avatar-feature-image" />
+                </div>
+              )}
               <div className="avatar-speaking-ring" />
               <div className="avatar-wave" aria-hidden="true"><span /><span /><span /><span /><span /></div>
               {isSelectedSpeaking && <div className="avatar-speaking-label">Speaking</div>}
