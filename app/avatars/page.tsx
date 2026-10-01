@@ -193,7 +193,7 @@ export default function TalkingAvatarsPage() {
     try { recognition.start(); } catch { bargeInRef.current = null; }
   }
 
-  function speak(executive: Executive, text: string) {
+  async function speak(executive: Executive, text: string) {
     if (!voiceEnabled || !speechSupported || !text.trim()) {
       resumeHandsFree();
       return;
