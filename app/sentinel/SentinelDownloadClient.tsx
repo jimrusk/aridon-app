@@ -34,7 +34,7 @@ const T: Record<Lang, Record<string, string>> = {
       'Sentinel for Windows — install it, tap Protect, done. Same protection as the phone app.',
     windowsBtn: 'Download for Windows',
     windowsNote:
-      'Windows may show a SmartScreen warning on first install — the installer isn\u2019t signed yet. Click \u201CMore info\u201D \u2192 \u201CRun anyway\u201D.',
+      'This downloads a small setup file — it fetches the rest automatically. Windows may show a SmartScreen warning on first install — the installer isn\u2019t signed yet. Click \u201CMore info\u201D \u2192 \u201CRun anyway\u201D.',
     macTitle: 'Mac computer',
     macDesc:
       'The Mac app is still being built — it needs Apple\u2019s build tools, same as the iPhone app.',
@@ -61,7 +61,7 @@ const T: Record<Lang, Record<string, string>> = {
       'Sentinel para Windows — instálelo, toque Proteger, listo. La misma protección que en el teléfono.',
     windowsBtn: 'Descargar para Windows',
     windowsNote:
-      'Windows puede mostrar una advertencia de SmartScreen la primera vez — el instalador aún no está firmado. Haga clic en \u201CMás información\u201D \u2192 \u201CEjecutar de todos modos\u201D.',
+      'Esto descarga un pequeño instalador — el resto se descarga solo. Windows puede mostrar una advertencia de SmartScreen la primera vez — el instalador aún no está firmado. Haga clic en \u201CMás información\u201D \u2192 \u201CEjecutar de todos modos\u201D.',
     macTitle: 'Computadora Mac',
     macDesc:
       'La app para Mac aún está en desarrollo — necesita las herramientas de Apple, igual que la app de iPhone.',
@@ -88,7 +88,7 @@ const T: Record<Lang, Record<string, string>> = {
       'Sentinel pour Windows — installez, touchez Protéger, c\u2019est tout. La même protection que sur téléphone.',
     windowsBtn: 'Télécharger pour Windows',
     windowsNote:
-      'Windows peut afficher un avertissement SmartScreen à la première installation — le programme d\u2019installation n\u2019est pas encore signé. Cliquez sur \u201CInformations complémentaires\u201D \u2192 \u201CExécuter quand même\u201D.',
+      'Ceci télécharge un petit programme d\u2019installation — le reste suit automatiquement. Windows peut afficher un avertissement SmartScreen à la première installation — le programme d\u2019installation n\u2019est pas encore signé. Cliquez sur \u201CInformations complémentaires\u201D \u2192 \u201CExécuter quand même\u201D.',
     macTitle: 'Ordinateur Mac',
     macDesc:
       'L\u2019appli Mac est encore en développement — elle nécessite les outils d\u2019Apple, comme l\u2019appli iPhone.',
@@ -115,7 +115,7 @@ const T: Record<Lang, Record<string, string>> = {
       'Sentinel für Windows — installieren, auf Schützen tippen, fertig. Derselbe Schutz wie auf dem Handy.',
     windowsBtn: 'Für Windows laden',
     windowsNote:
-      'Windows zeigt bei der ersten Installation evtl. eine SmartScreen-Warnung — das Installationsprogramm ist noch nicht signiert. Klicken Sie auf \u201CWeitere Informationen\u201D \u2192 \u201CTrotzdem ausführen\u201D.',
+      'Dies lädt ein kleines Setup-Programm — der Rest folgt automatisch. Windows zeigt bei der ersten Installation evtl. eine SmartScreen-Warnung — das Installationsprogramm ist noch nicht signiert. Klicken Sie auf \u201CWeitere Informationen\u201D \u2192 \u201CTrotzdem ausführen\u201D.',
     macTitle: 'Mac-Computer',
     macDesc:
       'Die Mac-App ist noch in Arbeit — sie braucht Apples Build-Tools, genau wie die iPhone-App.',
@@ -142,7 +142,7 @@ const T: Record<Lang, Record<string, string>> = {
       'Sentinel para Windows — instale, toque em Proteger, pronto. A mesma proteção do celular.',
     windowsBtn: 'Baixar para Windows',
     windowsNote:
-      'O Windows pode mostrar um aviso do SmartScreen na primeira instalação — o instalador ainda não é assinado. Clique em \u201CMais informações\u201D \u2192 \u201CExecutar assim mesmo\u201D.',
+      'Isto baixa um pequeno instalador — o resto vem automaticamente. O Windows pode mostrar um aviso do SmartScreen na primeira instalação — o instalador ainda não é assinado. Clique em \u201CMais informações\u201D \u2192 \u201CExecutar assim mesmo\u201D.',
     macTitle: 'Computador Mac',
     macDesc:
       'O app para Mac ainda está em desenvolvimento — precisa das ferramentas da Apple, como o app de iPhone.',
@@ -165,7 +165,7 @@ const T: Record<Lang, Record<string, string>> = {
     windowsDesc: 'Windows 版 Sentinel——安装后点击“保护”即可，与手机版同样的防护。',
     windowsBtn: '下载 Windows 版',
     windowsNote:
-      '首次安装时 Windows 可能显示 SmartScreen 警告——安装程序尚未签名。请点击“更多信息”→“仍要运行”。',
+      '这会先下载一个小型安装程序——其余部分会自动下载。首次安装时 Windows 可能显示 SmartScreen 警告——安装程序尚未签名。请点击“更多信息”→“仍要运行”。',
     macTitle: 'Mac 电脑',
     macDesc: 'Mac 版仍在开发中——需要苹果构建工具，与 iPhone 版相同。',
     footerA: 'Sentinel 只拦截您指定的内容，绝不触碰您的银行或邮件。请阅读',
@@ -288,7 +288,7 @@ export default function SentinelDownloadClient() {
               {t.windowsDesc}
             </p>
             <a
-              href="https://github.com/jimrusk/aridon-app/releases/download/sentinel-desktop-v1.0.0/Sentinel-Setup-1.0.0.exe"
+              href="/sentinel-desktop/SentinelWebSetup-1.0.0.exe"
               style={btn}
             >
               {t.windowsBtn}
