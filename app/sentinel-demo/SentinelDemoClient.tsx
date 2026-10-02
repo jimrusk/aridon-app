@@ -257,6 +257,9 @@ export default function SentinelDemoClient() {
       <div className="hero">
         <div>
           <h1 className="h1">Sentinel — live demo</h1>
+          <p className="tagline" style={{ fontSize: 18, fontWeight: 600, margin: '4px 0 8px' }}>
+            Pre-security for AI agents.
+          </p>
           <p className="sub">
             Attack it. One click runs all eighteen scenarios through Sentinel&apos;s real
             pre-execution decision engine and its treasury firewall, and every decision
