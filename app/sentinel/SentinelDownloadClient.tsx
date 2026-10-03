@@ -17,6 +17,10 @@ const LANGS: { code: Lang; label: string }[] = [
 const T: Record<Lang, Record<string, string>> = {
   en: {
     kicker: 'SENTINEL — PRE-SECURITY FOR AI AGENTS',
+    briefTitle: 'WHY PRE-SECURITY, WHY NOW',
+    briefText:
+      'Rogue AI agents made October 2026 the loudest month in agent security yet. Read our trends brief.',
+    briefCta: 'Read the October 2026 brief',
     title: 'Get Sentinel',
     subtitle:
       'One tap. Protected. Pick your device below — no account, no subscription, nothing leaves your device.',
@@ -44,6 +48,10 @@ const T: Record<Lang, Record<string, string>> = {
   },
   es: {
     kicker: 'SENTINEL — PRE-SEGURIDAD PARA AGENTES DE IA',
+    briefTitle: 'POR QUÉ PRE-SEGURIDAD, POR QUÉ AHORA',
+    briefText:
+      'Los agentes de IA fuera de control convirtieron octubre de 2026 en el mes más ruidoso de la seguridad de agentes. Lea nuestro informe de tendencias.',
+    briefCta: 'Leer el informe de octubre 2026',
     title: 'Obtener Sentinel',
     subtitle:
       'Un toque. Protegido. Elija su dispositivo — sin cuenta, sin suscripción, nada sale de su dispositivo.',
@@ -71,6 +79,10 @@ const T: Record<Lang, Record<string, string>> = {
   },
   fr: {
     kicker: 'SENTINEL — PRÉ-SÉCURITÉ POUR AGENTS IA',
+    briefTitle: 'POURQUOI LA PRÉ-SÉCURITÉ, POURQUOI MAINTENANT',
+    briefText:
+      "Les agents IA hors de contrôle ont fait d'octobre 2026 le mois le plus marquant de la sécurité des agents. Lisez notre dossier tendances.",
+    briefCta: "Lire le dossier d'octobre 2026",
     title: 'Télécharger Sentinel',
     subtitle:
       'Un toucher. Protégé. Choisissez votre appareil — sans compte, sans abonnement, rien ne quitte votre appareil.',
@@ -98,6 +110,10 @@ const T: Record<Lang, Record<string, string>> = {
   },
   de: {
     kicker: 'SENTINEL — PRE-SECURITY FÜR KI-AGENTEN',
+    briefTitle: 'WARUM PRE-SECURITY, WARUM JETZT',
+    briefText:
+      'Außer Kontrolle geratene KI-Agenten machten den Oktober 2026 zum lautesten Monat der Agenten-Sicherheit. Lesen Sie unser Trend-Briefing.',
+    briefCta: 'Briefing Oktober 2026 lesen',
     title: 'Sentinel holen',
     subtitle:
       'Ein Tipp. Geschützt. Wählen Sie Ihr Gerät — kein Konto, kein Abo, nichts verlässt Ihr Gerät.',
@@ -125,6 +141,10 @@ const T: Record<Lang, Record<string, string>> = {
   },
   pt: {
     kicker: 'SENTINEL — PRÉ-SEGURANÇA PARA AGENTES DE IA',
+    briefTitle: 'POR QUE PRÉ-SEGURANÇA, POR QUE AGORA',
+    briefText:
+      'Agentes de IA fora de controle fizeram de outubro de 2026 o mês mais marcante da segurança de agentes. Leia nosso informe de tendências.',
+    briefCta: 'Ler o informe de outubro de 2026',
     title: 'Baixar o Sentinel',
     subtitle:
       'Um toque. Protegido. Escolha seu dispositivo — sem conta, sem assinatura, nada sai do seu dispositivo.',
@@ -152,6 +172,10 @@ const T: Record<Lang, Record<string, string>> = {
   },
   zh: {
     kicker: 'SENTINEL — AI 智能体的预安全防护',
+    briefTitle: '为什么是预安全，为什么是现在',
+    briefText:
+      '失控的 AI 智能体让 2026 年 10 月成为智能体安全最受关注的一个月。阅读我们的趋势简报。',
+    briefCta: '阅读2026年10月简报',
     title: '获取 Sentinel',
     subtitle: '一键开启，全面保护。选择您的设备——无需账户，无需订阅，数据不出设备。',
     language: '语言：',
@@ -259,6 +283,38 @@ export default function SentinelDownloadClient() {
         <p style={{ color: '#B8C4D5', fontSize: 18, margin: '0 0 40px', maxWidth: 640 }}>
           {t.subtitle}
         </p>
+
+        <a
+          href="https://muse.ai/s/sentinel-security-trends-brief-cxf66glxj5xfxs2"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'block',
+            textDecoration: 'none',
+            margin: '0 0 40px',
+            padding: '20px 24px',
+            borderRadius: 12,
+            border: '1px solid #1E3A5F',
+            background: '#0E1E33',
+            maxWidth: 640,
+          }}
+        >
+          <div
+            style={{
+              color: '#ffb45e',
+              fontWeight: 800,
+              fontSize: 13,
+              letterSpacing: 2,
+              marginBottom: 8,
+            }}
+          >
+            {t.briefTitle}
+          </div>
+          <p style={{ color: '#B8C4D5', fontSize: 15, margin: '0 0 12px', lineHeight: 1.5 }}>
+            {t.briefText}
+          </p>
+          <span style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>{t.briefCta} →</span>
+        </a>
 
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           <div style={card}>
