@@ -91,6 +91,39 @@ export default function CapitalFitPage(){
       <article style={{background:'#fff',border:'1px solid #d7dfd4',borderRadius:22,padding:24}}><div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'start'}}><div><div style={{fontSize:12,color:'#397048',fontWeight:950}}>REGENERATIVE RISK RECORD</div><h2 style={{fontSize:30,margin:'7px 0'}}>Current underwriting signal</h2></div><ShieldCheck size={30} color="#397048"/></div><div style={{fontSize:74,fontWeight:950,lineHeight:1,marginTop:8}}>{riskScore}<span style={{fontSize:22,color:'#6a776d'}}>/100</span></div><div style={{fontWeight:900,color:riskScore>=82?'#2b6b3e':'#7b651d',marginTop:8}}>{riskBand}</div><p style={{color:'#59665e',lineHeight:1.5}}>Prototype score only. It organizes evidence for lender, insurer and investor review. It does not replace their underwriting.</p><button onClick={()=>setVerified(v=>!v)} style={{border:'1px solid #397048',background:verified?'#e6f2df':'#fff',color:'#235f35',borderRadius:10,padding:'10px 12px',fontWeight:900,cursor:'pointer'}}>{verified?'Verification attached':'Attach verification'}</button></article>
     </section>
 
+    <section style={{maxWidth:1220,margin:'auto',padding:'0 18px 26px'}}>
+      <article style={{background:'#fff',border:'2px solid #173f2c',borderRadius:22,padding:24}}>
+        <div style={{fontSize:12,fontWeight:950,color:'#397048'}}>INVESTOR ANSWER PAGE</div>
+        <h2 style={{fontSize:'clamp(32px,5vw,48px)',margin:'7px 0 8px'}}>Can an investor understand the deal in five minutes?</h2>
+        <p style={{color:'#59665e',lineHeight:1.6,maxWidth:900}}>Capital Fit now puts the decision questions first: capital need, use, return, repayment, protection, market proof, evidence, downside and exit. Missing evidence is shown as a funding blocker instead of being hidden inside a score.</p>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:12,marginTop:18}}>
+          {[
+            ['Capital requested',money(investment),'DOCUMENTED'],
+            ['Use of funds','Transition + infrastructure + operating plan','DOCUMENTED'],
+            ['Expected cash yield',annualCashYield.toFixed(1)+'% / year','ESTIMATED'],
+            ['Repayment / exit',holdYears+'-year hold; modeled refinance / exit','ESTIMATED'],
+            ['Capital protection',catalyticPct+'% catalytic layer + underwriting record','DOCUMENTED'],
+            ['Market proof','Buyer / offtake evidence required','MISSING'],
+            ['Downside case',riskBand+'; scenario evidence required','ESTIMATED'],
+            ['Verification',verified?'Verification attached':'Independent verification required',verified?'VERIFIED':'MISSING']
+          ].map(([k,v,status])=><div key={k} style={{background:'#f6f7f2',border:'1px solid #d7dfd4',borderRadius:14,padding:15}}><div style={{fontSize:11,fontWeight:950,color:'#667269'}}>{k.toUpperCase()}</div><div style={{fontSize:19,fontWeight:950,margin:'7px 0 10px'}}>{v}</div><span style={{fontSize:10,fontWeight:950,padding:'5px 8px',borderRadius:999,background:status==='MISSING'?'#f8e1dc':status==='VERIFIED'?'#e3f0dc':'#ecebe3',color:status==='MISSING'?'#8a3027':'#315b3b'}}>{status}</span></div>)}
+        </div>
+        <div style={{marginTop:18,display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10}}>
+          {[
+            ['Evidence Ready',verified?86:62],
+            ['Credit Ready',Math.min(96,Math.round(riskScore*.92))],
+            ['Market Ready',58],
+            ['Impact Ready',verified?82:64],
+            ['Exit Ready',Math.min(94,Math.round(60+holdYears+terminalMultiple*8))]
+          ].map(([name,score]:any)=><div key={name} style={{border:'1px solid #d7dfd4',borderRadius:13,padding:13}}><div style={{fontSize:12,fontWeight:950}}>{name}</div><div style={{fontSize:30,fontWeight:950,marginTop:5}}>{score}<span style={{fontSize:12,color:'#6a776d'}}>/100</span></div></div>)}
+        </div>
+        <div style={{marginTop:18,background:'#fff1ec',border:'1px solid #e7c1b7',borderRadius:14,padding:15}}>
+          <strong style={{color:'#7d3027'}}>NOT YET INVESTMENT READY</strong>
+          <div style={{marginTop:6,color:'#654943',lineHeight:1.5}}>Required before a green-light recommendation: signed buyer/offtake evidence, complete historical financial statements, transaction-specific downside model, collateral/guarantee record, and a verified refinance or investor-exit pathway.</div>
+        </div>
+      </article>
+    </section>
+
     <section style={{maxWidth:1220,margin:'auto',padding:'0 18px 22px'}}><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(205px,1fr))',gap:12}}>{[
       ['Soil condition + trend',soil,setSoil,<Leaf size={20}/>],['Water efficiency',water,setWater,<Droplets size={20}/>],['Yield stability',yieldStability,setYieldStability,<BarChart3 size={20}/>],['Input efficiency',inputEfficiency,setInputEfficiency,<FlaskConical size={20}/>],['Practice adoption',practice,setPractice,<Sprout size={20}/>]
     ].map(([label,value,setValue,icon]:any)=><article key={label} style={{background:'#fff',border:'1px solid #d7dfd4',borderRadius:16,padding:16}}><div style={{display:'flex',gap:8,alignItems:'center',color:'#397048'}}>{icon}<strong style={{fontSize:12}}>{String(label).toUpperCase()}</strong></div><div style={{fontSize:34,fontWeight:950,margin:'10px 0 4px'}}>{value}</div><input aria-label={label} type="range" min="0" max="100" value={value} onChange={e=>setValue(Number(e.target.value))} style={{width:'100%'}}/></article>)}</div></section>
