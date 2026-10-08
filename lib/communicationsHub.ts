@@ -9,7 +9,7 @@ const EVA_CHANNEL_CONTRACT = `You are Eva, Aridon's enterprise orchestrator. You
 
 export async function askEvaFromChannel(input: InboundCommunication, history: AridonChatMessage[] = []): Promise<EvaCommunicationResult> {
   const messages: AridonChatMessage[] = [...history.slice(-20), { role: 'user', content: `[Channel: ${input.channel}] ${input.text}` }];
-  const result = await routeModel(messages, EVA_CHANNEL_CONTRACT, { mode: 'balanced' });
+  const result = await routeModel(messages, EVA_CHANNEL_CONTRACT, { mode: 'act' });
   return { reply: result.text || 'Eva received the message but did not produce a response.', routing: result.routing };
 }
 
