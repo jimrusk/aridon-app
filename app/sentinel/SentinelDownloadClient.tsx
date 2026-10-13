@@ -23,7 +23,7 @@ const T: Record<Lang, Record<string, string>> = {
     briefCta: 'Read the October 2026 brief',
     scannerTitle: 'NEW — SENTINEL SCANNER, FOR ROBOTS AND SMART DEVICES',
     scannerText:
-      'Some robots ship with trapdoors: hidden tunnels that stream data back to the maker, and wireless controls anyone nearby can seize with no password. In 2026 the Pentagon listed one major maker as a Chinese military company and the FCC banned its new robot models, citing exactly those flaws. Sentinel Scanner audits any robot or device for that whole class of gaps before it is trusted on your network, then blocks the harmful paths and quarantines machines that fail.',
+      'Some robots ship with trapdoors: hidden tunnels that stream data back to the maker, and wireless controls anyone nearby can seize with no password. In 2026 the Pentagon listed one major maker as a Chinese military company and the FCC banned its new robot models, citing exactly those flaws. Sentinel Scanner audits any robot or device for that whole class of gaps before it is trusted on your network, then blocks the harmful paths and quarantines machines that fail. And for the newest threat — self-spreading AI worms hopping between unsecured home devices, which Anthropic warns could arrive within a year — WormShield watches for the moment a device starts spreading and cuts it off with the kill switch. A worm with no off switch meets a network that has one.',
     scannerCta: 'Get a free device scan — part of the free two-week pilot',
     title: 'Get Sentinel',
     subtitle:
@@ -58,7 +58,7 @@ const T: Record<Lang, Record<string, string>> = {
     briefCta: 'Leer el informe de octubre 2026',
     scannerTitle: 'NUEVO — SENTINEL SCANNER, PARA ROBOTS Y DISPOSITIVOS INTELIGENTES',
     scannerText:
-      'Algunos robots vienen con trampas: túneles ocultos que envían datos al fabricante y controles inalámbricos que cualquiera cercano puede tomar sin contraseña. En 2026 el Pentágono declaró a un gran fabricante empresa militar china y la FCC prohibió sus nuevos modelos por exactamente esas fallas. Sentinel Scanner audita cualquier robot o dispositivo en busca de toda esa clase de brechas antes de que entre en su red, bloquea las rutas dañinas y pone en cuarentena las máquinas que no pasan.',
+      'Algunos robots vienen con trampas: túneles ocultos que envían datos al fabricante y controles inalámbricos que cualquiera cercano puede tomar sin contraseña. En 2026 el Pentágono declaró a un gran fabricante empresa militar china y la FCC prohibió sus nuevos modelos por exactamente esas fallas. Sentinel Scanner audita cualquier robot o dispositivo en busca de toda esa clase de brechas antes de que entre en su red, bloquea las rutas dañinas y pone en cuarentena las máquinas que no pasan. Y contra la amenaza más nueva, los gusanos de IA que se propagan solos entre dispositivos domésticos sin seguridad (Anthropic advierte que podrían llegar en menos de un año), WormShield vigila el momento en que un dispositivo empieza a propagarse y lo corta con el interruptor de apagado. Un gusano sin interruptor se encuentra con una red que sí lo tiene.',
     scannerCta: 'Pida un escaneo gratuito — parte del piloto gratuito de dos semanas',
     title: 'Obtener Sentinel',
     subtitle:
@@ -93,7 +93,7 @@ const T: Record<Lang, Record<string, string>> = {
     briefCta: "Lire le dossier d'octobre 2026",
     scannerTitle: 'NOUVEAU — SENTINEL SCANNER, POUR ROBOTS ET APPAREILS CONNECTÉS',
     scannerText:
-      'Certains robots cachent des trappes : des tunnels dissimulés qui envoient des données au fabricant et des commandes sans fil que n\u2019importe qui à proximité peut prendre sans mot de passe. En 2026, le Pentagone a classé un grand fabricant comme entreprise militaire chinoise et la FCC a interdit ses nouveaux modèles pour exactement ces failles. Sentinel Scanner audite tout robot ou appareil pour détecter toute cette classe de failles avant son entrée sur votre réseau, bloque les voies nuisibles et met en quarantaine les machines qui échouent.',
+      'Certains robots cachent des trappes : des tunnels dissimulés qui envoient des données au fabricant et des commandes sans fil que n\u2019importe qui à proximité peut prendre sans mot de passe. En 2026, le Pentagone a classé un grand fabricant comme entreprise militaire chinoise et la FCC a interdit ses nouveaux modèles pour exactement ces failles. Sentinel Scanner audite tout robot ou appareil pour détecter toute cette classe de failles avant son entrée sur votre réseau, bloque les voies nuisibles et met en quarantaine les machines qui échouent. Et contre la menace la plus récente, les vers IA qui se propagent seuls entre appareils domestiques mal sécurisés (Anthropic prévient qu\u2019ils pourraient arriver d\u2019ici un an), WormShield surveille le moment où un appareil commence à se répandre et le coupe avec l\u2019interrupteur d\u2019arrêt. Un ver sans interrupteur rencontre un réseau qui en a un.',
     scannerCta: 'Demandez un scan gratuit — inclus dans le pilote gratuit de deux semaines',
     title: 'Télécharger Sentinel',
     subtitle:
@@ -128,7 +128,7 @@ const T: Record<Lang, Record<string, string>> = {
     briefCta: 'Briefing Oktober 2026 lesen',
     scannerTitle: 'NEU — SENTINEL SCANNER, FÜR ROBOTER UND SMARTE GERÄTE',
     scannerText:
-      'Manche Roboter haben Hintertüren: versteckte Tunnel, die Daten an den Hersteller senden, und Funksteuerungen, die jeder in der Nähe ohne Passwort übernehmen kann. 2026 stufte das Pentagon einen großen Hersteller als chinesisches Militärunternehmen ein, und die FCC verbot seine neuen Modelle — wegen genau dieser Fehler. Sentinel Scanner prüft jeden Roboter und jedes Gerät auf diese gesamte Klasse von Lücken, bevor sie in Ihr Netzwerk dürfen, blockiert die schädlichen Wege und stellt Maschinen unter Quarantäne, die durchfallen.',
+      'Manche Roboter haben Hintertüren: versteckte Tunnel, die Daten an den Hersteller senden, und Funksteuerungen, die jeder in der Nähe ohne Passwort übernehmen kann. 2026 stufte das Pentagon einen großen Hersteller als chinesisches Militärunternehmen ein, und die FCC verbot seine neuen Modelle — wegen genau dieser Fehler. Sentinel Scanner prüft jeden Roboter und jedes Gerät auf diese gesamte Klasse von Lücken, bevor sie in Ihr Netzwerk dürfen, blockiert die schädlichen Wege und stellt Maschinen unter Quarantäne, die durchfallen. Und gegen die neueste Bedrohung, sich selbst verbreitende KI-Würmer, die zwischen ungesicherten Heimgeräten springen (Anthropic warnt: möglicherweise binnen eines Jahres), erkennt WormShield den Moment, in dem ein Gerät zu streuen beginnt, und trennt es per Notausschalter. Ein Wurm ohne Ausschalter trifft auf ein Netzwerk, das einen hat.',
     scannerCta: 'Kostenlosen Geräte-Scan anfordern — Teil des kostenlosen zweiwöchigen Pilots',
     title: 'Sentinel holen',
     subtitle:
@@ -163,7 +163,7 @@ const T: Record<Lang, Record<string, string>> = {
     briefCta: 'Ler o informe de outubro de 2026',
     scannerTitle: 'NOVO — SENTINEL SCANNER, PARA ROBÔS E DISPOSITIVOS INTELIGENTES',
     scannerText:
-      'Alguns robôs vêm com armadilhas: túneis ocultos que enviam dados ao fabricante e controles sem fio que qualquer pessoa próxima pode assumir sem senha. Em 2026, o Pentágono classificou um grande fabricante como empresa militar chinesa e a FCC proibiu seus novos modelos por exatamente essas falhas. O Sentinel Scanner audita qualquer robô ou dispositivo em busca de toda essa classe de brechas antes de entrar na sua rede, bloqueia os caminhos prejudiciais e coloca em quarentena as máquinas reprovadas.',
+      'Alguns robôs vêm com armadilhas: túneis ocultos que enviam dados ao fabricante e controles sem fio que qualquer pessoa próxima pode assumir sem senha. Em 2026, o Pentágono classificou um grande fabricante como empresa militar chinesa e a FCC proibiu seus novos modelos por exatamente essas falhas. O Sentinel Scanner audita qualquer robô ou dispositivo em busca de toda essa classe de brechas antes de entrar na sua rede, bloqueia os caminhos prejudiciais e coloca em quarentena as máquinas reprovadas. E contra a ameaça mais nova, os vermes de IA que se espalham sozinhos entre dispositivos domésticos inseguros (a Anthropic alerta que podem chegar em menos de um ano), o WormShield vigia o momento em que um dispositivo começa a se espalhar e o corta com o interruptor de desligamento. Um verme sem interruptor encontra uma rede que tem um.',
     scannerCta: 'Peça uma verificação gratuita — parte do piloto gratuito de duas semanas',
     title: 'Baixar o Sentinel',
     subtitle:
@@ -198,7 +198,7 @@ const T: Record<Lang, Record<string, string>> = {
     briefCta: '阅读2026年10月简报',
     scannerTitle: '新功能 — SENTINEL SCANNER,面向机器人与智能设备',
     scannerText:
-      '有些机器人带有后门:隐藏隧道会把数据传回厂商,无线控制则可被附近任何人无密码接管。2026年,五角大楼将一家主要厂商列为中国军方企业,FCC 也以正是这些缺陷为由禁止其新型号上市。Sentinel Scanner 会在机器人或设备接入您的网络之前,审计整类安全缺口,阻断有害通道,并隔离未通过检测的机器。',
+      '有些机器人带有后门:隐藏隧道会把数据传回厂商,无线控制则可被附近任何人无密码接管。2026年,五角大楼将一家主要厂商列为中国军方企业,FCC 也以正是这些缺陷为由禁止其新型号上市。Sentinel Scanner 会在机器人或设备接入您的网络之前,审计整类安全缺口,阻断有害通道,并隔离未通过检测的机器。面对最新威胁——在无安全防护的家庭设备之间自我传播的 AI 蠕虫(Anthropic 警告其可能在一年内出现)——WormShield 会监视设备开始扩散的瞬间,并用关停开关将其切断。没有开关的蠕虫,遇上了一张有开关的网络。',
     scannerCta: '获取免费设备扫描 — 免费两周试点的一部分',
     title: '获取 Sentinel',
     subtitle: '一键开启，全面保护。选择您的设备——无需账户，无需订阅，数据不出设备。',
