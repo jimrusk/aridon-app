@@ -21,6 +21,10 @@ const T: Record<Lang, Record<string, string>> = {
     briefText:
       'Rogue AI agents made October 2026 the loudest month in agent security yet. Read our trends brief.',
     briefCta: 'Read the October 2026 brief',
+    scannerTitle: 'NEW — SENTINEL SCANNER, FOR ROBOTS AND SMART DEVICES',
+    scannerText:
+      'Some robots ship with trapdoors: hidden tunnels that stream data back to the maker, and wireless controls anyone nearby can seize with no password. In 2026 the Pentagon listed one major maker as a Chinese military company and the FCC banned its new robot models, citing exactly those flaws. Sentinel Scanner audits any robot or device for that whole class of gaps before it is trusted on your network, then blocks the harmful paths and quarantines machines that fail.',
+    scannerCta: 'Get a free device scan — part of the free two-week pilot',
     title: 'Get Sentinel',
     subtitle:
       'One tap. Protected. Pick your device below — no account, no subscription, nothing leaves your device.',
@@ -52,6 +56,10 @@ const T: Record<Lang, Record<string, string>> = {
     briefText:
       'Los agentes de IA fuera de control convirtieron octubre de 2026 en el mes más ruidoso de la seguridad de agentes. Lea nuestro informe de tendencias.',
     briefCta: 'Leer el informe de octubre 2026',
+    scannerTitle: 'NUEVO — SENTINEL SCANNER, PARA ROBOTS Y DISPOSITIVOS INTELIGENTES',
+    scannerText:
+      'Algunos robots vienen con trampas: túneles ocultos que envían datos al fabricante y controles inalámbricos que cualquiera cercano puede tomar sin contraseña. En 2026 el Pentágono declaró a un gran fabricante empresa militar china y la FCC prohibió sus nuevos modelos por exactamente esas fallas. Sentinel Scanner audita cualquier robot o dispositivo en busca de toda esa clase de brechas antes de que entre en su red, bloquea las rutas dañinas y pone en cuarentena las máquinas que no pasan.',
+    scannerCta: 'Pida un escaneo gratuito — parte del piloto gratuito de dos semanas',
     title: 'Obtener Sentinel',
     subtitle:
       'Un toque. Protegido. Elija su dispositivo — sin cuenta, sin suscripción, nada sale de su dispositivo.',
@@ -83,6 +91,10 @@ const T: Record<Lang, Record<string, string>> = {
     briefText:
       "Les agents IA hors de contrôle ont fait d'octobre 2026 le mois le plus marquant de la sécurité des agents. Lisez notre dossier tendances.",
     briefCta: "Lire le dossier d'octobre 2026",
+    scannerTitle: 'NOUVEAU — SENTINEL SCANNER, POUR ROBOTS ET APPAREILS CONNECTÉS',
+    scannerText:
+      'Certains robots cachent des trappes : des tunnels dissimulés qui envoient des données au fabricant et des commandes sans fil que n\u2019importe qui à proximité peut prendre sans mot de passe. En 2026, le Pentagone a classé un grand fabricant comme entreprise militaire chinoise et la FCC a interdit ses nouveaux modèles pour exactement ces failles. Sentinel Scanner audite tout robot ou appareil pour détecter toute cette classe de failles avant son entrée sur votre réseau, bloque les voies nuisibles et met en quarantaine les machines qui échouent.',
+    scannerCta: 'Demandez un scan gratuit — inclus dans le pilote gratuit de deux semaines',
     title: 'Télécharger Sentinel',
     subtitle:
       'Un toucher. Protégé. Choisissez votre appareil — sans compte, sans abonnement, rien ne quitte votre appareil.',
@@ -114,6 +126,10 @@ const T: Record<Lang, Record<string, string>> = {
     briefText:
       'Außer Kontrolle geratene KI-Agenten machten den Oktober 2026 zum lautesten Monat der Agenten-Sicherheit. Lesen Sie unser Trend-Briefing.',
     briefCta: 'Briefing Oktober 2026 lesen',
+    scannerTitle: 'NEU — SENTINEL SCANNER, FÜR ROBOTER UND SMARTE GERÄTE',
+    scannerText:
+      'Manche Roboter haben Hintertüren: versteckte Tunnel, die Daten an den Hersteller senden, und Funksteuerungen, die jeder in der Nähe ohne Passwort übernehmen kann. 2026 stufte das Pentagon einen großen Hersteller als chinesisches Militärunternehmen ein, und die FCC verbot seine neuen Modelle — wegen genau dieser Fehler. Sentinel Scanner prüft jeden Roboter und jedes Gerät auf diese gesamte Klasse von Lücken, bevor sie in Ihr Netzwerk dürfen, blockiert die schädlichen Wege und stellt Maschinen unter Quarantäne, die durchfallen.',
+    scannerCta: 'Kostenlosen Geräte-Scan anfordern — Teil des kostenlosen zweiwöchigen Pilots',
     title: 'Sentinel holen',
     subtitle:
       'Ein Tipp. Geschützt. Wählen Sie Ihr Gerät — kein Konto, kein Abo, nichts verlässt Ihr Gerät.',
@@ -145,6 +161,10 @@ const T: Record<Lang, Record<string, string>> = {
     briefText:
       'Agentes de IA fora de controle fizeram de outubro de 2026 o mês mais marcante da segurança de agentes. Leia nosso informe de tendências.',
     briefCta: 'Ler o informe de outubro de 2026',
+    scannerTitle: 'NOVO — SENTINEL SCANNER, PARA ROBÔS E DISPOSITIVOS INTELIGENTES',
+    scannerText:
+      'Alguns robôs vêm com armadilhas: túneis ocultos que enviam dados ao fabricante e controles sem fio que qualquer pessoa próxima pode assumir sem senha. Em 2026, o Pentágono classificou um grande fabricante como empresa militar chinesa e a FCC proibiu seus novos modelos por exatamente essas falhas. O Sentinel Scanner audita qualquer robô ou dispositivo em busca de toda essa classe de brechas antes de entrar na sua rede, bloqueia os caminhos prejudiciais e coloca em quarentena as máquinas reprovadas.',
+    scannerCta: 'Peça uma verificação gratuita — parte do piloto gratuito de duas semanas',
     title: 'Baixar o Sentinel',
     subtitle:
       'Um toque. Protegido. Escolha seu dispositivo — sem conta, sem assinatura, nada sai do seu dispositivo.',
@@ -176,6 +196,10 @@ const T: Record<Lang, Record<string, string>> = {
     briefText:
       '失控的 AI 智能体让 2026 年 10 月成为智能体安全最受关注的一个月。阅读我们的趋势简报。',
     briefCta: '阅读2026年10月简报',
+    scannerTitle: '新功能 — SENTINEL SCANNER,面向机器人与智能设备',
+    scannerText:
+      '有些机器人带有后门:隐藏隧道会把数据传回厂商,无线控制则可被附近任何人无密码接管。2026年,五角大楼将一家主要厂商列为中国军方企业,FCC 也以正是这些缺陷为由禁止其新型号上市。Sentinel Scanner 会在机器人或设备接入您的网络之前,审计整类安全缺口,阻断有害通道,并隔离未通过检测的机器。',
+    scannerCta: '获取免费设备扫描 — 免费两周试点的一部分',
     title: '获取 Sentinel',
     subtitle: '一键开启，全面保护。选择您的设备——无需账户，无需订阅，数据不出设备。',
     language: '语言：',
@@ -315,6 +339,36 @@ export default function SentinelDownloadClient() {
           </p>
           <span style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>{t.briefCta} →</span>
         </a>
+
+        <Link
+          href="/sentinel-pilot"
+          style={{
+            display: 'block',
+            textDecoration: 'none',
+            margin: '0 0 40px',
+            padding: '20px 24px',
+            borderRadius: 12,
+            border: '1px solid #ffb45e',
+            background: '#14273F',
+            maxWidth: 640,
+          }}
+        >
+          <div
+            style={{
+              color: '#ffb45e',
+              fontWeight: 800,
+              fontSize: 13,
+              letterSpacing: 2,
+              marginBottom: 8,
+            }}
+          >
+            {t.scannerTitle}
+          </div>
+          <p style={{ color: '#D7E1EE', fontSize: 15, margin: '0 0 12px', lineHeight: 1.5 }}>
+            {t.scannerText}
+          </p>
+          <span style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>{t.scannerCta} →</span>
+        </Link>
 
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           <div style={card}>
