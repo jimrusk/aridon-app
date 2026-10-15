@@ -19,6 +19,8 @@ Food Tank Climate Week NYC 2026, Sept. 20-25, including Putting Farmers First, S
 10. Storytelling should be built from verified Farm Passport evidence rather than unsupported claims.
 11. Compound risks must be modeled together because drought, heat, wildfire, pests, water shortage, feed/input prices, buyer concentration, logistics and other shocks can amplify one another.
 12. Circular infrastructure should begin modularly, prove regional economics and feedstock/end-market fit, then scale.
+13. Water security is multidimensional: quantity/availability, quality, accessibility, affordability and reliability must be assessed together.
+14. Water efficiency is not automatically water sustainability. Efficiency gains must not be treated as proof that an overdrawn basin or aquifer has returned to sustainable balance.
 
 ## Eva implementation architecture
 Producer -> Eva assessment -> Producer Profitability Engine -> constraint/risk -> intervention portfolio -> Capital Fit -> Water/Energy/Equipment -> implementation team -> Buyer Match -> Processing & Logistics -> Farm Passport evidence -> buyer/customer -> measured producer return -> learning loop.
@@ -31,31 +33,82 @@ Every intervention must answer: Is funding ready? Is permission/authority ready?
 ## Compound Resilience Engine
 Eva and Farm OS should evaluate interacting risks rather than isolated alerts.
 
-Potential signals include:
-- drought and precipitation outlook
-- well, storage, stream or irrigation-water availability
-- extreme heat/cold and wildfire/smoke exposure
-- pest/disease pressure where reliable data exists
-- soil/crop/livestock condition
-- feed, fertilizer, fuel and other input prices
-- energy availability/cost
-- buyer concentration, contract loss or price deterioration
-- processing/cold-storage capacity
-- transportation/logistics disruption
-- labor/equipment constraints
-- financing/liquidity constraints
+Potential signals include drought and precipitation outlook; well, storage, stream or irrigation-water availability; extreme heat/cold and wildfire/smoke exposure; pest/disease pressure where reliable data exists; soil/crop/livestock condition; feed, fertilizer, fuel and other input prices; energy availability/cost; buyer concentration, contract loss or price deterioration; processing/cold-storage capacity; transportation/logistics disruption; labor/equipment constraints; and financing/liquidity constraints.
 
 Operating flow:
 Signals -> individual risk estimates -> interaction/compound-risk assessment -> confidence -> expected production effect -> dollar exposure -> time-to-impact -> ranked intervention portfolio -> funding/permission/equipment/people/buyer gates -> human approval when consequential -> implementation -> measured avoided loss / realized outcome.
 
 Do not simply add risk scores together. Where evidence is insufficient to estimate interactions, label uncertainty and present scenarios instead of false precision.
 
-Example intervention portfolio may include water storage or AWG where technically/economically appropriate, irrigation changes, agrivoltaics/energy measures, crop/feed alternatives, Capital Fit, Surplus Prevention, alternate Buyer Match customers, processing/storage/logistics, insurance/risk-management options and implementation support.
-
 Primary outputs should include dollars of producer exposure, expected cost of intervention, expected loss avoided, resilience effect and confidence/range.
 
-## Water Resilience
-Water Resilience Score -> production/economic exposure -> portfolio of solutions -> capital requirement -> financing -> implementation -> gallons and production outcomes. AWG 30K is one tool, not the answer to every water problem.
+## Water Security & Resilience Engine
+Replace the narrow Water Resilience Score with a Water Security & Resilience Score.
+
+### Five core dimensions
+1. Quantity / Availability: dependable supply relative to current and projected demand.
+2. Quality: fitness for intended agricultural, livestock, processing, potable or industrial use, based on appropriate testing/evidence.
+3. Accessibility: legal, physical and infrastructure ability to obtain and deliver the water where needed.
+4. Affordability: delivered cost per gallon/acre-foot or other relevant unit, including pumping, treatment, energy, storage, transport, maintenance and financing.
+5. Reliability: probability and duration of supply under drought, heat, infrastructure failure, seasonal variability and other plausible disruptions.
+
+### Decision flow
+Water data -> five-dimension score/profile -> basin/aquifer/source sustainability context -> production/business exposure -> dollar exposure -> portfolio of feasible solutions -> delivered-water economics -> capital requirement -> Capital Fit/funding -> permissions -> implementation -> measured water, production and financial outcomes.
+
+### Solution portfolio
+Eva should compare, where technically and legally appropriate:
+- existing groundwater and surface-water sources/allocations
+- conservation and operational changes
+- irrigation efficiency
+- soil-moisture retention/agronomic measures
+- rainwater capture
+- storage
+- reuse/recycling where appropriate
+- conveyance/distribution improvements
+- treatment where needed
+- AWG systems including AWG 30K
+- desalination or other supply technologies where applicable
+- agrivoltaics/energy measures that improve the water-energy equation
+- combinations of the above
+
+AWG 30K is one tool, not the default answer. Eva should recommend it when evidence shows that its reliability/access/quality benefits and delivered-water economics are competitive with or strategically superior to feasible alternatives.
+
+### Sustainability guardrail
+Never label a water plan sustainable solely because water-use efficiency improved. Eva should separately evaluate whether total withdrawals/consumption and source conditions are consistent with long-term replenishment or an otherwise defensible supply plan. Where basin/aquifer data are uncertain, label uncertainty.
+
+### Economic outputs
+For each water intervention report:
+- capital cost
+- operating/maintenance cost
+- energy use
+- delivered cost per gallon or acre-foot
+- expected useful life/reliability
+- water quantity and quality outcome
+- production loss avoided
+- revenue/margin protected or created
+- funding/finance path
+- implementation/permission requirements
+- confidence/range
+
+### Compound-risk integration
+Water quantity decline + quality deterioration + rising pumping/energy cost + unreliable delivery + heat/weather exposure + crop/livestock sensitivity should feed the Compound Resilience Engine as interacting risks rather than separate alerts.
+
+## AWG 30K STC Validation Protocol
+STC demonstrations must prove more than rated output. Measure:
+- actual gallons/day across relevant weather conditions
+- kWh per gallon and peak electrical demand
+- all-in delivered cost per gallon
+- water-quality results and treatment requirements
+- uptime/reliability and maintenance burden
+- storage integration
+- renewable/microgrid integration where used
+- seasonal performance
+- comparison with feasible alternative supplies
+- crop/livestock/industrial use outcomes where tested
+- avoided production loss or operational interruption
+- producer/customer economics
+
+Do not claim a 30,000-gallon/day outcome unless measured conditions support it. Maintain rated, modeled and independently measured performance as separate fields.
 
 ## Farm Passport + Buyer Match
 Capture verified production, provenance, water, energy, processing, certifications/practices and outcome evidence. Connect producer supply to retailer, processor, chef, restaurant, school, institutional and foodservice demand. Avoid unsupported environmental/health claims.
@@ -75,20 +128,6 @@ Build circular food-system capability in stages rather than assuming large centr
 Pilot flow:
 Regional farm/processor/restaurant/grocery/institution streams -> classify edible/safe/legal destination -> Surplus & Waste Prevention Engine -> alternate human-food market/recovery -> lawful Circular Feed pathway -> nutrient/compost/energy recovery -> residual disposal.
 
-For each module Eva should measure:
-- feedstock/source volume and seasonality
-- contamination/quality
-- collection/transport cost
-- processing/storage cost
-- recovered food value
-- feed replacement value where applicable
-- compost/nutrient value
-- energy consumption/production where applicable
-- producer/customer savings
-- revenue potential
-- residual waste
-- net unit economics
-
 Scale only after evidence demonstrates sufficient feedstock, reliable end markets, regulatory/safety feasibility and positive strategic/economic value.
 
 ## Dryland / Arid Agriculture Test Track
@@ -97,7 +136,7 @@ Use STC and participating Southwest farms to compare appropriate dryland/arid-re
 Measure yield, water intensity, energy, input cost, resilience, buyer demand and net producer return. Do not make seed/crop recommendations without agronomic and market evidence.
 
 ## Southwest Technology Campus pilots
-1. Water Resilience Demonstration Farm: compare AWG where appropriate, storage, irrigation efficiency, agrivoltaics and other sources; measure energy, gallons, crop/livestock outcomes, reliability and economics.
+1. Water Security & Resilience Demonstration Farm: compare source availability, quality, access, affordability and reliability across AWG where appropriate, storage, irrigation efficiency, agrivoltaics and other sources; measure energy, gallons, crop/livestock outcomes, reliability and economics.
 2. Eva Early-Warning + Compound Resilience Farm: connect farm/weather/water/market/input/logistics signals to actual interventions and measure avoided losses/outcomes.
 3. Farm Passport to Buyer demonstration: farm -> processing -> buyer traceability/evidence.
 4. Young Producer Launchpad: education through viable farm/ranch business.
