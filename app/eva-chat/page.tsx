@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { EVA_AVATAR } from '../../lib/evaIdentity';
@@ -8,257 +8,139 @@ import { getBrowserClient } from '../../lib/supabase';
 
 type Message = { role: 'user' | 'assistant'; content: string };
 type Account = { tenant: { slug: string; business_name: string } };
-type EvaWorkResponse = {
-  reply?: string;
-  workSummary?: string;
-  status?: string;
-  queuedActions?: Array<{ id?: string; title?: string; adapter_key?: string; approval_required?: boolean; status?: string }>;
-  autoExecuted?: Array<{ id?: string; title?: string; status?: string }>;
-  approvalQueue?: Array<{ id?: string; title?: string; adapter_key?: string; status?: string }>;
-  sources?: Array<{ title?: string; url?: string }>;
-  error?: string;
-};
+type Worker = { id: string; name?: string; status?: string; result?: any; error?: string };
 
-const EVA_OPERATOR_POLICY = `EVA OWNER OPERATING POLICY
-- Default to execution, not clarification.
-- Do not present A/B/C/D menus or ask the owner to define ordinary implementation choices when a reasonable, reversible decision can be made from company context.
-- If the owner says "do it", "build it", "send it", "contact them", "research it", or gives a short follow-up such as "B", resolve that instruction against the recent conversation and continue the mission.
-- Make the best reasonable assumption, state it briefly only when material, and proceed.
-- Ask a question only when the missing fact makes safe execution genuinely impossible, such as an unknown recipient for a consequential external action or a legally required owner decision.
-- Never ask again for information or a choice that appears in the recent conversation, Company Brain, project/task history, or durable memory.
-- Return results: what was completed, what was executed automatically, what is queued for approval, and any true blocker.
-- Preserve continuity across turns. Treat recent conversation below as active mission memory.`;
+const EVA_POLICY = `You are working in the background for Eva while Eva remains in the live customer conversation. Complete the objective as far as the connected Aridon system permits. Use company context and prior information before asking for anything. Make reasonable reversible decisions yourself. Research missing public facts. Do not invent completed external actions. Return a concise decision-ready result, completed work, and only genuine blockers or approvals.`;
+
+function workerText(worker: Worker) {
+  const result = worker?.result || {};
+  if (typeof result === 'string') return result;
+  return result.answer || result.final_output || result.summary || result.workSummary || result.output || result.text || (worker.error ? `Background work stopped: ${worker.error}` : 'Background work completed.');
+}
 
 export default function EvaChatPage() {
   const router = useRouter();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: 'I am here. Work Mode is on. Give me the outcome you want and I will take it as far as Aridon can actually execute it.',
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([{ role: 'assistant', content: 'I am here. Tell me what you need. I will stay with you while my team handles longer work in the background.' }]);
   const [input, setInput] = useState('');
-  const [busy, setBusy] = useState(false);
   const [token, setToken] = useState('');
   const [account, setAccount] = useState<Account | null>(null);
   const [accessError, setAccessError] = useState('');
-  const [workMode, setWorkMode] = useState(true);
-  const [lastStatus, setLastStatus] = useState('');
+  const [chatBusy, setChatBusy] = useState(false);
+  const [activeWorkers, setActiveWorkers] = useState<Record<string, string>>({});
+  const messagesRef = useRef<Message[]>(messages);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
 
   useEffect(() => {
     const db = getBrowserClient();
     db.auth.getSession().then(async ({ data }) => {
       const accessToken = data.session?.access_token;
-      if (!accessToken) {
-        router.replace('/customer/login?next=/eva-chat');
-        return;
-      }
-
-      const response = await fetch('/api/customer/me', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        cache: 'no-store',
-      });
+      if (!accessToken) { router.replace('/customer/login?next=/eva-chat'); return; }
+      const response = await fetch('/api/customer/me', { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.tenant?.slug) {
-        setAccessError(result.error || 'Your Aridon workspace could not be opened.');
-        return;
-      }
-
-      setToken(accessToken);
-      setAccount(result as Account);
-
+      if (!response.ok || !result.tenant?.slug) { setAccessError(result.error || 'Your Aridon workspace could not be opened.'); return; }
+      setToken(accessToken); setAccount(result as Account);
       try {
-        const historyResponse = await fetch(`/api/customer/assistant?slug=${encodeURIComponent(result.tenant.slug)}`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          cache: 'no-store',
-        });
-        const historyData = await historyResponse.json().catch(() => ({}));
-        if (historyResponse.ok && Array.isArray(historyData.history) && historyData.history.length) {
-          const restored = historyData.history
-            .slice(-24)
-            .map((item: any) => ({
-              role: item.role === 'assistant' ? 'assistant' as const : 'user' as const,
-              content: typeof item.content === 'string' ? item.content : '',
-            }))
-            .filter((item: Message) => item.content.trim());
+        const h = await fetch(`/api/customer/assistant?slug=${encodeURIComponent(result.tenant.slug)}`, { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' });
+        const d = await h.json().catch(() => ({}));
+        if (h.ok && Array.isArray(d.history) && d.history.length) {
+          const restored = d.history.slice(-24).map((x: any) => ({ role: x.role === 'assistant' ? 'assistant' as const : 'user' as const, content: typeof x.content === 'string' ? x.content : '' })).filter((x: Message) => x.content.trim());
           if (restored.length) setMessages(restored);
         }
-      } catch {
-        // Eva can still work from the current session if historical loading is unavailable.
-      }
+      } catch { /* live conversation still works */ }
     });
   }, [router]);
 
-  function summarizeWork(data: EvaWorkResponse) {
-    const lines: string[] = [];
-    if (data.reply) lines.push(data.reply);
-    if (data.workSummary && data.workSummary !== data.reply) lines.push(`\nWork completed:\n${data.workSummary}`);
-
-    const auto = data.autoExecuted || [];
-    if (auto.length) {
-      lines.push(`\nDone automatically:\n${auto.map((item) => `• ${item.title || 'Internal task'}`).join('\n')}`);
+  async function pollWorker(workerId: string, label: string) {
+    if (!account || !token) return;
+    for (let i = 0; i < 150; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      try {
+        const r = await fetch(`/api/customer/cloud-workers?slug=${encodeURIComponent(account.tenant.slug)}&workerId=${encodeURIComponent(workerId)}`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+        const d = await r.json().catch(() => ({}));
+        const worker = Array.isArray(d.workers) ? d.workers[0] as Worker : null;
+        if (!worker) continue;
+        if (worker.status === 'completed') {
+          setActiveWorkers((current) => { const next = { ...current }; delete next[workerId]; return next; });
+          setMessages((current) => [...current, { role: 'assistant', content: `My background team finished ${label}.\n\n${workerText(worker)}` }]);
+          return;
+        }
+        if (worker.status === 'failed' || worker.status === 'cancelled') {
+          setActiveWorkers((current) => { const next = { ...current }; delete next[workerId]; return next; });
+          setMessages((current) => [...current, { role: 'assistant', content: worker.error ? `The background job hit a real blocker: ${worker.error}` : 'That background job stopped before completion. I can keep working on the rest.' }]);
+          return;
+        }
+      } catch { /* keep polling; worker persists server-side */ }
     }
+  }
 
-    const approvals = data.approvalQueue || [];
-    if (approvals.length) {
-      lines.push(`\nReady for your approval:\n${approvals.map((item) => `• ${item.title || 'External action'}`).join('\n')}`);
-      lines.push('\nOpen Action Center to approve and execute those external actions.');
-    }
-
-    const sources = data.sources || [];
-    if (sources.length) {
-      lines.push(`\nSources:\n${sources.slice(0, 6).map((source) => `• ${source.title || source.url}${source.url ? ` — ${source.url}` : ''}`).join('\n')}`);
-    }
-
-    return lines.join('\n').trim() || 'Eva completed the work run.';
+  async function handOff(text: string, conversation: Message[]) {
+    if (!account || !token) return;
+    const recent = conversation.slice(-18).map((m) => `${m.role === 'user' ? 'CUSTOMER' : 'EVA'}: ${m.content}`).join('\n\n');
+    const objective = `${EVA_POLICY}\n\nACTIVE CONVERSATION\n${recent}\n\nCURRENT REQUEST\n${text}`;
+    const response = await fetch('/api/customer/cloud-workers', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ slug: account.tenant.slug, command: 'create', name: `Eva background · ${text.slice(0, 72)}`, objective, mode: 'research', priority: 'high', maxCycles: 6, runNow: false }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.worker?.id) throw new Error(data.error || 'Background handoff could not be queued.');
+    const workerId = data.worker.id as string;
+    setActiveWorkers((current) => ({ ...current, [workerId]: text.slice(0, 72) }));
+    void fetch('/api/customer/cloud-workers', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ slug: account.tenant.slug, command: 'run_now', id: workerId }),
+    }).catch(() => undefined);
+    void pollWorker(workerId, `the work on “${text.slice(0, 60)}${text.length > 60 ? '…' : ''}”`);
   }
 
   async function send() {
     const text = input.trim();
-    if (!text || busy || !token || !account) return;
+    if (!text || !token || !account) return;
+    const next = [...messagesRef.current, { role: 'user' as const, content: text }];
+    setMessages(next); setInput('');
 
-    const next = [...messages, { role: 'user' as const, content: text }];
-    setMessages(next);
-    setInput('');
-    setBusy(true);
-    setLastStatus('');
-
-    try {
-      if (workMode) {
-        const recentConversation = next
-          .slice(-18)
-          .map((message) => `${message.role === 'user' ? 'OWNER' : 'EVA'}: ${message.content}`)
-          .join('\n\n');
-        const objective = `${EVA_OPERATOR_POLICY}\n\nRECENT ACTIVE CONVERSATION\n${recentConversation}\n\nCURRENT OWNER INSTRUCTION\n${text}\n\nContinue the existing mission from this context. Do the work now instead of asking the owner to choose among routine options.`;
-
-        const response = await fetch('/api/customer/eva-work', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            slug: account.tenant.slug,
-            objective,
-          }),
-        });
-        const data = await response.json().catch(() => ({})) as EvaWorkResponse;
-        if (!response.ok) throw new Error(data?.error || 'Eva Work could not complete the request.');
-        setLastStatus(data.status || 'completed');
-        setMessages([...next, { role: 'assistant', content: summarizeWork(data) }]);
-      } else {
-        const response = await fetch('/api/customer/assistant', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            slug: account.tenant.slug,
-            executive: 'Eva',
-            researchWeb: true,
-            messages: next.slice(-20),
-          }),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data?.error || 'Eva chat could not complete the request.');
-        setLastStatus('answered');
-        setMessages([...next, { role: 'assistant', content: data.reply || 'I am here.' }]);
-      }
-    } catch (error) {
-      setLastStatus('error');
-      setMessages([
-        ...next,
-        {
-          role: 'assistant',
-          content: error instanceof Error ? error.message : 'Eva could not complete the request.',
-        },
-      ]);
-    } finally {
-      setBusy(false);
+    const substantial = /\b(research|find|search|build|create|design|compare|analy[sz]e|contact|send|email|schedule|plan|investigate|check|follow up|execute|do it|handle|run|prepare|develop|fix|update)\b/i.test(text) || text.length > 180;
+    if (substantial) {
+      setMessages((current) => [...current, { role: 'assistant', content: 'I have it. I’m handing the longer work to my background team now, and I’m staying here with you. What else do you want to cover while they work?' }]);
+      try { await handOff(text, next); }
+      catch (error) { setMessages((current) => [...current, { role: 'assistant', content: error instanceof Error ? `I stayed with the conversation, but the background handoff hit this blocker: ${error.message}` : 'The background handoff hit a blocker.' }]); }
+      return;
     }
+
+    setChatBusy(true);
+    try {
+      const response = await fetch('/api/customer/assistant', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ slug: account.tenant.slug, executive: 'Eva', researchWeb: false, messages: next.slice(-20) }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Eva could not answer.');
+      setMessages((current) => [...current, { role: 'assistant', content: data.reply || 'I am here.' }]);
+    } catch (error) {
+      setMessages((current) => [...current, { role: 'assistant', content: error instanceof Error ? error.message : 'Eva could not answer.' }]);
+    } finally { setChatBusy(false); }
   }
 
-  if (accessError) {
-    return (
-      <main style={{ minHeight: '100vh', background: '#090b12', color: '#F5F7FB', display: 'grid', placeItems: 'center', padding: '24px', fontFamily: 'Inter,ui-sans-serif,system-ui,Segoe UI,Arial' }}>
-        <div style={{ maxWidth: '540px', textAlign: 'center' }}>
-          <h1>Eva could not open your Aridon workspace.</h1>
-          <p style={{ color: '#AAB6CA', lineHeight: 1.6 }}>{accessError}</p>
-          <Link href="/customer/login?next=/eva-chat" style={{ color: '#101421', background: '#9EF0CF', borderRadius: '999px', padding: '10px 14px', fontWeight: 900, textDecoration: 'none', display: 'inline-block' }}>Sign in again</Link>
-        </div>
-      </main>
-    );
-  }
+  if (accessError) return <main style={{ minHeight: '100vh', background: '#090b12', color: '#fff', display: 'grid', placeItems: 'center', padding: 24 }}><div><h1>Eva could not open your workspace.</h1><p>{accessError}</p></div></main>;
+  if (!account || !token) return <main style={{ minHeight: '100vh', background: '#090b12', color: '#fff', display: 'grid', placeItems: 'center' }}>Opening Eva…</main>;
 
-  if (!account || !token) {
-    return <main style={{ minHeight: '100vh', background: '#090b12', color: '#F5F7FB', display: 'grid', placeItems: 'center', padding: '24px', fontFamily: 'Inter,ui-sans-serif,system-ui,Segoe UI,Arial' }}>Opening Eva with your Aridon owner access…</main>;
-  }
-
+  const workerCount = Object.keys(activeWorkers).length;
   return (
-    <main style={{ minHeight: '100vh', background: 'radial-gradient(circle at 50% 0%,#2a1a22 0,#090b12 42%,#05060a 100%)', color: '#F5F7FB', padding: '24px', fontFamily: 'Inter,ui-sans-serif,system-ui,Segoe UI,Arial' }}>
-      <div style={{ maxWidth: '980px', margin: '0 auto' }}>
-        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '18px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <img src={EVA_AVATAR} alt="Eva" style={{ width: '72px', height: '72px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #D45A2A', boxShadow: '0 0 30px rgba(212,90,42,.35)' }} />
-            <div>
-              <div style={{ fontSize: '13px', letterSpacing: '.14em', color: '#F0A27A', fontWeight: 900 }}>EVA · {account.tenant.business_name.toUpperCase()}</div>
-              <h1 style={{ margin: '2px 0 4px', fontSize: '34px' }}>Eva Command Workspace</h1>
-              <div style={{ color: '#9BA8C6' }}>GPT‑5.6 · execute-first · persistent conversation · persistent missions · Action Fabric</div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '9px', flexWrap: 'wrap' }}>
-            <Link href={`/workspace/${account.tenant.slug}/action-center`} style={{ color: '#101421', background: '#9EF0CF', borderRadius: '999px', padding: '10px 14px', fontWeight: 900, textDecoration: 'none' }}>Action Center</Link>
-            <Link href={`/workspace/${account.tenant.slug}/mission-control`} style={{ color: '#F5F7FB', border: '1px solid #39415B', borderRadius: '999px', padding: '10px 14px', fontWeight: 800, textDecoration: 'none' }}>Mission Control</Link>
-            <Link href={`/workspace/${account.tenant.slug}`} style={{ color: '#F5F7FB', border: '1px solid #39415B', borderRadius: '999px', padding: '10px 14px', fontWeight: 800, textDecoration: 'none' }}>Company Home</Link>
-          </div>
+    <main style={{ minHeight: '100vh', background: 'radial-gradient(circle at 50% 0%,#2a1a22 0,#090b12 42%,#05060a 100%)', color: '#F5F7FB', padding: 24, fontFamily: 'Inter,ui-sans-serif,system-ui,Segoe UI,Arial' }}>
+      <div style={{ maxWidth: 980, margin: '0 auto' }}>
+        <header style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center', flexWrap: 'wrap', marginBottom: 18 }}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}><img src={EVA_AVATAR} alt="Eva" style={{ width: 70, height: 70, borderRadius: '50%', objectFit: 'cover', border: '3px solid #D45A2A' }} /><div><div style={{ color: '#F0A27A', fontWeight: 900 }}>EVA · {account.tenant.business_name.toUpperCase()}</div><h1 style={{ margin: '3px 0' }}>Live Command</h1><div style={{ color: '#9BA8C6' }}>Talk now · background delegation · persistent workers</div></div></div>
+          <div style={{ display: 'flex', gap: 8 }}><Link href={`/workspace/${account.tenant.slug}/mission-control`} style={{ color: '#fff' }}>Mission Control</Link><Link href={`/workspace/${account.tenant.slug}/action-center`} style={{ color: '#9EF0CF' }}>Action Center</Link></div>
         </header>
-
-        <section style={{ marginBottom: '12px', background: 'rgba(18,24,41,.78)', border: '1px solid #26314F', borderRadius: '16px', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ fontWeight: 900 }}>{workMode ? 'Work Mode · Execute First' : 'Chat Mode'}</div>
-            <div style={{ color: '#9BA8C6', fontSize: '13px', marginTop: '3px' }}>
-              {workMode
-                ? 'Eva remembers the active conversation, makes routine decisions herself, researches, executes safe internal work, and only stops for a true approval or blocker.'
-                : 'Eva answers conversationally with live web research enabled.'}
-            </div>
+        <div style={{ marginBottom: 12, padding: '10px 14px', border: '1px solid #26314F', borderRadius: 14, background: 'rgba(18,24,41,.8)', color: workerCount ? '#9EF0CF' : '#9BA8C6' }}>{workerCount ? `${workerCount} background ${workerCount === 1 ? 'job is' : 'jobs are'} working. Eva remains available.` : 'Eva is ready. Longer work is automatically handed off instead of blocking the conversation.'}</div>
+        <section style={{ border: '1px solid #26314F', borderRadius: 22, background: 'rgba(15,19,33,.95)', padding: 18 }}>
+          <div style={{ minHeight: 440, maxHeight: '62vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {messages.map((m, i) => <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '86%', display: 'flex', gap: 9 }}>
+              {m.role === 'assistant' && <img src={EVA_AVATAR} alt="" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }} />}
+              <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.55, background: m.role === 'user' ? '#233454' : '#181F33', border: '1px solid #26314F', borderRadius: 16, padding: '12px 14px' }}>{m.content}</div>
+            </div>)}
+            {chatBusy && <div style={{ color: '#9BA8C6', paddingLeft: 43 }}>Eva is answering…</div>}
           </div>
-          <button
-            onClick={() => setWorkMode((value) => !value)}
-            disabled={busy}
-            style={{ border: 0, borderRadius: '999px', padding: '10px 16px', background: workMode ? '#D45A2A' : '#233454', color: '#fff', fontWeight: 900, cursor: busy ? 'wait' : 'pointer' }}
-          >
-            {workMode ? 'Switch to Chat' : 'Switch to Work'}
-          </button>
-        </section>
-
-        <section style={{ background: 'linear-gradient(180deg,rgba(24,32,54,.94),rgba(15,19,33,.94))', border: '1px solid #26314F', borderRadius: '22px', padding: '18px', boxShadow: '0 18px 60px rgba(0,0,0,.28)' }}>
-          <div style={{ minHeight: '440px', maxHeight: '62vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', padding: '6px' }}>
-            {messages.map((message, index) => (
-              <div key={index} style={{ alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '86%', display: 'flex', gap: '9px', alignItems: 'flex-start' }}>
-                {message.role === 'assistant' && <img src={EVA_AVATAR} alt="" aria-hidden="true" style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #D45A2A', flexShrink: 0 }} />}
-                <div style={{ background: message.role === 'user' ? '#233454' : '#181F33', border: message.role === 'assistant' ? '1px solid #26314F' : 'none', padding: '13px 15px', borderRadius: '16px', lineHeight: 1.55, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{message.content}</div>
-              </div>
-            ))}
-            {busy && <div style={{ color: '#9BA8C6', paddingLeft: '44px' }}>{workMode ? 'Eva is executing the mission…' : 'Eva is researching and thinking…'}</div>}
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px', marginTop: '14px', alignItems: 'stretch' }}>
-            <textarea
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault();
-                  send();
-                }
-              }}
-              placeholder={workMode ? 'Tell Eva what to accomplish. Short commands are enough: Do it. Send it. Build it. Contact them.' : 'Ask Eva anything…'}
-              style={{ flex: 1, minHeight: '88px', resize: 'vertical', background: '#0B1020', color: '#fff', border: '1px solid #26314F', borderRadius: '14px', padding: '12px' }}
-            />
-            <button onClick={send} disabled={busy || !input.trim()} style={{ minWidth: '110px', border: 0, borderRadius: '14px', background: '#D45A2A', color: '#fff', fontWeight: 900, cursor: busy ? 'wait' : 'pointer', opacity: busy || !input.trim() ? .55 : 1 }}>{workMode ? 'Execute' : 'Send'}</button>
-          </div>
-          {lastStatus && <div style={{ marginTop: '9px', color: lastStatus === 'error' ? '#FF9B9B' : '#8FA2C7', fontSize: '12px' }}>Last run: {lastStatus.replaceAll('_', ' ')}</div>}
+          <div style={{ display: 'flex', gap: 10, marginTop: 14 }}><textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }} placeholder="Talk to Eva. Longer work will be handed off automatically." style={{ flex: 1, minHeight: 82, background: '#0B1020', color: '#fff', border: '1px solid #26314F', borderRadius: 14, padding: 12 }} /><button onClick={() => void send()} disabled={!input.trim()} style={{ minWidth: 105, border: 0, borderRadius: 14, background: '#D45A2A', color: '#fff', fontWeight: 900, opacity: input.trim() ? 1 : .5 }}>Send</button></div>
         </section>
       </div>
     </main>
