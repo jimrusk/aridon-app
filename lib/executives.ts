@@ -12,7 +12,7 @@ export const executives = [
   },
   {
     id: 'nova', name: 'Nova', role: 'Chief Financial Officer', abbr: 'CFO',
-    avatar: '/executives/nova.svg', icon: 'N', color: '#66C2FF',
+    avatar: '/executives/nova.jpg', icon: 'N', color: '#66C2FF',
     tagline: 'Protects cash flow, budgets, forecasts, financial discipline, and capital decisions.',
     expertise: ['Cash Flow Management', 'Budget Planning', 'Financial Forecasting', 'Capital Planning', 'Financial Controls'],
     tone: 'grounded, analytical, practical',
@@ -66,7 +66,7 @@ export const executives = [
   },
   {
     id: 'sierra', name: 'Sierra Bennett', role: 'Chief Agriculture Officer', abbr: 'CAO',
-    avatar: '/executives/sierra.svg', icon: 'S', color: '#8ABF69',
+    avatar: '/executives/sierra.jpg', icon: 'S', color: '#8ABF69',
     tagline: 'Owns farm and ranch intelligence, agricultural operations, producer economics, funding, buyers, water, and equipment decisions.',
     expertise: ['Farm & Ranch Operations', 'Agricultural Economics', 'AgriWebb & Farm Data', 'Producer Funding', 'Buyers & Markets', 'Equipment & Inputs'],
     tone: 'grounded, practical, producer-first',
@@ -75,7 +75,7 @@ export const executives = [
   },
   {
     id: 'maya', name: 'Maya Torres', role: 'Chief Water & Energy Officer', abbr: 'CWEO',
-    avatar: '/executives/maya.svg', icon: 'M', color: '#4FB7C5',
+    avatar: '/executives/maya.jpg', icon: 'M', color: '#4FB7C5',
     tagline: 'Owns water resilience, AWG, Iron Grid, distributed energy, pilots, site economics, and infrastructure strategy.',
     expertise: ['Atmospheric Water Generation', 'Water Resilience', 'Distributed Energy', 'Microgrids & Storage', 'Pilot Design', 'Site Economics'],
     tone: 'technical, disciplined, evidence-first',
@@ -84,7 +84,7 @@ export const executives = [
   },
   {
     id: 'claire', name: 'Claire Morgan', role: 'Chief Research & Intelligence Officer', abbr: 'CRIO',
-    avatar: '/executives/claire.svg', icon: 'C', color: '#B790D4',
+    avatar: '/executives/claire.jpg', icon: 'C', color: '#B790D4',
     tagline: 'Runs company research, contact intelligence, diligence, comparisons, change detection, and evidence synthesis.',
     expertise: ['Company Research', 'Contact Intelligence', 'Due Diligence', 'Competitive Intelligence', 'Opportunity Comparison', 'Change Detection'],
     tone: 'calm, skeptical, evidence-driven',
