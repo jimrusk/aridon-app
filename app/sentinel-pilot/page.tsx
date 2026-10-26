@@ -92,7 +92,7 @@ export default function SentinelPilotPage() {
         </nav>
 
         <header style={{ paddingTop: 72, maxWidth: 980 }}>
-          <div style={eyebrow}>SENTINEL · 30-DAY AI SECURITY PILOT</div>
+          <div style={eyebrow}>SENTINEL · TWO-WEEK DESIGN-PARTNER PILOT</div>
           <h1 style={{ fontSize: 'clamp(48px,8vw,92px)', lineHeight: .92, letterSpacing: -4, margin: '16px 0 20px' }}>
             The firewall protected the network. Sentinel protects the conversation with the machine.
           </h1>
@@ -101,7 +101,7 @@ export default function SentinelPilotPage() {
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 24 }}>
             <a href="#test" style={primaryButton}>Test Sentinel</a>
-            <a href="mailto:aridoninfo@aridon.info?subject=Sentinel%2030-Day%20Pilot&body=We%20would%20like%20to%20discuss%20a%2030-day%20Sentinel%20AI%20security%20pilot.%0A%0AOrganization%3A%0AUse%20case%3A%0APreferred%20contact%3A" style={secondaryButton}>Request a 30-Day Pilot</a>
+            <a href="mailto:jimrusk66@gmail.com?subject=Sentinel%20Pilot&body=We%20would%20like%20to%20discuss%20a%20two-week%20Sentinel%20design-partner%20pilot.%0A%0AOrganization%3A%0AUse%20case%3A%0APreferred%20contact%3A" style={secondaryButton}>Request a Two-Week Pilot</a>
           </div>
         </header>
 
@@ -150,13 +150,13 @@ export default function SentinelPilotPage() {
         </section>
 
         <section style={{ marginTop: 26, background: '#F2EFE7', color: '#171717', borderRadius: 22, padding: 28 }}>
-          <div style={{ fontSize: 12, fontWeight: 950, letterSpacing: 1 }}>THE 30-DAY SENTINEL CHALLENGE</div>
-          <h2 style={{ fontSize: 40, margin: '10px 0' }}>Give Sentinel thirty days to find the blind spots.</h2>
-          <p style={{ color: '#5D5A54', fontSize: 18, lineHeight: 1.7, maxWidth: 900 }}>Selected AI companies, enterprises, utilities, labs, data centers and critical-infrastructure operators can evaluate Sentinel in a controlled pilot. The goal is a decision-ready Threat Exposure Report covering observed risk patterns, action-gate findings, integration opportunities and measurable recommendations.</p>
+          <div style={{ fontSize: 12, fontWeight: 950, letterSpacing: 1 }}>THE TWO-WEEK DESIGN-PARTNER PILOT</div>
+          <h2 style={{ fontSize: 40, margin: '10px 0' }}>Give Sentinel two weeks to find the blind spots.</h2>
+          <p style={{ color: '#5D5A54', fontSize: 18, lineHeight: 1.7, maxWidth: 900 }}>Selected AI companies, enterprises, utilities, labs, data centers and critical-infrastructure operators can evaluate Sentinel in a free, controlled two-week design-partner pilot. The goal is a decision-ready Threat Exposure Report covering observed risk patterns, action-gate findings, integration opportunities and measurable recommendations.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginTop: 18 }} className="threeGrid">
-            {['Week 1 · Integrate a controlled telemetry feed or simulation set.', 'Weeks 2–3 · Score trajectories and tune action-gate policies.', 'Week 4 · Deliver the Sentinel Threat Exposure Report and pilot decision.'].map((x) => <div key={x} style={{ background: '#fff', borderRadius: 14, padding: 16, lineHeight: 1.55, fontWeight: 750 }}>{x}</div>)}
+            {['Days 1–3 · Integrate a controlled telemetry feed or simulation set, with seeded test attacks planted in your own environment.', 'Week 1–2 · Score trajectories and tune action-gate policies.', 'End of Week 2 · Deliver the Sentinel Threat Exposure Report and pilot decision.'].map((x) => <div key={x} style={{ background: '#fff', borderRadius: 14, padding: 16, lineHeight: 1.55, fontWeight: 750 }}>{x}</div>)}
           </div>
-          <a href="mailto:aridoninfo@aridon.info?subject=Sentinel%2030-Day%20Pilot" style={{ ...primaryButton, display: 'inline-block', marginTop: 20 }}>Apply for the Pilot</a>
+          <a href="mailto:jimrusk66@gmail.com?subject=Sentinel%20Pilot" style={{ ...primaryButton, display: 'inline-block', marginTop: 20 }}>Apply for the Pilot</a>
         </section>
 
         <section style={{ marginTop: 26, textAlign: 'center', padding: '32px 10px' }}>
