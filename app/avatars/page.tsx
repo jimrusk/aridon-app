@@ -327,7 +327,7 @@ export default function TalkingAvatarsPage() {
       });
       const data = (await response.json()) as { reply?: string; error?: string };
       if (!response.ok || !data.reply) throw new Error(data.error || `${selected.name} could not answer right now.`);
-      historyRef.current = [...messages, { role: 'assistant', content: data.reply }].slice(-20);
+      historyRef.current = [...messages, { role: 'assistant' as const, content: data.reply }].slice(-20);
       setReply(data.reply);
       setInput('');
       busyRef.current = false;
