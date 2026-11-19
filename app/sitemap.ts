@@ -15,6 +15,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/business-os/proof`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${base}/grid-intelligence`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${base}/shop`, lastModified: now, changeFrequency: 'daily', priority: 0.9 },
+    { url: `${base}/sentinel-demo`, lastModified: now, changeFrequency: 'weekly', priority: 1 },
+    { url: `${base}/sentinel-pilot`, lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
+    { url: `${base}/sentinel`, lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
   ];
 
   try {

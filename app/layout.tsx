@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import SiteChrome from './components/SiteChrome';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://aridon-v02.vercel.app'),
   title: 'Aridon Executive Operating System',
   description: 'An AI executive team, Company Brain, Executive Boardroom, controlled execution and CEO Brief for owner-led businesses.',
   applicationName: 'Aridon Business AI',
