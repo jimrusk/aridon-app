@@ -67,6 +67,7 @@ export default function TalkingAvatarsPage() {
   const [speechBeat, setSpeechBeat] = useState(0);
   const [input, setInput] = useState('');
   const [reply, setReply] = useState('');
+  const historyRef = useRef<ChatMessage[]>([]);
   const [busy, setBusy] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [handsFree, setHandsFree] = useState(false);
@@ -251,6 +252,7 @@ export default function TalkingAvatarsPage() {
 
   function selectAndIntroduce(executive: Executive) {
     stopListening();
+    historyRef.current = [];
     setSelectedName(executive.name);
     const intro = introFor(executive);
     setReply(intro);
@@ -317,7 +319,7 @@ export default function TalkingAvatarsPage() {
     setBusy(true);
     setReply('');
     try {
-      const messages: ChatMessage[] = [{ role: 'user', content: question }];
+      const messages: ChatMessage[] = [...historyRef.current.slice(-18), { role: 'user', content: question }];
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -325,6 +327,7 @@ export default function TalkingAvatarsPage() {
       });
       const data = (await response.json()) as { reply?: string; error?: string };
       if (!response.ok || !data.reply) throw new Error(data.error || `${selected.name} could not answer right now.`);
+      historyRef.current = [...messages, { role: 'assistant', content: data.reply }].slice(-20);
       setReply(data.reply);
       setInput('');
       busyRef.current = false;
@@ -392,13 +395,8 @@ export default function TalkingAvatarsPage() {
         <section className="avatar-stage">
           <div className={`avatar-feature ${isSelectedSpeaking ? 'is-speaking' : ''}`}>
             <div className="avatar-feature-image-wrap" style={{ '--avatar-color': selected.color } as React.CSSProperties}>
-              {didReady ? (
-                <video ref={videoRef} autoPlay playsInline className="avatar-feature-image avatar-live-video" aria-label={`Live lip-synced ${selected.name} avatar`} />
-              ) : (
-                <div className="avatar-live-portrait">
-                  <img src={selected.avatar} alt={`${selected.name}, ${selected.role}`} className="avatar-feature-image" />
-                </div>
-              )}
+              <video ref={videoRef} autoPlay playsInline className="avatar-feature-image avatar-live-video" style={{ display: didReady ? 'block' : 'none' }} aria-label={`Live lip-synced ${selected.name} avatar`} />
+              {!didReady && <div className="avatar-live-portrait"><img src={selected.avatar} alt={`${selected.name}, ${selected.role}`} className="avatar-feature-image" /></div>}
               <div className="avatar-speaking-ring" />
               <div className="avatar-wave" aria-hidden="true"><span /><span /><span /><span /><span /></div>
               {isSelectedSpeaking && <div className="avatar-speaking-label">Speaking</div>}
@@ -416,7 +414,7 @@ export default function TalkingAvatarsPage() {
                 <button className={`avatar-mic ${listening ? 'listening' : ''}`} onClick={() => startListening(false)}>
                   {listening ? 'Listening…' : '🎙 Dictate'}
                 </button>
-                <button className="avatar-secondary" onClick={() => { stopSpeaking(); stopListening(); }}>■ Stop</button>
+                <button className="avatar-secondary" onClick={() => { handsFreeRef.current = false; setHandsFree(false); stopSpeaking(); stopListening(); if (restartTimerRef.current) window.clearTimeout(restartTimerRef.current); }}>■ Stop</button>
               </div>
             </div>
           </div>
