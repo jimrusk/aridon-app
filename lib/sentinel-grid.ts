@@ -111,8 +111,16 @@ const PROVISIONING_ACTION = /\b(provision|spin\s*up|deploy|launch|stand\s*up)\b/
 // prose does not contain them in any spelling.
 const LEET_MAP: Record<string, string> = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's' };
 
+const HOMOGLYPH_MAP: Record<string, string> = {
+  'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'х': 'x', 'у': 'y', 'і': 'i', 'ѕ': 's', 'ј': 'j',
+  'А': 'A', 'В': 'B', 'Е': 'E', 'К': 'K', 'М': 'M', 'Н': 'H', 'О': 'O', 'Р': 'P', 'С': 'C', 'Т': 'T', 'Х': 'X',
+  'ο': 'o', 'α': 'a', 'ε': 'e', 'ρ': 'p', 'τ': 't', 'υ': 'u', 'χ': 'x', 'ν': 'v', 'κ': 'k',
+};
+
 function normalizeText(text: string): string {
   let out = text.replace(/[\u200B-\u200D\uFEFF]/g, '');
+  // Fold Cyrillic/Greek lookalike letters (homoglyphs) back to Latin.
+  out = out.replace(/[а-яА-Яα-ωΑ-Ω]/g, (ch) => HOMOGLYPH_MAP[ch] || ch);
   // Rejoin spaced-out or separator-split words: "s t e a l", "p.a.s.s.w.o.r.d"
   out = out.replace(/\b[a-zA-Z](?:[\s.\-_]+[a-zA-Z]){3,}\b/g, (m) => m.replace(/[\s.\-_]+/g, ''));
   out = out.replace(/[013457@$]/g, (ch) => LEET_MAP[ch] || ch);
@@ -144,8 +152,60 @@ function decodeBase64Blobs(text: string): string[] {
   return decoded;
 }
 
+function rot13(text: string): string {
+  return text.replace(/[a-zA-Z]/g, (ch) => {
+    const base = ch <= 'Z' ? 65 : 97;
+    return String.fromCharCode(((ch.charCodeAt(0) - base + 13) % 26) + base);
+  });
+}
+
+function printableRatio(s: string): number {
+  if (!s.length) return 0;
+  return s.replace(/[^\x20-\x7E]/g, '').length / s.length;
+}
+
+function decodeHexBlobs(text: string): string[] {
+  const decoded: string[] = [];
+  const candidates = text.match(/\b(?:[0-9a-fA-F]{2}){10,}\b/g) || [];
+  for (const candidate of candidates.slice(0, 4)) {
+    try {
+      const bytes = new Uint8Array(candidate.length / 2);
+      for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(candidate.slice(i * 2, i * 2 + 2), 16);
+      const plain = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+      if (plain.length >= 8 && printableRatio(plain) >= 0.85) decoded.push(plain);
+    } catch {
+      // Not valid hex payload; ignore.
+    }
+  }
+  return decoded;
+}
+
+function decodeBinaryBlobs(text: string): string[] {
+  const decoded: string[] = [];
+  const runs = text.match(/(?:\b[01]{8}\b[\s]*){5,}/g) || [];
+  for (const run of runs.slice(0, 2)) {
+    try {
+      const groups = run.trim().split(/\s+/);
+      const plain = groups.map((g) => String.fromCharCode(parseInt(g, 2))).join('');
+      if (plain.length >= 8 && printableRatio(plain) >= 0.85) decoded.push(plain);
+    } catch {
+      // Not a binary payload; ignore.
+    }
+  }
+  return decoded;
+}
+
 function scan(text: string, source: SentinelSignal['source'], multiplier = 1): SentinelSignal[] {
-  const variants = [text, normalizeText(text), ...decodeBase64Blobs(text).flatMap((d) => [d, normalizeText(d)])];
+  const normalized = normalizeText(text);
+  const variants = [
+    text,
+    normalized,
+    rot13(normalized),
+    [...normalized].reverse().join(''),
+    ...decodeBase64Blobs(text).flatMap((d) => [d, normalizeText(d)]),
+    ...decodeHexBlobs(text).flatMap((d) => [d, normalizeText(d)]),
+    ...decodeBinaryBlobs(text).flatMap((d) => [d, normalizeText(d)]),
+  ];
   const byCategory = new Map<string, SentinelSignal>();
   for (const variant of variants) {
     for (const rule of RULES) {
@@ -190,6 +250,15 @@ export function analyzeSentinel(input: SentinelInput): SentinelAssessment {
       for (let i = promptSignals.length - 1; i >= 0; i--) {
         if (promptSignals[i].category === 'critical-infrastructure-attack') promptSignals.splice(i, 1);
       }
+    }
+  }
+  // v0.4: payload splitting hides the payload across turns; scan the
+  // assembled conversation as one text so fragments that only become
+  // harmful when combined are scored as combined.
+  if (history.length) {
+    const joinedSignals = scan([...history, prompt].join('\n'), 'prompt', 1);
+    for (const s of joinedSignals) {
+      if (!promptSignals.some((ps) => ps.category === s.category)) promptSignals.push(s);
     }
   }
   const historySignals = history.flatMap((turn, index) => {
