@@ -83,6 +83,7 @@ export default function TalkingAvatarsPage() {
   const didManagerRef = useRef<any>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [didReady, setDidReady] = useState(false);
+  const [avatarRequested, setAvatarRequested] = useState(false);
 
   const selected = useMemo(
     () => executives.find((executive) => executive.name === selectedName) ?? executives[0],
@@ -108,6 +109,7 @@ export default function TalkingAvatarsPage() {
   }, []);
 
   useEffect(() => {
+    if (!avatarRequested) return;
     let cancelled = false;
     let manager: any = null;
     async function connectLipSyncAvatar() {
@@ -132,13 +134,14 @@ export default function TalkingAvatarsPage() {
         if (!cancelled) setDidReady(true);
       } catch (error) { console.error('Executive lip-sync avatar unavailable', error); }
     }
-    void connectLipSyncAvatar();
+    // Connect the optional video provider only when the user explicitly starts it.
+    // Avoid blocking initial voice-room interaction with a third-party connection.
     return () => {
       cancelled = true;
       if (manager?.disconnect) void manager.disconnect().catch(() => undefined);
       didManagerRef.current = null;
     };
-  }, []);
+  }, [avatarRequested]);
 
   function stopListening() {
     try { recognitionRef.current?.abort?.(); } catch {}
@@ -410,6 +413,7 @@ export default function TalkingAvatarsPage() {
                 {selected.expertise.map((item) => <span key={item}>{item}</span>)}
               </div>
               <div className="avatar-feature-actions">
+                <button className="avatar-secondary" onClick={() => setAvatarRequested(true)} disabled={avatarRequested}>{avatarRequested ? (didReady ? 'Avatar connected' : 'Connecting avatar…') : 'Enable live avatar'}</button>
                 <button className="avatar-primary" onClick={() => selectAndIntroduce(selected)}>▶ Hear {selected.name}</button>
                 <button className={`avatar-mic ${listening ? 'listening' : ''}`} onClick={() => startListening(false)}>
                   {listening ? 'Listening…' : '🎙 Dictate'}
