@@ -20,6 +20,9 @@ export type SentinelInput = {
   requestedActions?: string[];
   providerSignals?: ProviderSignal[];
   authorizationContext?: string;
+  // v0.5: 'child' turns on the child-safety profile (stricter content rules;
+  // every external action routes to a parent for approval).
+  profile?: 'standard' | 'child';
 };
 
 export type SentinelAssessment = {
@@ -90,6 +93,25 @@ const RULES: Rule[] = [
   { category: 'critical-infrastructure-attack', weight: 36, reason: 'Seeks to attack, sabotage, or shut down critical infrastructure (power, water, SCADA).', pattern: /\b(attack|attacks|attacking|sabotag(e|ing)|shut\s*down|disable|destroy|take\s+(down|out)|knock\s+out|blackout|infiltrat(e|ing)|get\s+inside|break\s+into)\b[^.\n]{0,60}\b(substations?|power\s+grid|electrical\s+grid|the\s+grid|scada|power\s+plant|water\s+treatment|control\s+systems?)\b|\b(substations?|power\s+grid|electrical\s+grid|scada)\b[^.\n]{0,50}\b(attack|shut\s*down|disable|destroy|infiltrat|get\s+inside|vulnerabilit)/i },
   { category: 'attack-planning', weight: 16, reason: 'Frames the request as a plan or step-by-step guide for an attack or detonation.', pattern: /\b(plan|planning|steps?|strategy|walkthrough|guide)\b[^.\n]{0,50}\b(attack|detonat|blow\s+up|sabotag|shut\s+down|infiltrat|get\s+inside)\b|\b(attack|detonat)\b[^.\n]{0,40}\b(plan|steps?|first|targets?)\b/i },
   { category: 'persona-override', weight: 26, reason: 'Attempts to replace the assistant persona with an unrestricted one (roleplay / developer-mode jailbreak).', pattern: /\b(you\s+are|act\s+as|pretend|roleplay\s+as|from\s+now\s+on\s+you\s+are)\b[^.\n]{0,60}\b(no\s+restrictions?|no\s+rules?|no\s+safety|unrestricted|without\s+(any\s+)?(limits?|restrictions?|rules?)|anything\s+goes|\bdan\b|do\s+anything\s+now)\b|\b(developer\s+mode|god\s+mode|unfiltered\s+mode|jailbreak\s+mode)\b|\bno\s+(content\s+)?(restrictions?|filters?|safety\s+rules?)\b/i },
+  // v0.5 (Nov 2026): content filter. Sentinel Personal members name content
+  // worries alongside action worries (explicit content, graphic violence,
+  // self-harm facilitation, and above all anything sexualizing a child), so
+  // the engine scores the content itself, not only the actions around it.
+  { category: 'csam', weight: 100, reason: 'Sexual content involving a minor. Hard block, no exceptions.', pattern: /\b(porn|pornographic|erotic|nude\s+(photo|picture|image|video)|sexual\s+(photo|picture|image|video|content))\b[^.\n]{0,40}\b(child|children|minor|underage|preteen|kid|schoolgirl|schoolboy)\b|\b(child|children|minor|underage|preteen)\b[^.\n]{0,40}\b(porn|pornographic|erotic|nude|sexual\s+(photo|image|video|content))\b/i },
+  { category: 'adult-content', weight: 30, reason: 'Requests generation of explicit sexual or pornographic content.', pattern: /\b(write|generate|create|produce|describe|give\s+me|show\s+me)\b[^.\n]{0,50}\b(explicit\s+(sexual|sex)|erotic|pornographic|porn|graphic\s+sex)\b|\b(explicit|erotic)\s+(story|scene|content|roleplay)\b/i },
+  { category: 'graphic-violence-content', weight: 24, reason: 'Requests graphic or gory violent content in detail.', pattern: /\b(describe|depict|write|generate|show)\b[^.\n]{0,50}\b(graphic|gory|gruesome)\b[^.\n]{0,30}\b(violence|gore|murder|torture|dismember\w*|beheading|mutilat\w*)\b|\b(graphic|gory|gruesome)\s+(detail|violence|gore)\b/i },
+  { category: 'self-harm-content', weight: 50, reason: 'Seeks instructions or facilitation for self-harm or suicide.', pattern: /\b(how\s+to|ways?\s+to|methods?\s+(of|for)|instructions?\s+for|steps\s+to)\b[^.\n]{0,40}\b(kill\s+myself|commit\s+suicide|end\s+my\s+life|take\s+my\s+own\s+life|self[-\s]?harm|harm\s+myself|suicide)\b|\b(suicide|self[-\s]?harm)\s+(methods?|instructions?|guide|steps)\b/i },
+];
+
+// v0.5: child-safety profile rules. These scan ONLY when the integrating
+// system sets profile: 'child' (a parent turns the profile on for a child's
+// agent). They cover the three ways agents endanger kids: personal
+// information leaving the house, contact moving to strangers or private
+// channels with secrecy, and transactions hidden from parents.
+const CHILD_RULES: Rule[] = [
+  { category: 'child-personal-info', weight: 40, reason: 'Shares or solicits a child\'s personal information (address, school, phone, age, location).', pattern: /\b(share|send|post|tell|give|reveal|publish)\b[^.\n]{0,45}\b(home\s+address|my\s+address|school\s+(name|address)|phone\s+number|where\s+(i|we)\s+live|my\s+age|real\s+name)\b|\bi\s*(?:'m|\s+am)\s+(?:[7-9]|1[0-7])\s*(?:years?\s*old|yo)\b/i },
+  { category: 'child-stranger-contact', weight: 38, reason: 'Moves a child toward contact with a stranger or a private channel, or asks for secrecy from parents.', pattern: /\b(meet\s+(up\s+)?(with\s+)?(a\s+)?(stranger|older\s+(man|woman|guy)|someone\s+(i\s+met\s+)?online)|add\s+me\s+on|move\s+(this|our\s+chat|the\s+conversation)\s+to\s+(snapchat|discord|telegram|whatsapp|kik)|(?:don'?t|do\s+not)\s+tell\s+(my\s+)?(parents?|mom|dad|mum)|keep\s+(this|it)\s+(a\s+)?secret|our\s+little\s+secret)\b/i },
+  { category: 'child-secret-transaction', weight: 26, reason: 'A purchase or subscription paired with hiding it from parents.', pattern: /\b(buy|purchase|order|subscribe|pay\s+for)\b[^.\n]{0,45}\b(without\s+(asking|telling)|(?:don'?t|do\s+not)\s+tell|secret(ly)?)\b|\b((?:don'?t|do\s+not)\s+tell|without\s+telling)\b[^.\n]{0,30}\b(buy|purchase|order|parents?)\b/i },
 ];
 
 const AUTHORIZED_CONTEXT = /\b(authorized|permission|owned\s+system|my\s+system|lab|sandbox|ctf|capture\s+the\s+flag|training\s+environment|defensive|blue\s+team|incident\s+response|security\s+audit|penetration\s+test)\b/i;
@@ -195,7 +217,7 @@ function decodeBinaryBlobs(text: string): string[] {
   return decoded;
 }
 
-function scan(text: string, source: SentinelSignal['source'], multiplier = 1): SentinelSignal[] {
+function scan(text: string, source: SentinelSignal['source'], multiplier = 1, rules: Rule[] = RULES): SentinelSignal[] {
   const normalized = normalizeText(text);
   const variants = [
     text,
@@ -208,7 +230,7 @@ function scan(text: string, source: SentinelSignal['source'], multiplier = 1): S
   ];
   const byCategory = new Map<string, SentinelSignal>();
   for (const variant of variants) {
-    for (const rule of RULES) {
+    for (const rule of rules) {
       if (!rule.pattern.test(variant)) continue;
       const signal: SentinelSignal = {
         category: rule.category,
@@ -239,8 +261,10 @@ export function analyzeSentinel(input: SentinelInput): SentinelAssessment {
   const history = (input.history || []).filter(Boolean).slice(-12);
   const actions = (input.requestedActions || []).filter(Boolean).slice(0, 20);
   const authContext = input.authorizationContext || '';
+  const childMode = input.profile === 'child';
+  const activeRules = childMode ? [...RULES, ...CHILD_RULES] : RULES;
 
-  const promptSignals = scan(prompt, 'prompt', 1);
+  const promptSignals = scan(prompt, 'prompt', 1, activeRules);
   // Defensive-framing guard: "how do we defend the grid against attacks" is
   // protective work, not an attack. When the framing is defensive and the
   // infrastructure category is the only material signal, drop it.
@@ -252,11 +276,23 @@ export function analyzeSentinel(input: SentinelInput): SentinelAssessment {
       }
     }
   }
+  // v0.5: prevention/support framing guard. "How to prevent suicide" and
+  // crisis-support writing are help, not facilitation; when the framing is
+  // support and no instruction-seeking signal beyond self-harm fired, drop
+  // the self-harm signal.
+  if (/\b(prevent|prevention|crisis|support|awareness|hotline|intervention|resources|help\s+someone)\b/i.test(prompt)) {
+    const otherMaterial = promptSignals.some((s) => s.weight >= 24 && s.category !== 'self-harm-content');
+    if (!otherMaterial) {
+      for (let i = promptSignals.length - 1; i >= 0; i--) {
+        if (promptSignals[i].category === 'self-harm-content') promptSignals.splice(i, 1);
+      }
+    }
+  }
   // v0.4: payload splitting hides the payload across turns; scan the
   // assembled conversation as one text so fragments that only become
   // harmful when combined are scored as combined.
   if (history.length) {
-    const joinedSignals = scan([...history, prompt].join('\n'), 'prompt', 1);
+    const joinedSignals = scan([...history, prompt].join('\n'), 'prompt', 1, activeRules);
     for (const s of joinedSignals) {
       if (!promptSignals.some((ps) => ps.category === s.category)) promptSignals.push(s);
     }
@@ -264,7 +300,7 @@ export function analyzeSentinel(input: SentinelInput): SentinelAssessment {
   const historySignals = history.flatMap((turn, index) => {
     const age = history.length - index;
     const multiplier = age <= 2 ? 0.65 : 0.4;
-    return scan(turn, 'history', multiplier);
+    return scan(turn, 'history', multiplier, activeRules);
   });
 
   const actionSignals: SentinelSignal[] = actions
@@ -295,6 +331,16 @@ export function analyzeSentinel(input: SentinelInput): SentinelAssessment {
       category: 'unverified-authorization-claim',
       weight: 12,
       reason: 'Authorization is claimed inside the request text itself, which is not evidence of authorization.',
+      source: 'prompt' as const,
+    });
+  }
+  // v0.5: on a child's profile, adult content is not a mid-tier signal; it
+  // escalates to a block-level exposure signal.
+  if (childMode && promptSignals.some((s) => s.category === 'adult-content')) {
+    allSignals.push({
+      category: 'child-content-exposure',
+      weight: 45,
+      reason: 'Explicit content on a child profile escalates automatically; children get the strict line, not the adult one.',
       source: 'prompt' as const,
     });
   }
@@ -347,6 +393,13 @@ export function analyzeSentinel(input: SentinelInput): SentinelAssessment {
     gateReasons.push('Bulk infrastructure provisioning at mass scale was detected; spend of this size needs a human approver.');
   }
 
+  // v0.5: child profile gate. On a child's agent, EVERY external action
+  // routes to a parent first, even ones an adult profile would pass.
+  if (childMode && actions.length > 0 && actionGate !== 'deny') {
+    actionGate = 'human_approval';
+    gateReasons.push("Child safety profile: every external action needs a parent's approval before it runs.");
+  }
+
   const external = input.providerSignals || [];
   const avg = external.length ? Math.round(external.reduce((sum, s) => sum + clamp(s.score, 0, 100), 0) / external.length) : null;
   const max = external.length ? Math.max(...external.map((s) => clamp(s.score, 0, 100))) : null;
@@ -354,6 +407,7 @@ export function analyzeSentinel(input: SentinelInput): SentinelAssessment {
   const reasons = [...new Set(allSignals.map((signal) => signal.reason))];
   if (fieldAuthorized && !hasClearlyHarmfulLanguage) reasons.push('Authorized defensive context reduced risk, but did not disable safety checks.');
   if (promptClaimsAuthorization && !fieldAuthorized) reasons.push('Authorization claimed inside the request text was not credited; only system-supplied context counts.');
+  if (childMode) reasons.push('Child safety profile is on: content rules are stricter, and every external action needs a parent to approve it first.');
   if (!reasons.length) reasons.push('No material malicious-intent indicators were detected in the supplied context.');
 
   return {
