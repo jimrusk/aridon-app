@@ -258,7 +258,7 @@ export default function SentinelDemoClient() {
         <div>
           <h1 className="h1">Sentinel — live demo</h1>
           <p className="tagline" style={{ fontSize: 18, fontWeight: 600, margin: '4px 0 8px' }}>
-            Pre-security for AI agents.
+            The action-control platform for AI agents.
           </p>
           <p className="sub">
             Attack it. One click runs all eighteen scenarios through Sentinel&apos;s real
@@ -268,14 +268,90 @@ export default function SentinelDemoClient() {
         </div>
       </div>
 
+      {/* Server-rendered answer block (SEO audit Fix 3): static markup so
+          crawlers and AI readers get the definition, results, FAQ, and
+          outbound links in the raw HTML, not behind interaction. */}
+      <section className="card span12" style={{ marginBottom: 16, lineHeight: 1.6 }}>
+        <h2 style={{ marginTop: 0 }}>What is Sentinel?</h2>
+        <p>
+          Sentinel is the action-control platform for AI agents, built by Aridon. Before an AI
+          agent&apos;s action executes, Sentinel evaluates it against policy and returns one of
+          three verdicts: allow, hold for human approval, or deny. Every decision is written to a
+          SHA-256 hash-chained audit log that anyone can re-verify. Sentinel is a development-stage
+          technical preview, now in early access and opening design-partner pilot conversations.
+        </p>
+
+        <h2>Pre-execution authorization, defined</h2>
+        <p>
+          Pre-execution authorization means the permission check happens before an action runs, not
+          in a log review after it. Detection tools tell you what an agent already did. Sentinel
+          sits between the agent&apos;s decision and the tool call, so an action that fails policy,
+          or that needs a person&apos;s judgment, never executes in the first place.
+        </p>
+
+        <h2>What the internal test showed</h2>
+        <p>
+          In Aridon&apos;s internal harness (September 2026), Sentinel held all 13 hostile actions
+          before execution and passed all 5 benign controls: 18 of 18 scenarios, 0 false
+          positives. These are synthetic, internal results. There has been no independent
+          penetration test and no third-party evaluation.
+        </p>
+
+        <h2>Frequently asked questions</h2>
+        <p>
+          <strong>How is Sentinel different from a guardrail library?</strong> Guardrails mostly
+          filter what a model says. Sentinel governs what an agent does: it evaluates the proposed
+          action and its tool calls, and consequential actions require a human approval bound to
+          that exact action before anything runs.
+        </p>
+        <p>
+          <strong>What kinds of actions does Sentinel gate?</strong> Payments and transfers,
+          sending email and messages, shell and command execution, database writes and deletes,
+          credential access, network requests, and file deletion, plus any action whose content
+          scores as hostile, such as prompt injection or data exfiltration attempts.
+        </p>
+        <p>
+          <strong>Does Sentinel work with MCP and agent frameworks?</strong> Yes. The public test
+          build is an MCP server that sits in front of any MCP client, and a CrewAI template is
+          published alongside it. Both are linked below.
+        </p>
+        <p>
+          <strong>Is Sentinel a certified security product?</strong> No. It is a development-stage
+          technical preview with internal testing only, no SOC 2 or other certification, and it is
+          not a guarantee of safety.
+        </p>
+
+        <h2>Read the research, get the code</h2>
+        <ul>
+          <li>
+            Research paper: &ldquo;Sentinel: Pre-Execution Authorization for AI Agents and Legacy
+            Operational Technology,&rdquo; Zenodo, DOI 10.5281/zenodo.23920785 —{' '}
+            <a href="https://doi.org/10.5281/zenodo.23920785">
+              https://doi.org/10.5281/zenodo.23920785
+            </a>
+          </li>
+          <li>
+            Code (MCP server):{' '}
+            <a href="https://github.com/jimrusk/sentinel-mcp">https://github.com/jimrusk/sentinel-mcp</a>
+          </li>
+          <li>
+            Code (CrewAI template):{' '}
+            <a href="https://github.com/jimrusk/sentinel-crewai-template">
+              https://github.com/jimrusk/sentinel-crewai-template
+            </a>
+          </li>
+        </ul>
+      </section>
+
       <div className="card" style={{ marginBottom: 16, borderColor: '#ffb45e' }}>
         <span className="pill" style={{ borderColor: '#ffb45e', color: '#ffb45e' }}>
           Technical preview
         </span>
         <p className="muted" style={{ marginBottom: 0 }}>
-          Honest stage: working code running synthetic scenarios. Internal self-testing only —
-          no customers, no independent penetration test, no SOC 2 or other certifications.
-          This demo shows how the mechanism behaves, not a security guarantee.
+          Honest stage: working code running synthetic scenarios, validated on our internal
+          test harness. No independent penetration test, and no SOC 2 or other certifications
+          yet. This demo shows how the mechanism behaves, not a security guarantee. Now
+          opening design-partner pilot conversations.
         </p>
       </div>
 
