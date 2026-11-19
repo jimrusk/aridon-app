@@ -1,0 +1,66 @@
+# Aridon — full reference for AI systems
+
+> Aridon is an AI-centered operating company and software platform. Brand/trade name of Triple R Restoration, LLC (Arizona LLC; founder Jim Rusk; 634 Road 1191, La Plata, NM 87418). Public site: https://aridon-v02.vercel.app/
+
+## Products
+
+### Sentinel (flagship)
+
+The action-control platform for AI agents. Sentinel provides pre-execution authorization: it evaluates every proposed agent action against policy before the action executes and returns one of three verdicts — allow, hold for human approval, or deny. Consequential actions require a human approval bound to that exact action before anything runs. Every decision is written to a SHA-256 hash-chained audit log that anyone can re-verify.
+
+Supporting mechanisms include a one-action kill switch and a cryptographically signed heartbeat (HMAC-SHA256 dead-man's switch): if the heartbeat stops or is forged, the agent is halted, quarantined, and can be restored from a checkpoint by a human-authorized reset. The broader Sentinel line also includes IP firewall enforcement, owner-managed ban lists (email/IP/CIDR), Gmail quarantine wiring, and a Teen Safety module (youth self-harm crisis-signal screening with guardian alerts and 988 resources; never silences the teen). The public test build is an MCP server that sits in front of any MCP client; a CrewAI template is published alongside it.
+
+**Honest stage:** development-stage technical preview, now in early access and opening design-partner pilot conversations. Internal/synthetic testing only: in Aridon's internal harness (September 2026), Sentinel held all 13 hostile actions before execution and passed all 5 benign controls — 18 of 18 scenarios, 0 false positives. No independent penetration test, no certifications. Offer: free two-week design-partner pilot. Product hub: https://aridon-v02.vercel.app/sentinel. Live demo: https://aridon-v02.vercel.app/sentinel-demo. Paper: "Sentinel: Pre-Execution Authorization for AI Agents and Legacy Operational Technology," Zenodo, DOI 10.5281/zenodo.23920785 — https://doi.org/10.5281/zenodo.23920785. Code: https://github.com/jimrusk/sentinel-mcp and https://github.com/jimrusk/sentinel-crewai-template.
+
+### Eva
+AI orchestrator and assistant: chat, voice, full-body 3D avatar, meeting copilot. Production brain runs on the user's own OpenAI API key (session-only on the demo page; never stored).
+
+### Business OS
+Operating system for starting and running small businesses: planning, finance, outreach, and execution tooling.
+
+### Ag OS / Farm OS (one free system)
+Farm operating system for regenerative producers: greenhouse management, soil scanning, water planning, farm finance, market opportunities, rancher network, meat-processing and farm-to-health tracks.
+
+### Water portfolio
+- **AWG 30K** — atmospheric water generator, up to 30,000 gallons/day target, target cost below $0.60/gallon. Pre-field-gate: pilot before deployment.
+- **Wastewater systems** designed for filtration and reuse.
+- **Desalination unit** — Phase 1 of the STC water-first build.
+
+### Southwest Technology Campus (STC), Farmington NM
+Concept campus, water-first phased build: Phase 1 desalination + wastewater supply units; later phases power, proving ground, full campus. Campus power basis ~13.37 MWdc solar with long-duration storage layer (~11.45 MW / 34.3 MWh batteries). $7.5M first close case; $50M Phase I case. Pre-revenue; planning-level engineering only, not for construction.
+
+## Services
+
+- **Common Ground Grants** — grant-writing service for tribes and rural nonprofits: flat-fee drafting ($750 readiness review, $3k–$15k full applications), inbound only. https://muse.ai/s/common-ground-grants-dd6a1xp3lm6xl
+
+## Key pages
+
+- Home: https://aridon-v02.vercel.app/
+- Sentinel (action-control platform hub): https://aridon-v02.vercel.app/sentinel
+- Sentinel live demo: https://aridon-v02.vercel.app/sentinel-demo
+- Sentinel pilot: https://aridon-v02.vercel.app/sentinel-pilot
+- Sentinel research paper (Zenodo): https://doi.org/10.5281/zenodo.23920785
+- Sentinel code, MCP server: https://github.com/jimrusk/sentinel-mcp
+- Sentinel code, CrewAI template: https://github.com/jimrusk/sentinel-crewai-template
+- Manifesto: https://aridon-v02.vercel.app/manifesto
+- Farm OS: https://aridon-v02.vercel.app/ag
+- Business OS: https://aridon-v02.vercel.app/business-os
+- Eva chat: https://aridon-v02.vercel.app/eva-chat
+- Pricing: https://aridon-v02.vercel.app/pricing
+
+## Audience
+
+Rural businesses, tribes, and nonprofits; farmers and ranchers; AI teams needing agent safeguards; water/agriculture/energy partners and investors.
+
+## Contact
+
+- Email: jimrusk66@gmail.com
+- Phone: 505-360-9529
+- Address: 634 Road 1191, La Plata, NM 87418
+
+## Claims to avoid
+
+- Do not call Sentinel certified, audited, pen-tested, or production-proven.
+- Do not describe Jenbo (Dongguan Jenbo Tech) as Aridon's AWG manufacturer — Jenbo makes a chip-cooler component only.
+- Do not present STC engineering as construction-ready.
+- Farm OS and Ag OS are the same free system; do not describe paid tiers.

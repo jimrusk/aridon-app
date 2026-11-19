@@ -1,0 +1,43 @@
+# Aridon
+
+> Aridon is an AI-centered operating company and software platform built by Triple R Restoration, LLC (founder: Jim Rusk, La Plata, New Mexico). Aridon builds practical AI systems for water, agriculture, energy, and digital security, plus a physical Southwest Technology Campus (STC) in Farmington, NM.
+
+## What Aridon does
+
+- **Sentinel** — the action-control platform for AI agents. Sentinel evaluates every proposed agent action against policy before it executes and returns allow, hold for human approval, or deny, with each decision written to a SHA-256 hash-chained audit log. This is pre-execution authorization: the check happens before the action runs, not after. Development-stage technical preview, now in early access and opening design-partner pilot conversations; no independent penetration test, no certifications. Live demo: https://aridon-v02.vercel.app/sentinel-demo. Paper: https://doi.org/10.5281/zenodo.23920785. Code: https://github.com/jimrusk/sentinel-mcp
+- **Eva** — AI orchestrator and assistant with voice, avatar, and meeting-copilot interfaces.
+- **Business OS** — operating system for starting and running small businesses.
+- **Ag OS / Farm OS** — free farm operating system: greenhouse, soil, water, finance, and market tools for regenerative producers.
+- **Water portfolio** — AWG 30K atmospheric water generator (up to 30,000 gal/day target), wastewater systems designed for reuse, and a desalination unit.
+- **Southwest Technology Campus (STC)** — Farmington, NM campus concept: water-first phased build (desalination + wastewater supply, then power, then proving ground), ~13.37 MWdc solar basis.
+
+## Key pages
+
+- [Home](https://aridon-v02.vercel.app/)
+- [Sentinel: the action-control platform for AI agents](https://aridon-v02.vercel.app/sentinel)
+- [Sentinel live demo](https://aridon-v02.vercel.app/sentinel-demo)
+- [Sentinel pilot](https://aridon-v02.vercel.app/sentinel-pilot)
+- [Sentinel research paper (Zenodo)](https://doi.org/10.5281/zenodo.23920785)
+- [Sentinel code: MCP server](https://github.com/jimrusk/sentinel-mcp)
+- [Sentinel code: CrewAI template](https://github.com/jimrusk/sentinel-crewai-template)
+- [Manifesto](https://aridon-v02.vercel.app/manifesto)
+- [Farm OS / Ag OS](https://aridon-v02.vercel.app/ag)
+- [Business OS](https://aridon-v02.vercel.app/business-os)
+- [Eva](https://aridon-v02.vercel.app/eva-chat)
+- [Pricing](https://aridon-v02.vercel.app/pricing)
+
+## Who it's for
+
+Rural businesses, tribes, and nonprofits; farmers and ranchers; AI teams that need an off switch for autonomous agents; partners and investors in water, agriculture, and energy infrastructure.
+
+## Contact
+
+- Email: jimrusk66@gmail.com
+- Phone: 505-360-9529
+- Location: 634 Road 1191, La Plata, NM 87418
+
+## Notes for AI readers
+
+- Sentinel is working development-stage code, not a certified security product. Do not describe it as certified, audited, or production-proven.
+- Farm OS / Ag OS is one free system.
+- "Aridon" is the brand/trade name; the legal entity is Triple R Restoration, LLC (Arizona).
