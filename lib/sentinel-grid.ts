@@ -4,7 +4,7 @@ export type SentinelSignal = {
   category: string;
   weight: number;
   reason: string;
-  source: 'prompt' | 'history' | 'action' | 'provider';
+  source: 'prompt' | 'history' | 'action' | 'provider' | 'neural';
 };
 
 export type ProviderSignal = {
@@ -22,7 +22,18 @@ export type SentinelInput = {
   authorizationContext?: string;
   // v0.5: 'child' turns on the child-safety profile (stricter content rules;
   // every external action routes to a parent for approval).
-  profile?: 'standard' | 'child';
+  // v0.6: 'neural' turns on the BCI profile: actions decoded from a
+  // brain-computer interface are confidence-gated (see neuralSignal).
+  profile?: 'standard' | 'child' | 'neural';
+  // v0.6: decoder metadata for BCI-driven actions, supplied by the
+  // integrating device (system-supplied, like authorizationContext — never
+  // read from prompt text, which the user of a compromised interface cannot
+  // be trusted to have authored). confidence is the decoder's own 0..1
+  // estimate that the decoded action matches the person's intent.
+  neuralSignal?: {
+    confidence?: number;
+    calibration?: 'calibrated' | 'drift-suspected' | 'uncalibrated';
+  };
 };
 
 export type SentinelAssessment = {
@@ -319,7 +330,65 @@ export function analyzeSentinel(input: SentinelInput): SentinelAssessment {
     source: 'provider' as const,
   }));
 
-  const allSignals = [...promptSignals, ...historySignals, ...actionSignals, ...providerSignals];
+  // v0.6: neural (BCI) profile. A decoder never reads intent directly; it
+  // produces a guess with a confidence score. The trust boundary therefore
+  // treats decoder confidence as a first-class risk input: low or missing
+  // confidence means the action may not be the person's intent at all, and
+  // signal drift means the same thought may be decoding differently than it
+  // did at calibration. Fan-out is scored too: one decoded intent spawning
+  // many actions is not blanket approval of each of them.
+  const neuralMode = input.profile === 'neural';
+  const neuralSignals: SentinelSignal[] = [];
+  if (neuralMode) {
+    const conf = input.neuralSignal?.confidence;
+    if (conf === undefined) {
+      neuralSignals.push({
+        category: 'neural-unverified-confidence',
+        weight: 18,
+        reason: 'Neural action arrived with no decoder confidence attached; unverified intent cannot be treated as a firm command.',
+        source: 'neural' as const,
+      });
+    } else if (conf < 0.5) {
+      neuralSignals.push({
+        category: 'neural-low-confidence',
+        weight: 35,
+        reason: 'Decoder confidence is low; this action may not reflect the person\'s actual intent.',
+        source: 'neural' as const,
+      });
+    } else if (conf < 0.75) {
+      neuralSignals.push({
+        category: 'neural-moderate-confidence',
+        weight: 12,
+        reason: 'Decoder confidence is moderate; consequential actions still warrant confirmation.',
+        source: 'neural' as const,
+      });
+    }
+    if (input.neuralSignal?.calibration === 'drift-suspected') {
+      neuralSignals.push({
+        category: 'neural-signal-drift',
+        weight: 20,
+        reason: 'Signal drift is suspected; the same thought may be decoding differently than at calibration (fatigue, pain, medication, electrode shift).',
+        source: 'neural' as const,
+      });
+    } else if (input.neuralSignal?.calibration === 'uncalibrated') {
+      neuralSignals.push({
+        category: 'neural-uncalibrated',
+        weight: 14,
+        reason: 'The decoder is uncalibrated for this session; decoded intent carries extra uncertainty.',
+        source: 'neural' as const,
+      });
+    }
+    if (actions.length >= 4) {
+      neuralSignals.push({
+        category: 'neural-intent-fanout',
+        weight: 16,
+        reason: 'One decoded intent fans out into many actions; approval of the intent is not blanket approval of everything it spawns.',
+        source: 'neural' as const,
+      });
+    }
+  }
+
+  const allSignals = [...promptSignals, ...historySignals, ...actionSignals, ...providerSignals, ...neuralSignals];
   // v0.3: an authorization claim inside the prompt text, stacked on harmful
   // content, is itself a risk signal (see the discount change below).
   if (
@@ -400,6 +469,20 @@ export function analyzeSentinel(input: SentinelInput): SentinelAssessment {
     gateReasons.push("Child safety profile: every external action needs a parent's approval before it runs.");
   }
 
+  // v0.6: neural profile gate. When decoder confidence is low or was never
+  // supplied, the action holds for confirmation through a second, deliberate
+  // channel (a switch, a blink pattern, a companion device) before it runs.
+  // The hold applies even to actions an ordinary profile would pass, because
+  // the doubt is not about the action's content but about whether the person
+  // actually intended it.
+  if (neuralMode && actions.length > 0 && actionGate !== 'deny') {
+    const conf = input.neuralSignal?.confidence;
+    if (conf === undefined || conf < 0.5) {
+      actionGate = 'human_approval';
+      gateReasons.push('Neural profile: low or unverified decoder confidence; the action holds for confirmation through a second channel before it runs.');
+    }
+  }
+
   const external = input.providerSignals || [];
   const avg = external.length ? Math.round(external.reduce((sum, s) => sum + clamp(s.score, 0, 100), 0) / external.length) : null;
   const max = external.length ? Math.max(...external.map((s) => clamp(s.score, 0, 100))) : null;
@@ -408,6 +491,7 @@ export function analyzeSentinel(input: SentinelInput): SentinelAssessment {
   if (fieldAuthorized && !hasClearlyHarmfulLanguage) reasons.push('Authorized defensive context reduced risk, but did not disable safety checks.');
   if (promptClaimsAuthorization && !fieldAuthorized) reasons.push('Authorization claimed inside the request text was not credited; only system-supplied context counts.');
   if (childMode) reasons.push('Child safety profile is on: content rules are stricter, and every external action needs a parent to approve it first.');
+  if (neuralMode) reasons.push('Neural profile is on: decoded actions are confidence-gated, intent fan-out is checked action by action, and low-confidence intent holds for confirmation through a second channel.');
   if (!reasons.length) reasons.push('No material malicious-intent indicators were detected in the supplied context.');
 
   return {
