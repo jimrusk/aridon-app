@@ -8,28 +8,29 @@ const NO_STORE_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
 };
 
-type TtsVoice = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+type TtsVoice = 'alloy' | 'ash' | 'ballad' | 'coral' | 'echo' | 'fable' | 'onyx' | 'nova' | 'sage' | 'shimmer' | 'verse';
 
 type VoiceProfile = {
   voice: TtsVoice;
   speed: number;
 };
 
+// Each member of the eleven-person executive team has a unique synthesis voice.
 const EXECUTIVE_VOICES: Record<string, VoiceProfile> = {
-  Heather: { voice: 'nova', speed: 1.02 },
+  Heather: { voice: 'coral', speed: 1.02 },
   Nova: { voice: 'shimmer', speed: 0.96 },
-  Scout: { voice: 'echo', speed: 1.02 },
+  Scout: { voice: 'echo', speed: 1.04 },
   Atlas: { voice: 'onyx', speed: 0.94 },
-  Oracle: { voice: 'nova', speed: 1.08 },
-  Ethos: { voice: 'onyx', speed: 0.84 },
-  Ledger: { voice: 'echo', speed: 0.93 },
+  Oracle: { voice: 'verse', speed: 1.05 },
+  Ethos: { voice: 'sage', speed: 0.90 },
+  Ledger: { voice: 'ash', speed: 1.02 },
   'Sierra Bennett': { voice: 'nova', speed: 0.98 },
-  'Maya Torres': { voice: 'shimmer', speed: 0.94 },
+  'Maya Torres': { voice: 'ballad', speed: 0.95 },
   'Claire Morgan': { voice: 'alloy', speed: 0.96 },
-  Eva: { voice: 'shimmer', speed: 1.01 },
+  Eva: { voice: 'fable', speed: 1.0 },
   'Contrarian Curriculum Tutor': { voice: 'shimmer', speed: 0.98 },
   'Maria Curriculum Tutor': { voice: 'nova', speed: 1.0 },
-  'Future Skills Guide': { voice: 'nova', speed: 0.98 },
+  'Future Skills Guide': { voice: 'coral', speed: 0.98 },
 };
 
 function cleanText(value: unknown) {
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const speech = await client.audio.speech.create({
-      model: process.env.OPENAI_TTS_MODEL || 'tts-1-hd',
+      model: process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts',
       voice: profile.voice,
       input: text,
       response_format: 'mp3',
