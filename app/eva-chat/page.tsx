@@ -99,11 +99,14 @@ export default function EvaChatPage() {
     setMessages(next); setInput('');
 
     const substantial = /\b(research|find|search|build|create|design|compare|analy[sz]e|contact|send|email|schedule|plan|investigate|check|follow up|execute|do it|handle|run|prepare|develop|fix|update)\b/i.test(text) || text.length > 180;
+    // Always give a real conversational answer, including for substantial requests.
+    // Background work is independent and must not replace Eva's reply with a canned acknowledgement.
     if (substantial) {
-      setMessages((current) => [...current, { role: 'assistant', content: 'I have it. I’m handing the longer work to my background team now, and I’m staying here with you. What else do you want to cover while they work?' }]);
-      try { await handOff(text, next); }
-      catch (error) { setMessages((current) => [...current, { role: 'assistant', content: error instanceof Error ? `I stayed with the conversation, but the background handoff hit this blocker: ${error.message}` : 'The background handoff hit a blocker.' }]); }
-      return;
+      void handOff(text, next).catch((error) => {
+        setMessages((current) => [...current, { role: 'assistant', content: error instanceof Error
+          ? `The background handoff hit a blocker: ${error.message}`
+          : 'The background handoff hit a blocker.' }]);
+      });
     }
 
     setChatBusy(true);
